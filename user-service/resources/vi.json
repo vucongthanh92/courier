@@ -1,0 +1,11 @@
+{
+    "hello": "xin chao",
+    "welcome": "Welcome to my app![vi]",
+    "required": "{{.FieldName}} la bat buoc",
+    "password": "Mat khau",
+    "confirmpassword": "Xac nhan mat khau",
+    "age_not_negative": "Tuoi khong duoc so am",
+    "gt": "{{.FieldName}} phải lớn hơn {{.FieldData}}",
+    "age": "Tuoi",
+    "eqfield": "{{.FieldName}} giống với {{.FieldData}}"
+}

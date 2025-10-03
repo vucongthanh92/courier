@@ -1,0 +1,11 @@
+{
+    "hello": "Hello",
+    "welcome": "Welcome to my app!",
+    "required": "{{.FieldName}} is required",
+    "password": "Password",
+    "confirmpassword": "Confirm Password",
+    "age_not_negative": "The age is not negative",
+    "gt": "{{.FieldName}} must be greater than {{.FieldData}}",
+    "age": "Age",
+    "eqfield": "{{.FieldName}} must be equal with {{.FieldData}}"
+}

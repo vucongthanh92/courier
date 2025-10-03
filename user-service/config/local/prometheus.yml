@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 10s
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: [ 'localhost:9090' ]
+
+  - job_name: 'system'
+    static_configs:
+      - targets: [ 'host.docker.internal:9100' ]
+
+  - job_name: 'grpc_order_service'
+    static_configs:
+      - targets: [ 'host.docker.internal:8001' ]
+
+  - job_name: 'http_order_service'
+    static_configs:
+      - targets: [ 'host.docker.internal:8002' ]

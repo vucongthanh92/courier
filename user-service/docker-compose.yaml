@@ -1,0 +1,194 @@
+version: '3.8'
+
+services:
+  orderservice:
+    build:
+        context: .
+        dockerfile: Dockerfile
+    container_name: orderservice
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+        tag: "{{.ImageName}}|{{.Name}}|{{.ImageFullID}}|{{.FullID}}"
+    environment:
+      - APP_ENV=local
+    ports:
+      - '5001:5001'
+  # readDb:
+  #   image: mysql
+  #   container_name: readDb
+  #   command: --default-authentication-plugin=mysql_native_password
+  #   restart: always
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: admin
+  #     MYSQL_DATABASE: baseservices
+  #   ports:
+  #     - 3306:3306
+
+  # writeDb:
+  #   image: mysql
+  #   container_name: writeDb
+  #   command: --default-authentication-plugin=mysql_native_password
+  #   restart: always
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: admin
+  #     MYSQL_DATABASE: baseservices
+  #   ports:
+  #     - 3307:3306
+
+  # adminer:
+  #   image: adminer
+  #   restart: always
+  #   ports:
+  #     - 8080:8080
+
+  # jaeger:
+  #   container_name: base_jaeger_container
+  #   restart: always
+  #   image: jaegertracing/all-in-one:1.21
+  #   environment:
+  #     - COLLECTOR_ZIPKIN_HTTP_PORT=9411
+  #   ports:
+  #     - "5775:5775/udp"
+  #     - "6831:6831/udp"
+  #     - "6832:6832/udp"
+  #     - "5778:5778"
+  #     - "16686:16686"
+  #     - "14268:14268"
+  #     - "14250:14250"
+  #     - "9411:9411"
+
+  # zoo1:
+  #   image: confluentinc/cp-zookeeper:7.2.1
+  #   hostname: zoo1
+  #   container_name: zoo1
+  #   ports:
+  #     - "2181:2181"
+  #   environment:
+  #     ZOOKEEPER_CLIENT_PORT: 2181
+  #     ZOOKEEPER_SERVER_ID: 1
+  #     ZOOKEEPER_SERVERS: zoo1:2888:3888
+
+  # kafka1:
+  #   image: confluentinc/cp-kafka
+  #   restart: always
+  #   hostname: kafka1
+  #   ports:
+  #     - "9092:9092"
+  #     - "9999:9999"
+  #   environment:
+  #     KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka1:19092,LISTENER_DOCKER_EXTERNAL://${DOCKER_HOST_IP:-127.0.0.1}:9092
+  #     KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+  #     KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_DOCKER_INTERNAL
+  #     KAFKA_ZOOKEEPER_CONNECT: "zoo1:2181"
+  #     KAFKA_BROKER_ID: 1
+  #     KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+  #     KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  #     KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+  #     KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+  #     KAFKA_JMX_PORT: 9999
+  #     KAFKA_JMX_HOSTNAME: ${DOCKER_HOST_IP:-127.0.0.1}
+  #   volumes:
+  #     - ./zk-single-kafka-single/kafka1/data:/var/lib/kafka/data
+  #   depends_on:
+  #     - zoo1
+
+  # redis:
+  #   image: redis:6-alpine
+  #   restart: always
+  #   container_name: order_service_redis
+  #   ports:
+  #     - "6379:6379"
+
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: order_service_prometheus
+  #   restart: always
+  #   ports:
+  #     - "9090:9090"
+  #   command:
+  #     - --config.file=/etc/prometheus/prometheus.yml
+  #   volumes:
+  #     - ./config/local/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  # node_exporter:
+  #   container_name: order_service_node_exporter_container
+  #   restart: always
+  #   image: prom/node-exporter
+  #   ports:
+  #     - '9100:9100'
+
+  # grafana:
+  #   container_name: order_service_grafana_container
+  #   restart: always
+  #   image: grafana/grafana
+  #   ports:
+  #     - '3000:3000'
+
+  # lenses:
+  #   image: lensesio/lenses:latest
+  #   platform: linux/amd64
+  #   environment:
+  #     LENSES_PORT: 9991
+  #     LENSES_SECURITY_USER: admin
+  #     LENSES_SECURITY_PASSWORD: sha256:8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+  #     LENSES_KAFKA_BROKERS: "PLAINTEXT://kafka1:9092"
+  #   ports:
+  #     - 9991:9991
+  #     - 9102:9102
+#
+#  mongo:
+#    image: mongo:4.2
+#    networks:
+#      - graylog
+#  # Elasticsearch: https://www.elastic.co/guide/en/elasticsearch/reference/7.10/docker.html
+#  elasticsearch:
+#    image: docker.elastic.co/elasticsearch/elasticsearch-oss:7.10.2
+#    environment:
+#      - http.host=0.0.0.0
+#      - transport.host=localhost
+#      - network.host=0.0.0.0
+#      - "ES_JAVA_OPTS=-Dlog4j2.formatMsgNoLookups=true -Xms512m -Xmx512m"
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 1g
+#    networks:
+#      - graylog
+#  # Graylog: https://hub.docker.com/r/graylog/graylog/
+#  graylog:
+#    image: graylog/graylog:4.3
+#    environment:
+#      # CHANGE ME (must be at least 16 characters)!
+#      - GRAYLOG_PASSWORD_SECRET=W(6h9nHeYW!A36Nw#JQs
+#      # Password: admin
+#      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+#      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
+#    entrypoint: /usr/bin/tini -- wait-for-it elasticsearch:9200 --  /docker-entrypoint.sh
+#    networks:
+#      - graylog
+#    restart: always
+#    depends_on:
+#      - mongo
+#      - elasticsearch
+#    ports:
+#      # Graylog web interface and REST API
+#      - 9000:9000
+#      # Syslog TCP
+#      - 1514:1514
+#      # Syslog UDP
+#      - 1514:1514/udp
+#      # GELF TCP
+#      - 12201:12201
+#      # GELF UDP
+#      - 12201:12201/udp
+#networks:
+#  graylog:
+#    driver: bridge
