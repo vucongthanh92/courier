@@ -1,4 +1,4 @@
-serviceName: order_service
+serviceName: user_service
 development: true
 database:
   readDb:
@@ -43,8 +43,8 @@ tracing:
   logSpans: false
 kafka:
   dialer:
-    username: AGLMKA433JNXALY3
-    password: 8hG3ZfwlT77+8dNLSMMOB+Is0JXAGYCTH9fPm+FzzyYlZvuChC4rD50GrwXo/CXF
+    username:
+    password:
   config:
     brokers: [ "pkc-ldvr1.asia-southeast1.gcp.confluent.cloud:9092" ]
     groupID: order_service_consumer
@@ -52,7 +52,7 @@ kafka:
     numWorker: 20
   topics:
     submitOrder:
-      topicName: gogovan.consumer-web.order.submit-order
+      topicName: consumer-web.order.submit-order
       numPartitions: 10
       replicationFactor: 1
 redis:
