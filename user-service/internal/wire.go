@@ -4,24 +4,24 @@
 package internal
 
 import (
-	categoryService "github.com/vucongthanh92/go-base-project/internal/application/category"
-	"github.com/vucongthanh92/go-base-project/internal/application/cronjob"
-	productService "github.com/vucongthanh92/go-base-project/internal/application/product"
-	supplierService "github.com/vucongthanh92/go-base-project/internal/application/supplier"
+	categoryService "github.com/vucongthanh92/courier/user-service/internal/application/category"
+	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
+	productService "github.com/vucongthanh92/courier/user-service/internal/application/product"
+	supplierService "github.com/vucongthanh92/courier/user-service/internal/application/supplier"
 
-	categoryRepo "github.com/vucongthanh92/go-base-project/internal/repository/persistent/category"
-	productRepo "github.com/vucongthanh92/go-base-project/internal/repository/persistent/product"
-	supplierRepo "github.com/vucongthanh92/go-base-project/internal/repository/persistent/supplier"
+	categoryRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/category"
+	productRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/product"
+	supplierRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/supplier"
 
-	grpcserver "github.com/vucongthanh92/go-base-project/internal/api/grpc"
-	v1 "github.com/vucongthanh92/go-base-project/internal/api/http/v1"
+	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
+	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 
-	"github.com/vucongthanh92/go-base-project/config"
-	"github.com/vucongthanh92/go-base-project/database"
-	"github.com/vucongthanh92/go-base-project/internal/api"
-	"github.com/vucongthanh92/go-base-project/internal/api/cron"
-	"github.com/vucongthanh92/go-base-project/internal/api/http"
-	"github.com/vucongthanh92/go-base-project/redis"
+	"github.com/vucongthanh92/courier/user-service/config"
+	"github.com/vucongthanh92/courier/user-service/database"
+	"github.com/vucongthanh92/courier/user-service/internal/api"
+	"github.com/vucongthanh92/courier/user-service/internal/api/cron"
+	"github.com/vucongthanh92/courier/user-service/internal/api/http"
+	"github.com/vucongthanh92/courier/user-service/redis"
 
 	"github.com/google/wire"
 )

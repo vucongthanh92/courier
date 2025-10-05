@@ -8,13 +8,13 @@ import (
 
 	"github.com/vucongthanh92/go-base-utils/tracing"
 
-	"github.com/vucongthanh92/go-base-project/config"
-	"github.com/vucongthanh92/go-base-project/database"
+	"github.com/vucongthanh92/courier/user-service/config"
+	"github.com/vucongthanh92/courier/user-service/database"
 
-	"github.com/vucongthanh92/go-base-project/helper/healthcheck"
-	"github.com/vucongthanh92/go-base-project/internal"
-	"github.com/vucongthanh92/go-base-project/internal/api"
-	"github.com/vucongthanh92/go-base-project/redis"
+	"github.com/vucongthanh92/courier/user-service/helper/healthcheck"
+	"github.com/vucongthanh92/courier/user-service/internal"
+	"github.com/vucongthanh92/courier/user-service/internal/api"
+	"github.com/vucongthanh92/courier/user-service/redis"
 	"go.uber.org/zap"
 
 	"github.com/gammazero/workerpool"

@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vucongthanh92/go-base-project/helper/constants"
-	errHandler "github.com/vucongthanh92/go-base-project/helper/error_handler"
-	httpcommon "github.com/vucongthanh92/go-base-project/helper/http_common"
-	"github.com/vucongthanh92/go-base-project/internal/domain/interfaces"
-	"github.com/vucongthanh92/go-base-project/internal/domain/models"
+	"github.com/vucongthanh92/courier/user-service/helper/constants"
+	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
 type CategoryHandler struct {

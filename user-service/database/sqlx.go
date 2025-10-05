@@ -3,7 +3,7 @@ package database
 import (
 	"time"
 
-	"github.com/vucongthanh92/go-base-project/config"
+	"github.com/vucongthanh92/courier/user-service/config"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/vucongthanh92/go-base-utils/database"

@@ -119,10 +119,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/entities.Category"
-                            }
+                            "$ref": "#/definitions/entities.Category"
                         }
                     }
                 }
@@ -169,6 +166,9 @@ const docTemplate = `{
                 "deleted_at": {
                     "type": "string"
                 },
+                "description": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -180,6 +180,9 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/entities.Product"
                     }
+                },
+                "status": {
+                    "type": "boolean"
                 },
                 "updated_at": {
                     "type": "string"
@@ -253,8 +256,14 @@ const docTemplate = `{
                 "name"
             ],
             "properties": {
+                "description": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
+                },
+                "status": {
+                    "type": "boolean"
                 }
             }
         }

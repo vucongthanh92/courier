@@ -2,7 +2,7 @@ package redis
 
 import (
 	"github.com/redis/go-redis/v9"
-	"github.com/vucongthanh92/go-base-project/config"
+	"github.com/vucongthanh92/courier/user-service/config"
 	redisUtils "github.com/vucongthanh92/go-base-utils/redis"
 )
 

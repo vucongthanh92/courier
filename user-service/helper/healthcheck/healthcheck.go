@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/vucongthanh92/go-base-project/config"
-	"github.com/vucongthanh92/go-base-project/database"
-	"github.com/vucongthanh92/go-base-project/helper/constants"
+	"github.com/vucongthanh92/courier/user-service/config"
+	"github.com/vucongthanh92/courier/user-service/database"
+	"github.com/vucongthanh92/courier/user-service/helper/constants"
 
 	"github.com/heptiolabs/healthcheck"
 	"github.com/vucongthanh92/go-base-utils/logger"

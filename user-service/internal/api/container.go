@@ -1,9 +1,9 @@
 package api
 
 import (
-	"github.com/vucongthanh92/go-base-project/internal/api/cron"
-	"github.com/vucongthanh92/go-base-project/internal/api/grpc"
-	"github.com/vucongthanh92/go-base-project/internal/api/http"
+	"github.com/vucongthanh92/courier/user-service/internal/api/cron"
+	"github.com/vucongthanh92/courier/user-service/internal/api/grpc"
+	"github.com/vucongthanh92/courier/user-service/internal/api/http"
 )
 
 type ApiContainer struct {

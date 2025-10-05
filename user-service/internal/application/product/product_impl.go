@@ -3,10 +3,10 @@ package product
 import (
 	"context"
 
-	errHandler "github.com/vucongthanh92/go-base-project/helper/error_handler"
-	"github.com/vucongthanh92/go-base-project/internal/domain/entities"
-	"github.com/vucongthanh92/go-base-project/internal/domain/interfaces"
-	"github.com/vucongthanh92/go-base-project/internal/domain/models"
+	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 )
 

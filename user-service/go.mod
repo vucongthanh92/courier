@@ -1,4 +1,4 @@
-module github.com/vucongthanh92/go-base-project
+module github.com/vucongthanh92/courier/user-service
 
 go 1.22.7
 

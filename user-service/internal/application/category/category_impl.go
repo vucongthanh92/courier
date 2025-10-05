@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/jinzhu/copier"
-	"github.com/vucongthanh92/go-base-project/helper/constants"
-	errHandler "github.com/vucongthanh92/go-base-project/helper/error_handler"
-	"github.com/vucongthanh92/go-base-project/internal/domain/entities"
-	"github.com/vucongthanh92/go-base-project/internal/domain/interfaces"
-	"github.com/vucongthanh92/go-base-project/internal/domain/models"
+	"github.com/vucongthanh92/courier/user-service/helper/constants"
+	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 )
 

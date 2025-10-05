@@ -3,13 +3,13 @@ package category
 import (
 	"context"
 
-	"github.com/vucongthanh92/go-base-project/database"
-	errHandler "github.com/vucongthanh92/go-base-project/helper/error_handler"
+	"github.com/vucongthanh92/courier/user-service/database"
+	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 
-	"github.com/vucongthanh92/go-base-project/internal/domain/entities"
-	"github.com/vucongthanh92/go-base-project/internal/domain/interfaces"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 )
 
 type categoryQueryRepository struct {

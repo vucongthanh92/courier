@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
-	"github.com/vucongthanh92/go-base-project/helper/constants"
+	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
 )

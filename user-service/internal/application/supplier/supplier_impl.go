@@ -3,7 +3,7 @@ package supplier
 import (
 	"context"
 
-	"github.com/vucongthanh92/go-base-project/internal/domain/interfaces"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 )
 
 type SupplierImpl struct {

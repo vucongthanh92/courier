@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vucongthanh92/go-base-project/helper/constants"
-	"github.com/vucongthanh92/go-base-project/internal/domain/models"
+	"github.com/vucongthanh92/courier/user-service/helper/constants"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
 type SuccessResponse[T any] struct {

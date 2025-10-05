@@ -3,7 +3,7 @@ package main
 import (
 	_ "time/tzdata"
 
-	"github.com/vucongthanh92/go-base-project/startup"
+	"github.com/vucongthanh92/courier/user-service/startup"
 )
 
 func main() {

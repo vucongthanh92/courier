@@ -3,7 +3,7 @@ package errorhandler
 import (
 	"context"
 
-	"github.com/vucongthanh92/go-base-project/internal/domain/models"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
 type ErrorBuilder struct {

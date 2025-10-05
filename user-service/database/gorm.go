@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/vucongthanh92/go-base-project/config"
+	"github.com/vucongthanh92/courier/user-service/config"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 

@@ -2,9 +2,9 @@ package errorhandler
 
 import (
 	"github.com/gin-gonic/gin"
-	httpcommon "github.com/vucongthanh92/go-base-project/helper/http_common"
-	"github.com/vucongthanh92/go-base-project/helper/utils"
-	"github.com/vucongthanh92/go-base-project/internal/domain/models"
+	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
+	"github.com/vucongthanh92/courier/user-service/helper/utils"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
 func (b *ErrorBuilder) ExposeHttpError(c *gin.Context) {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	errHandler "github.com/vucongthanh92/go-base-project/helper/error_handler"
-	"github.com/vucongthanh92/go-base-project/internal/domain/entities"
-	"github.com/vucongthanh92/go-base-project/internal/domain/models"
+	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
 // repository interface

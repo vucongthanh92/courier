@@ -20,7 +20,7 @@ test:
 	go test -v ./...
 
 build-image:
-	docker build . -t go-base-project
+	docker build . -t courier/user-service
 
 proto-gen:
 	protoc --go_out=pkg/grpc --go_opt=paths=source_relative \

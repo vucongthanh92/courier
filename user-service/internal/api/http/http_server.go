@@ -4,8 +4,8 @@ import (
 	"os"
 
 	"github.com/swaggo/swag"
-	"github.com/vucongthanh92/go-base-project/config"
-	v1 "github.com/vucongthanh92/go-base-project/internal/api/http/v1"
+	"github.com/vucongthanh92/courier/user-service/config"
+	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 	httpserver "github.com/vucongthanh92/go-base-utils/http/server"
 )
 

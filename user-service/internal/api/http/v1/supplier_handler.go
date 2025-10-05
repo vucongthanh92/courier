@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vucongthanh92/go-base-project/internal/application/supplier"
+	"github.com/vucongthanh92/courier/user-service/internal/application/supplier"
 )
 
 type SupplierHandler struct {

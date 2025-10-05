@@ -107,10 +107,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/entities.Category"
-                            }
+                            "$ref": "#/definitions/entities.Category"
                         }
                     }
                 }
@@ -157,6 +154,9 @@
                 "deleted_at": {
                     "type": "string"
                 },
+                "description": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -168,6 +168,9 @@
                     "items": {
                         "$ref": "#/definitions/entities.Product"
                     }
+                },
+                "status": {
+                    "type": "boolean"
                 },
                 "updated_at": {
                     "type": "string"
@@ -241,8 +244,14 @@
                 "name"
             ],
             "properties": {
+                "description": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
+                },
+                "status": {
+                    "type": "boolean"
                 }
             }
         }

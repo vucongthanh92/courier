@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	"github.com/vucongthanh92/go-base-project/config"
+	"github.com/vucongthanh92/courier/user-service/config"
 	grpc "github.com/vucongthanh92/go-base-utils/grpc/server"
 )
 
