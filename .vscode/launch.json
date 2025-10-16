@@ -2,39 +2,32 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug User Service",
+            "name": "Debug User Service (local)",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
+            "program": "${workspaceFolder}/user-service",
             "args": [
                 "start",
                 "--config=./config/local/config.yaml"
             ],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/user-service",
             "env": {},
             "showLog": true
         },
         {
-            "name": "Debug User Service (Dev Config)",
+            "name": "Debug User Service (dev)",
             "type": "go",
             "request": "launch",
             "mode": "auto",
-            "program": "${workspaceFolder}/main.go",
+            "program": "${workspaceFolder}/user-service",
             "args": [
                 "start",
                 "--config=./config/dev/config.yaml"
             ],
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/user-service",
             "env": {},
             "showLog": true
         },
-        {
-            "name": "Debug Current File",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${fileDirname}"
-        }
     ]
 }
