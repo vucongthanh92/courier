@@ -28,5 +28,5 @@ proto-gen:
         -I pkg/grpc/proto \
         pkg/grpc/proto/*.proto
 
-run-esc:
+run-local:
 	go run -gcflags="-m" main.go start --config=./config/local/config.yaml

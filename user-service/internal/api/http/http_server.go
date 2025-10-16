@@ -11,22 +11,19 @@ import (
 
 type Server struct {
 	cfg             *config.AppConfig
-	productHandler  *v1.ProductHandler
-	categoryHandler *v1.CategoryHandler
-	supplierHandler *v1.SupplierHandler
+	userHandler     *v1.UserHandler
+	identityHandler *v1.IdentityHandler
 }
 
 func NewServer(
 	cfg *config.AppConfig,
-	productHandler *v1.ProductHandler,
-	categoryHandler *v1.CategoryHandler,
-	supplierHandler *v1.SupplierHandler,
+	userHandler *v1.UserHandler,
+	identityHandler *v1.IdentityHandler,
 ) *Server {
 	return &Server{
 		cfg:             cfg,
-		productHandler:  productHandler,
-		categoryHandler: categoryHandler,
-		supplierHandler: supplierHandler,
+		userHandler:     userHandler,
+		identityHandler: identityHandler,
 	}
 }
 
@@ -51,9 +48,8 @@ func (s *Server) Run() {
 	// In the future, if we have v2, v3..., we will add at here
 	v1.MapRoutes(
 		router,
-		s.productHandler,
-		s.categoryHandler,
-		s.supplierHandler,
+		s.userHandler,
+		s.identityHandler,
 	)
 	httpServer.Run()
 }

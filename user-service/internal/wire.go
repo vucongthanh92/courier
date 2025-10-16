@@ -4,26 +4,23 @@
 package internal
 
 import (
-	categoryService "github.com/vucongthanh92/courier/user-service/internal/application/category"
-	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
-	productService "github.com/vucongthanh92/courier/user-service/internal/application/product"
-	supplierService "github.com/vucongthanh92/courier/user-service/internal/application/supplier"
-
-	categoryRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/category"
-	productRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/product"
-	supplierRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/supplier"
-
-	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
-	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
-
+	"github.com/google/wire"
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/database"
 	"github.com/vucongthanh92/courier/user-service/internal/api"
 	"github.com/vucongthanh92/courier/user-service/internal/api/cron"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
+	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
 	"github.com/vucongthanh92/courier/user-service/redis"
 
-	"github.com/google/wire"
+	identityService "github.com/vucongthanh92/courier/user-service/internal/application/identity"
+	userService "github.com/vucongthanh92/courier/user-service/internal/application/user"
+
+	identityRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
+	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
+
+	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
+	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 )
 
 var container = wire.NewSet(
@@ -37,25 +34,21 @@ var apiSet = wire.NewSet(
 )
 
 var handlerSet = wire.NewSet(
-	v1.NewProductHandler,
-	v1.NewCategoryHandler,
-	v1.NewSupplierHandler,
+	v1.InitIdentityHandler,
+	v1.InitUserHandler,
 )
 
 var serviceSet = wire.NewSet(
 	cronjob.NewCronJobService,
-	productService.NewProductService,
-	categoryService.NewCategoryService,
-	supplierService.NewSupplierService,
+	userService.InitUserService,
+	identityService.InitIdentityService,
 )
 
 var repoSet = wire.NewSet(
-	productRepo.NewProductCommandRepository,
-	productRepo.NewProductQueryRepository,
-	categoryRepo.NewCategoryCommandRepository,
-	categoryRepo.NewCategoryQueryRepository,
-	supplierRepo.NewSupplierCommandRepository,
-	supplierRepo.NewSupplierQueryRepository,
+	userRepo.InitUserCmdRepository,
+	userRepo.InitUserQueryRepository,
+	identityRepo.InitIdentityCmdRepository,
+	identityRepo.InitIdentityQueryRepository,
 )
 
 func InitializeContainer(

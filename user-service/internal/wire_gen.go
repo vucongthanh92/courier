@@ -15,30 +15,26 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
-	category2 "github.com/vucongthanh92/courier/user-service/internal/application/category"
 	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
-	product2 "github.com/vucongthanh92/courier/user-service/internal/application/product"
-	supplier2 "github.com/vucongthanh92/courier/user-service/internal/application/supplier"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/category"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/product"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/supplier"
+	product2 "github.com/vucongthanh92/courier/user-service/internal/application/identity"
+	category2 "github.com/vucongthanh92/courier/user-service/internal/application/user"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 	"github.com/vucongthanh92/courier/user-service/redis"
 )
 
 // Injectors from wire.go:
 
 func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, writeDb *database.GormWriteDb, redisClient redis.Client) *api.ApiContainer {
-	productQueryRepoI := product.NewProductQueryRepository(readDb)
-	productService := product2.NewProductService(productQueryRepoI)
-	productHandler := v1.NewProductHandler(productService)
-	categoryQueryRepoI := category.NewCategoryQueryRepository(readDb)
-	categoryCommandRepoI := category.NewCategoryCommandRepository(writeDb)
-	categoryServiceI := category2.NewCategoryService(categoryQueryRepoI, categoryCommandRepoI, productQueryRepoI)
-	categoryHandler := v1.NewCategoryHandler(categoryServiceI)
-	supplierQueryRepoI := supplier.NewSupplierQueryRepository(readDb)
-	supllierService := supplier2.NewSupplierService(supplierQueryRepoI)
-	supplierHandler := v1.NewSupplierHandler(supllierService)
-	server := http.NewServer(appCfg, productHandler, categoryHandler, supplierHandler)
+	userQueryRepoI := category.InitUserQueryRepository(readDb)
+	userCommandRepoI := category.InitUserCmdRepository(writeDb)
+	userServiceI := category2.InitUserService(userQueryRepoI, userCommandRepoI)
+	userHandler := v1.InitUserHandler(userServiceI)
+	identityQueryRepoI := product.InitIdentityQueryRepository(readDb)
+	identityCommandRepoI := product.InitIdentityCmdRepository(writeDb)
+	identityServiceI := product2.InitIdentityService(identityQueryRepoI, identityCommandRepoI)
+	identityHandler := v1.InitIdentityHandler(identityServiceI)
+	server := http.NewServer(appCfg, userHandler, identityHandler)
 	grpcServer := grpc.NewServer(appCfg)
 	cronJobService := cronjob.NewCronJobService()
 	cronServer := cron.NewServer(appCfg, cronJobService)
@@ -52,8 +48,8 @@ var container = wire.NewSet(api.NewApiContainer)
 
 var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
-var handlerSet = wire.NewSet(v1.NewProductHandler, v1.NewCategoryHandler, v1.NewSupplierHandler)
+var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitUserHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, product2.NewProductService, category2.NewCategoryService, supplier2.NewSupplierService)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, category2.InitUserService, product2.InitIdentityService)
 
-var repoSet = wire.NewSet(product.NewProductCommandRepository, product.NewProductQueryRepository, category.NewCategoryCommandRepository, category.NewCategoryQueryRepository, supplier.NewSupplierCommandRepository, supplier.NewSupplierQueryRepository)
+var repoSet = wire.NewSet(category.InitUserCmdRepository, category.InitUserQueryRepository, product.InitIdentityCmdRepository, product.InitIdentityQueryRepository)

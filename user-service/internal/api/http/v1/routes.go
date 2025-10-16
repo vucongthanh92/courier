@@ -8,21 +8,16 @@ import (
 
 func MapRoutes(
 	router *gin.Engine,
-	productHandler *ProductHandler,
-	categoryHandler *CategoryHandler,
-	supplierHandler *SupplierHandler,
+	userHandler *UserHandler,
+	identityHandler *IdentityHandler,
 ) {
 	v1 := router.Group("/api/v1")
 	{
-		// api for category
-		v1.POST("/category", categoryHandler.CreateCategory)
-		v1.PUT("/category/:id", categoryHandler.UpdateCategory)
-		v1.DELETE("/category/:id", categoryHandler.DeleteCategoryByID)
-		v1.GET("/categories", categoryHandler.GetCategoryList)
-		v1.GET("/category/:id", categoryHandler.GetCategoryByID)
+		// API for user
+		v1.POST("/user/create", userHandler.CreateUser)
 
-		// api for product
-		v1.GET("/products", productHandler.GetProductList)
+		// API for identity
+		v1.GET("/identity/create", identityHandler.CreateIdentity)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
