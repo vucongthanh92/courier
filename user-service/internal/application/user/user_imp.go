@@ -26,10 +26,10 @@ func InitUserService(
 	}
 }
 
-func (s *UserServiceImpl) CreateUser(ctx context.Context, req models.CreateUserRequest) (
+func (s *UserServiceImpl) Signup(ctx context.Context, req models.SignupRequest) (
 	entities.User, *errHandler.ErrorBuilder) {
 
-	ctx, span := tracing.StartSpanFromContext(ctx, "CreateUser")
+	ctx, span := tracing.StartSpanFromContext(ctx, "Signup")
 	defer span.End()
 
 	userEntity := entities.User{}

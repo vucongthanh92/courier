@@ -22,16 +22,21 @@ func InitUserHandler(userService interfaces.UserServiceI) *UserHandler {
 	}
 }
 
-// API CreateUser godoc
+// API Signup godoc
 // @Tags User
 // @Summary create new user
 // @Accept json
 // @Produce json
 // @Param params body models.CreateUserRequest true "CreateUserRequest"
-// @Router /api/v1/user [post]
+// @Router /api/v1/user/sign-up [post]
 // @Success	200 {object} entities.User
-func (h *UserHandler) CreateUser(c *gin.Context) {
-	req := models.CreateUserRequest{}
+func (h *UserHandler) Signup(c *gin.Context) {
+
+	// Parse request body
+	req := models.SignupRequest{}
+	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+		return
+	}
 
 	err := httpcommon.ValidatorParams(req)
 	if err != nil {
@@ -43,11 +48,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
-		return
-	}
-
-	res, resErr := h.userService.CreateUser(c, req)
+	res, resErr := h.userService.Signup(c, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
 		return

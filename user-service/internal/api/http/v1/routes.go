@@ -14,7 +14,7 @@ func MapRoutes(
 	v1 := router.Group("/api/v1")
 	{
 		// API for user
-		v1.POST("/user/create", userHandler.CreateUser)
+		v1.POST("/user/sign-up", userHandler.Signup)
 
 		// API for identity
 		v1.GET("/identity/create", identityHandler.CreateIdentity)

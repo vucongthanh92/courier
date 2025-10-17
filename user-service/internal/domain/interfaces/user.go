@@ -19,6 +19,6 @@ type UserCommandRepoI interface {
 
 // service interface
 type UserServiceI interface {
-	CreateUser(ctx context.Context, req models.CreateUserRequest) (
+	Signup(ctx context.Context, req models.SignupRequest) (
 		entities.User, *errHandler.ErrorBuilder)
 }
