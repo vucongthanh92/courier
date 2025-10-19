@@ -16,8 +16,8 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
-	product2 "github.com/vucongthanh92/courier/user-service/internal/application/identity"
-	category2 "github.com/vucongthanh92/courier/user-service/internal/application/user"
+	"github.com/vucongthanh92/courier/user-service/internal/application/identity"
+	"github.com/vucongthanh92/courier/user-service/internal/application/user"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 	"github.com/vucongthanh92/courier/user-service/redis"
@@ -26,13 +26,13 @@ import (
 // Injectors from wire.go:
 
 func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, writeDb *database.GormWriteDb, redisClient redis.Client) *api.ApiContainer {
-	userQueryRepoI := category.InitUserQueryRepository(readDb)
-	userCommandRepoI := category.InitUserCmdRepository(writeDb)
-	userServiceI := category2.InitUserService(userQueryRepoI, userCommandRepoI)
+	userQueryRepoI := user.InitUserQueryRepository(readDb)
+	userCommandRepoI := user.InitUserCmdRepository(writeDb)
+	userServiceI := category.InitUserService(userQueryRepoI, userCommandRepoI)
 	userHandler := v1.InitUserHandler(userServiceI)
-	identityQueryRepoI := product.InitIdentityQueryRepository(readDb)
-	identityCommandRepoI := product.InitIdentityCmdRepository(writeDb)
-	identityServiceI := product2.InitIdentityService(identityQueryRepoI, identityCommandRepoI)
+	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
+	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
+	identityServiceI := product.InitIdentityService(identityQueryRepoI, identityCommandRepoI)
 	identityHandler := v1.InitIdentityHandler(identityServiceI)
 	server := http.NewServer(appCfg, userHandler, identityHandler)
 	grpcServer := grpc.NewServer(appCfg)
@@ -50,6 +50,6 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitUserHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, category2.InitUserService, product2.InitIdentityService)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, category.InitUserService, product.InitIdentityService)
 
-var repoSet = wire.NewSet(category.InitUserCmdRepository, category.InitUserQueryRepository, product.InitIdentityCmdRepository, product.InitIdentityQueryRepository)
+var repoSet = wire.NewSet(user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository)

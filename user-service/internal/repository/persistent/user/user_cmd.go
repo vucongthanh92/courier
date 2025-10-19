@@ -1,4 +1,4 @@
-package category
+package user
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 )
@@ -25,12 +26,13 @@ func InitUserCmdRepository(writeDB *database.GormWriteDb) interfaces.UserCommand
 func (repo *userCmdRepository) InsertUser(ctx context.Context, entity entities.User) (
 	entities.User, *errHandler.ErrorBuilder) {
 
+	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "InsertUser")
 	defer span.End()
+	run := transaction.RunnerFromCtx(ctx, repo.writeDB)
 
-	err := repo.writeDB.WithContext(ctx).Model(entities.User{}).
-		Create(&entity).Error
-
+	// Insert user record
+	err := run.Model(entities.User{}).Create(&entity).Error
 	if err != nil {
 		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
 		return entity, resErr

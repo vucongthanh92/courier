@@ -13,8 +13,8 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
 	"github.com/vucongthanh92/courier/user-service/redis"
 
-	identityService "github.com/vucongthanh92/courier/user-service/internal/application/identity"
-	userService "github.com/vucongthanh92/courier/user-service/internal/application/user"
+	identityUc "github.com/vucongthanh92/courier/user-service/internal/application/identity"
+	userUc "github.com/vucongthanh92/courier/user-service/internal/application/user"
 
 	identityRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
@@ -40,8 +40,8 @@ var handlerSet = wire.NewSet(
 
 var serviceSet = wire.NewSet(
 	cronjob.NewCronJobService,
-	userService.InitUserService,
-	identityService.InitIdentityService,
+	userUc.InitUserService,
+	identityUc.InitIdentityService,
 )
 
 var repoSet = wire.NewSet(

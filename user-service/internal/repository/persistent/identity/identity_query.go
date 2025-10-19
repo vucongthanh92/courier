@@ -1,4 +1,4 @@
-package product
+package identity
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 )
@@ -25,14 +26,18 @@ func InitIdentityQueryRepository(readDb *database.GormReadDb) interfaces.Identit
 func (repo *identityQueryRepository) GetIdentityByID(ctx context.Context, id uint64) (
 	res entities.Identity, errRes *errHandler.ErrorBuilder) {
 
+	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetIdentityByID")
 	defer span.End()
+	run := transaction.RunnerFromCtx(ctx, repo.readDb)
 
-	err := repo.readDb.WithContext(ctx).Model(&entities.Identity{}).
+	// Query identity by ID
+	err := run.Model(&entities.Identity{}).
 		Select("*").
 		Where("id = ?", id).Where("deleted_at is null").
 		Take(&res).Error
 
+	// Handle potential errors
 	if err != nil {
 		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
 		return res, resErr
