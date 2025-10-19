@@ -20,5 +20,5 @@ type UserCommandRepoI interface {
 // service interface
 type UserServiceI interface {
 	Signup(ctx context.Context, req models.SignupRequest) (
-		entities.User, *errHandler.ErrorBuilder)
+		*entities.User, *errHandler.ErrorBuilder)
 }

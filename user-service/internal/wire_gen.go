@@ -10,29 +10,39 @@ import (
 	"github.com/google/wire"
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/database"
+	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/api"
 	"github.com/vucongthanh92/courier/user-service/internal/api/cron"
 	"github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
-	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
-	"github.com/vucongthanh92/courier/user-service/internal/application/identity"
-	"github.com/vucongthanh92/courier/user-service/internal/application/user"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
+	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
+	identity2 "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
+	"github.com/vucongthanh92/courier/user-service/internal/usecase/user"
 	"github.com/vucongthanh92/courier/user-service/redis"
 )
 
 // Injectors from wire.go:
 
 func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, writeDb *database.GormWriteDb, redisClient redis.Client) *api.ApiContainer {
+	managerTxn := transaction.InitManagerTxn(writeDb)
 	userQueryRepoI := user.InitUserQueryRepository(readDb)
 	userCommandRepoI := user.InitUserCmdRepository(writeDb)
-	userServiceI := category.InitUserService(userQueryRepoI, userCommandRepoI)
+	authCredentialCommandRepoI := authcredential.InitAuthCredentialCmdRepository(writeDb)
+	emailVerificationCommandRepoI := emailverification.InitEmailVerificationCmdRepository(writeDb)
+	auditLogCommandRepoI := auditlog.InitAuditLogCmdRepository(writeDb)
+	outboxCommandRepoI := outbox.InitOutboxCmdRepository(writeDb)
+	userServiceI := user_uc.InitUserUsecase(managerTxn, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, emailVerificationCommandRepoI, auditLogCommandRepoI, outboxCommandRepoI)
 	userHandler := v1.InitUserHandler(userServiceI)
 	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
-	identityServiceI := product.InitIdentityService(identityQueryRepoI, identityCommandRepoI)
+	identityServiceI := identity2.InitIdentityService(identityQueryRepoI, identityCommandRepoI)
 	identityHandler := v1.InitIdentityHandler(identityServiceI)
 	server := http.NewServer(appCfg, userHandler, identityHandler)
 	grpcServer := grpc.NewServer(appCfg)
@@ -50,6 +60,6 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitUserHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, category.InitUserService, product.InitIdentityService)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, user_uc.InitUserUsecase, identity2.InitIdentityService)
 
-var repoSet = wire.NewSet(user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository)
+var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, outbox.InitOutboxCmdRepository)

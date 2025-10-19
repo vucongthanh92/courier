@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/vucongthanh92/courier/user-service/database"
+	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"gorm.io/gorm"
 )
 
@@ -25,11 +27,11 @@ type ManagerTxn struct {
 	db *gorm.DB
 }
 
-func InitManagerTxn(db *gorm.DB) *ManagerTxn {
-	return &ManagerTxn{db: db}
+func InitManagerTxn(writeDb *database.GormWriteDb) *ManagerTxn {
+	return &ManagerTxn{db: *writeDb}
 }
 
-func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) error, opts ...Options) error {
+func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) *errHandler.ErrorBuilder, opts ...Options) error {
 	var opt Options
 	if len(opts) > 0 {
 		opt = opts[0]
@@ -46,9 +48,9 @@ func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) error,
 		if err := cur.SavePoint(sp).Error; err != nil {
 			return err
 		}
-		if err := fn(ctx); err != nil {
+		if commonErr := fn(ctx); commonErr != nil {
 			_ = cur.RollbackTo(sp).Error
-			return err
+			return commonErr.LogError
 		}
 
 		return nil
@@ -64,6 +66,7 @@ func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) error,
 
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txCtx := context.WithValue(ctx, runnerKey, tx)
-		return fn(txCtx)
+		commonErr := fn(txCtx)
+		return commonErr.LogError
 	})
 }

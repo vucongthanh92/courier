@@ -3,7 +3,7 @@ package cron
 import (
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/internal/api/cron/handler"
-	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
+	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 
 	"github.com/vucongthanh92/go-base-utils/logger"
 )

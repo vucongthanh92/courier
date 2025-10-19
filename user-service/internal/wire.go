@@ -10,15 +10,20 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/api"
 	"github.com/vucongthanh92/courier/user-service/internal/api/cron"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
-	"github.com/vucongthanh92/courier/user-service/internal/application/cronjob"
+	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 	"github.com/vucongthanh92/courier/user-service/redis"
 
-	identityUc "github.com/vucongthanh92/courier/user-service/internal/application/identity"
-	userUc "github.com/vucongthanh92/courier/user-service/internal/application/user"
+	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
+	userUc "github.com/vucongthanh92/courier/user-service/internal/usecase/user"
 
+	auditLogRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
+	authCredWriteRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
+	emailVerWriteRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
 	identityRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
+	outboxRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 
+	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 )
@@ -40,15 +45,20 @@ var handlerSet = wire.NewSet(
 
 var serviceSet = wire.NewSet(
 	cronjob.NewCronJobService,
-	userUc.InitUserService,
+	userUc.InitUserUsecase,
 	identityUc.InitIdentityService,
 )
 
 var repoSet = wire.NewSet(
+	transaction.InitManagerTxn,
 	userRepo.InitUserCmdRepository,
 	userRepo.InitUserQueryRepository,
 	identityRepo.InitIdentityCmdRepository,
 	identityRepo.InitIdentityQueryRepository,
+	auditLogRepo.InitAuditLogCmdRepository,
+	authCredWriteRepo.InitAuthCredentialCmdRepository,
+	emailVerWriteRepo.InitEmailVerificationCmdRepository,
+	outboxRepo.InitOutboxCmdRepository,
 )
 
 func InitializeContainer(
