@@ -27,7 +27,7 @@ func InitUserHandler(userService interfaces.UserServiceI) *UserHandler {
 // @Summary create new user
 // @Accept json
 // @Produce json
-// @Param params body models.CreateUserRequest true "CreateUserRequest"
+// @Param params body models.SignupRequest true "SignupRequest"
 // @Router /api/v1/user/sign-up [post]
 // @Success	200 {object} entities.User
 func (h *UserHandler) Signup(c *gin.Context) {
