@@ -3,7 +3,6 @@ package user_uc
 import (
 	"context"
 
-	"github.com/jinzhu/copier"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
@@ -50,25 +49,65 @@ func (s *UserUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 	defer span.End()
 
 	// step 1. Map request to entity
-	userEntity := entities.User{}
-	copier.Copy(&userEntity, &req)
+	var (
+		userEntity        = entities.User{}
+		emailVerifyEntity = entities.EmailVerification{}
+		authCredEntity    = entities.AuthCredential{}
+	)
+
+	req.MappingToUserEntity(&userEntity)
+	req.MappingToEmailVerifyEntity(&emailVerifyEntity)
+	req.MappingToAuthCredEntity(&authCredEntity)
 
 	// step 2. check email and phone number exist with user existing
+	existed, commonErr := s.userReadRepo.CheckExistingEmailOrPhone(ctx, req.Email, req.PhoneNumber)
+	if commonErr != nil {
+		return nil, commonErr
+	}
+
+	if existed {
+		commonErr := errHandler.InitErrorBuilder(ctx).
+			SetLogError(nil).
+			SetStatus(400).
+			SetError(models.ErrorDTO{
+				Code:    "USER_ALREADY_EXISTS",
+				Message: "Email or phone number already in use",
+				Field:   "email/phone_number",
+			})
+		return nil, commonErr
+	}
 
 	// step 3. init transaction to create user with
 	// table users, email_verification, auth_credentials, audit_log, ...
-	err := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
-		_, resErr := s.userWriteRepo.InsertUser(ctx, userEntity)
-		if resErr != nil {
-			return resErr
+	err := s.txn.Do(ctx, func(txCtx context.Context) (txnErr *errHandler.ErrorBuilder) {
+
+		// create user
+		txnErr = s.userWriteRepo.InsertUser(txCtx, &userEntity)
+		if txnErr != nil {
+			return txnErr
+		}
+
+		// create email verification and auth credential
+		emailVerifyEntity.UserID = userEntity.ID
+		txnErr = s.emailVerWriteRepo.InsertEmailVerification(txCtx, &emailVerifyEntity)
+		if txnErr != nil {
+			return txnErr
+		}
+
+		// create auth credential
+		authCredEntity.UserID = userEntity.ID
+		txnErr = s.authCredWriteRepo.InsertAuthCredential(txCtx, &authCredEntity)
+		if txnErr != nil {
+			return txnErr
 		}
 
 		return nil
 	})
 
+	// handle error when create user failed
 	if err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
-		return nil, resErr
+		commonErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return nil, commonErr
 	}
 
 	// step 4. handle after created user successfully, send verify email, sms, ...

@@ -23,8 +23,7 @@ func InitEmailVerificationCmdRepository(writeDb *database.GormWriteDb) interface
 	}
 }
 
-func (repo *emailVerificationCmdRepository) InsertEmailVerification(ctx context.Context, entity entities.EmailVerification) (
-	entities.EmailVerification, *errHandler.ErrorBuilder) {
+func (repo *emailVerificationCmdRepository) InsertEmailVerification(ctx context.Context, entity *entities.EmailVerification) *errHandler.ErrorBuilder {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "InsertEmailVerification")
@@ -32,11 +31,11 @@ func (repo *emailVerificationCmdRepository) InsertEmailVerification(ctx context.
 	run := transaction.RunnerFromCtx(ctx, repo.writeDb)
 
 	// Insert email verification record
-	err := run.Model(entities.EmailVerification{}).Create(&entity).Error
+	err := run.Model(entities.EmailVerification{}).Create(entity).Error
 	if err != nil {
 		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
-		return entity, resErr
+		return resErr
 	}
 
-	return entity, nil
+	return nil
 }

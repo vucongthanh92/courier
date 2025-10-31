@@ -5,11 +5,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
-	"github.com/vucongthanh92/go-base-utils/tracing"
+	"github.com/gammazero/workerpool"
 
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/database"
+	"github.com/vucongthanh92/courier/user-service/helper/utils"
 
 	"github.com/vucongthanh92/courier/user-service/helper/healthcheck"
 	"github.com/vucongthanh92/courier/user-service/internal"
@@ -17,11 +19,10 @@ import (
 	"github.com/vucongthanh92/courier/user-service/redis"
 	"go.uber.org/zap"
 
-	"github.com/gammazero/workerpool"
 	"github.com/vucongthanh92/go-base-utils/command"
-	"github.com/vucongthanh92/go-base-utils/logger"
-
 	"github.com/vucongthanh92/go-base-utils/localization"
+	"github.com/vucongthanh92/go-base-utils/logger"
+	"github.com/vucongthanh92/go-base-utils/tracing"
 )
 
 func runServer(
@@ -80,11 +81,16 @@ func start() {
 
 	tracing.UseOpenTelemetry(tracing.Config(*cfg.Tracing))
 
+	utils.InitSnowflake(utils.SnowflakeConfig{
+		MachineID:   1,
+		CustomEpoch: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+	})
+
 	// Register dependencies
 	container, readDb, writeDb := registerDependencies(ctx)
+
 	// Init resources for localization
 	err := localization.InitResources(cfg.Http.Resources)
-
 	if err != nil {
 		logger.Fatal("Fail to init resources", zap.Error(err))
 	}

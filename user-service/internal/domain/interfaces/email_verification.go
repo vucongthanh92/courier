@@ -11,8 +11,7 @@ type EmailVerificationQueryRepoI interface {
 }
 
 type EmailVerificationCommandRepoI interface {
-	InsertEmailVerification(ctx context.Context, entity entities.EmailVerification) (
-		entities.EmailVerification, *errHandler.ErrorBuilder)
+	InsertEmailVerification(ctx context.Context, entity *entities.EmailVerification) *errHandler.ErrorBuilder
 }
 
 type EmailVerificationServiceI interface {

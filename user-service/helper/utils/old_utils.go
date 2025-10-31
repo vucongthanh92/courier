@@ -22,7 +22,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	cacheV9 "github.com/go-redis/cache/v9"
-	"github.com/spf13/viper"
 	"github.com/vucongthanh92/go-base-utils/cache"
 	utilsSvc "github.com/vucongthanh92/go-base-utils/http/request"
 	"github.com/vucongthanh92/go-base-utils/logger"
@@ -39,15 +38,6 @@ func Reverse(s string) (string, error) {
 		r[i], r[j] = r[j], r[i]
 	}
 	return string(r), nil
-}
-
-func HashPassword(email, password string) string {
-	secret := viper.GetString("authenticate.passwordHashSecret")
-	hashMethod := sha256.New()
-	hashMethod.Write([]byte(secret + email + password))
-	hash := hashMethod.Sum(nil)
-	result := strings.ToUpper(hex.EncodeToString(hash))
-	return result
 }
 
 func GetHashMD5(phone string) string {

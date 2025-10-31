@@ -11,8 +11,7 @@ type AuthCredentialQueryRepoI interface {
 }
 
 type AuthCredentialCommandRepoI interface {
-	InsertAuthCredential(ctx context.Context, entity entities.AuthCredential) (
-		entities.AuthCredential, *errHandler.ErrorBuilder)
+	InsertAuthCredential(ctx context.Context, entity *entities.AuthCredential) *errHandler.ErrorBuilder
 }
 
 type AuthCredentialServiceI interface {

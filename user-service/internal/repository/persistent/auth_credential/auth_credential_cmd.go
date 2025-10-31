@@ -23,8 +23,7 @@ func InitAuthCredentialCmdRepository(writeDb *database.GormWriteDb) interfaces.A
 	}
 }
 
-func (repo *authCredentialCmdRepository) InsertAuthCredential(ctx context.Context, entity entities.AuthCredential) (
-	entities.AuthCredential, *errHandler.ErrorBuilder) {
+func (repo *authCredentialCmdRepository) InsertAuthCredential(ctx context.Context, entity *entities.AuthCredential) *errHandler.ErrorBuilder {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "InsertAuthCredential")
@@ -32,11 +31,11 @@ func (repo *authCredentialCmdRepository) InsertAuthCredential(ctx context.Contex
 	run := transaction.RunnerFromCtx(ctx, repo.writeDb)
 
 	// Insert auth credential record
-	err := run.Model(entities.AuthCredential{}).Create(&entity).Error
+	err := run.Model(entities.AuthCredential{}).Create(entity).Error
 	if err != nil {
 		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
-		return entity, resErr
+		return resErr
 	}
 
-	return entity, nil
+	return nil
 }

@@ -23,8 +23,7 @@ func InitUserCmdRepository(writeDB *database.GormWriteDb) interfaces.UserCommand
 	}
 }
 
-func (repo *userCmdRepository) InsertUser(ctx context.Context, entity entities.User) (
-	entities.User, *errHandler.ErrorBuilder) {
+func (repo *userCmdRepository) InsertUser(ctx context.Context, entity *entities.User) *errHandler.ErrorBuilder {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "InsertUser")
@@ -32,11 +31,11 @@ func (repo *userCmdRepository) InsertUser(ctx context.Context, entity entities.U
 	run := transaction.RunnerFromCtx(ctx, repo.writeDB)
 
 	// Insert user record
-	err := run.Model(entities.User{}).Create(&entity).Error
+	err := run.Model(entities.User{}).Create(entity).Error
 	if err != nil {
 		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
-		return entity, resErr
+		return resErr
 	}
 
-	return entity, nil
+	return nil
 }

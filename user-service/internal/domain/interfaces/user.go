@@ -10,11 +10,12 @@ import (
 
 // repository interface
 type UserQueryRepoI interface {
+	GetUserByID(ctx context.Context, id uint64) (res entities.User, errRes *errHandler.ErrorBuilder)
+	CheckExistingEmailOrPhone(ctx context.Context, email string, phoneNumber string) (res bool, errRes *errHandler.ErrorBuilder)
 }
 
 type UserCommandRepoI interface {
-	InsertUser(ctx context.Context, entity entities.User) (
-		entities.User, *errHandler.ErrorBuilder)
+	InsertUser(ctx context.Context, entity *entities.User) *errHandler.ErrorBuilder
 }
 
 // service interface
