@@ -3,6 +3,7 @@ package user_uc
 import (
 	"context"
 
+	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
@@ -70,9 +71,9 @@ func (s *UserUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 			SetLogError(nil).
 			SetStatus(400).
 			SetError(models.ErrorDTO{
-				Code:    "USER_ALREADY_EXISTS",
-				Message: "Email or phone number already in use",
-				Field:   "email/phone_number",
+				Code:    constants.USER_ALREADY_EXISTS,
+				Message: constants.UserAlreadyExistsMessage,
+				Field:   "email or phone_number",
 			})
 		return nil, commonErr
 	}
