@@ -1,11 +1,13 @@
 package utils
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"runtime/debug"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
@@ -44,4 +46,35 @@ func HashPwdBySha256(email, password string) string {
 	hash := hashMethod.Sum(nil)
 	result := strings.ToUpper(hex.EncodeToString(hash))
 	return result
+}
+
+func GetUserAgent(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	if ginCtx, ok := ctx.(*gin.Context); ok {
+		if ginCtx.Request != nil {
+			return ginCtx.Request.UserAgent()
+		}
+		return ""
+	}
+
+	return GetHeaderFromKey(ctx, "headers", "User-Agent")
+}
+
+func GetClientIP(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	if ginCtx, ok := ctx.(*gin.Context); ok {
+		return ginCtx.ClientIP()
+	}
+
+	if ip := getIPFromHeader(ctx, "headers"); ip != "" {
+		return ip
+	}
+
+	return ""
 }

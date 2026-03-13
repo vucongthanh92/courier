@@ -8,6 +8,7 @@ import (
 )
 
 type OutboxQueryRepoI interface {
+	GetOutboxByID(ctx context.Context, id uint64) (*entities.Outbox, *errHandler.ErrorBuilder)
 }
 
 type OutboxCommandRepoI interface {

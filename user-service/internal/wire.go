@@ -13,6 +13,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 	"github.com/vucongthanh92/courier/user-service/redis"
 
+	auditLogUc "github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
 	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	userUc "github.com/vucongthanh92/courier/user-service/internal/usecase/user"
 
@@ -45,6 +46,7 @@ var handlerSet = wire.NewSet(
 
 var serviceSet = wire.NewSet(
 	cronjob.NewCronJobService,
+	auditLogUc.InitAuditLogUsecase,
 	userUc.InitUserUsecase,
 	identityUc.InitIdentityService,
 )
@@ -59,6 +61,7 @@ var repoSet = wire.NewSet(
 	authCredWriteRepo.InitAuthCredentialCmdRepository,
 	emailVerWriteRepo.InitEmailVerificationCmdRepository,
 	outboxRepo.InitOutboxCmdRepository,
+	outboxRepo.InitOutboxQueryRepository,
 )
 
 func InitializeContainer(

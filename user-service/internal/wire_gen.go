@@ -22,6 +22,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
+	"github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 	identity2 "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/user"
@@ -60,6 +61,6 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitUserHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, user_uc.InitUserUsecase, identity2.InitIdentityService)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, user_uc.InitUserUsecase, identity2.InitIdentityService)
 
-var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, outbox.InitOutboxCmdRepository)
+var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository)
