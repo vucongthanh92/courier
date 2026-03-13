@@ -65,7 +65,7 @@ func (s *AuditLogUseCaseImpl) LogUserCreated(
 		Action:    "USER_SIGNUP",
 		IP:        ip,
 		UserAgent: userAgent,
-		Meta:      datatypes.JSONMap(userMeta),
+		Metadata:  datatypes.JSONMap(userMeta),
 	}
 
 	// Insert audit log

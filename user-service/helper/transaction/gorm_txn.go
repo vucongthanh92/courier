@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/vucongthanh92/courier/user-service/database"
@@ -13,7 +14,9 @@ var runnerKey = struct{}{}
 
 func RunnerFromCtx(ctx context.Context, db *gorm.DB) *gorm.DB {
 	if v := ctx.Value(runnerKey); v != nil {
-		return v.(*gorm.DB)
+		if tx, ok := v.(*gorm.DB); ok {
+			return tx
+		}
 	}
 	return db
 }
@@ -43,13 +46,19 @@ func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) *errHa
 		defer cancel()
 	}
 
-	if cur := RunnerFromCtx(ctx, m.db); cur != nil {
-		sp := "sp_nest"
-		if err := cur.SavePoint(sp).Error; err != nil {
+	if v := ctx.Value(runnerKey); v != nil {
+		tx, ok := v.(*gorm.DB)
+		if !ok {
+			return fmt.Errorf("transaction context value has unexpected type %T", v)
+		}
+
+		sp := fmt.Sprintf("sp_%d", time.Now().UnixNano())
+		if err := tx.SavePoint(sp).Error; err != nil {
 			return err
 		}
+
 		if commonErr := fn(ctx); commonErr != nil {
-			_ = cur.RollbackTo(sp).Error
+			_ = tx.RollbackTo(sp).Error
 			return commonErr.LogError
 		}
 
@@ -67,6 +76,9 @@ func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) *errHa
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		txCtx := context.WithValue(ctx, runnerKey, tx)
 		commonErr := fn(txCtx)
-		return commonErr.LogError
+		if commonErr != nil {
+			return commonErr.LogError
+		}
+		return nil
 	})
 }

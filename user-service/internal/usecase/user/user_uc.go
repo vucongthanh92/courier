@@ -128,7 +128,7 @@ func (s *UserUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 		Action:    "USER_SIGNUP",
 		IP:        utils.GetClientIP(ctx),
 		UserAgent: utils.GetUserAgent(ctx),
-		Meta: datatypes.JSONMap{
+		Metadata: datatypes.JSONMap{
 			"user": userEntity,
 		},
 	}
