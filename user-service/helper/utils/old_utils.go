@@ -458,6 +458,27 @@ func GetHeaderFromKey(ctx context.Context, key, field string) (resp string) {
 	return resp
 }
 
+func getIPFromHeader(ctx context.Context, key string) string {
+	// Common proxy headers, ordered by trust/preference
+	if xff := GetHeaderFromKey(ctx, key, "X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can be a list: client, proxy1, proxy2...
+		if idx := strings.Index(xff, ","); idx >= 0 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+
+	if xrip := GetHeaderFromKey(ctx, key, "X-Real-IP"); xrip != "" {
+		return strings.TrimSpace(xrip)
+	}
+
+	if tcip := GetHeaderFromKey(ctx, key, "True-Client-IP"); tcip != "" {
+		return strings.TrimSpace(tcip)
+	}
+
+	return ""
+}
+
 func CompareEqualFold(src string, dst ...string) (resp bool) {
 	if len(dst) == 0 {
 		return resp

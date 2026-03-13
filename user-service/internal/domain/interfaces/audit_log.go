@@ -16,4 +16,5 @@ type AuditLogCommandRepoI interface {
 }
 
 type AuditLogServiceI interface {
+	LogUserCreated(ctx context.Context, user *entities.User, ip string, userAgent string) *errHandler.ErrorBuilder
 }

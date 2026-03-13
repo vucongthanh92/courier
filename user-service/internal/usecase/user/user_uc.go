@@ -6,10 +6,12 @@ import (
 	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
+	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 	"github.com/vucongthanh92/go-base-utils/tracing"
+	"gorm.io/datatypes"
 )
 
 type UserUseCaseImpl struct {
@@ -79,7 +81,7 @@ func (s *UserUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 	}
 
 	// step 3. init transaction to create user with
-	// table users, email_verification, auth_credentials, audit_log, ...
+	// table users, email_verification, auth_credentials, outbox, ...
 	err := s.txn.Do(ctx, func(txCtx context.Context) (txnErr *errHandler.ErrorBuilder) {
 
 		// create user
@@ -102,6 +104,12 @@ func (s *UserUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 			return txnErr
 		}
 
+		// create outbox event for USER_CREATED
+		txnErr = s.createUserCreatedOutboxEvent(txCtx, &userEntity)
+		if txnErr != nil {
+			return txnErr
+		}
+
 		return nil
 	})
 
@@ -113,6 +121,24 @@ func (s *UserUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 
 	// step 4. handle after created user successfully, send verify email, sms, ...
 	// ...
+
+	// step 5. insert audit log for user signup action
+	audit := entities.AuditLog{
+		UserID:    userEntity.ID,
+		Action:    "USER_SIGNUP",
+		IP:        utils.GetClientIP(ctx),
+		UserAgent: utils.GetUserAgent(ctx),
+		Meta: datatypes.JSONMap{
+			"user": userEntity,
+		},
+	}
+
+	// decision: ignore or return?
+	_, logErr := s.auditLogWriteRepo.InsertAuditLog(ctx, audit)
+	if logErr != nil {
+		// Common approach: log and continue
+		logErr.ExposeLogError() // or logger.Warn(...)
+	}
 
 	return nil, nil
 }
