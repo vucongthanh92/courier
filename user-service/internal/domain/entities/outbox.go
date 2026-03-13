@@ -14,4 +14,4 @@ type Outbox struct {
 	PublishedAt   *time.Time `gorm:"type:timestamptz"`
 }
 
-func (Outbox) TableName() string { return "outbox" }
+func (Outbox) TableName() string { return `"cron-service".outbox` }
