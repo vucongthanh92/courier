@@ -16,10 +16,12 @@ type UserQueryRepoI interface {
 
 type UserCommandRepoI interface {
 	InsertUser(ctx context.Context, entity *entities.User) *errHandler.ErrorBuilder
+	UpdateEmailVerified(ctx context.Context, id uint64, status string) *errHandler.ErrorBuilder
 }
 
 // service interface
-type UserServiceI interface {
-	Signup(ctx context.Context, req models.SignupRequest) (
-		*entities.User, *errHandler.ErrorBuilder)
+type AuthServiceI interface {
+	Signup(ctx context.Context, req models.SignupRequest) (*entities.User, *errHandler.ErrorBuilder)
+	VerifyEmail(ctx context.Context, req models.VerifyEmailRequest) (*models.VerifyEmailResponse, *errHandler.ErrorBuilder)
+	ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder)
 }

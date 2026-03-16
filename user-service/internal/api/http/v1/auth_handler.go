@@ -12,25 +12,25 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
-type UserHandler struct {
-	userService interfaces.UserServiceI
+type AuthHandler struct {
+	authService interfaces.AuthServiceI
 }
 
-func InitUserHandler(userService interfaces.UserServiceI) *UserHandler {
-	return &UserHandler{
-		userService: userService,
+func InitAuthHandler(authService interfaces.AuthServiceI) *AuthHandler {
+	return &AuthHandler{
+		authService: authService,
 	}
 }
 
 // API Signup godoc
-// @Tags User
+// @Tags Auth
 // @Summary create new user
 // @Accept json
 // @Produce json
 // @Param params body models.SignupRequest true "SignupRequest"
-// @Router /api/v1/user/sign-up [post]
+// @Router /api/v1/auth/sign-up [post]
 // @Success	200 {object} entities.User
-func (h *UserHandler) Signup(c *gin.Context) {
+func (h *AuthHandler) Signup(c *gin.Context) {
 
 	// Parse request body
 	req := models.SignupRequest{}
@@ -38,6 +38,7 @@ func (h *UserHandler) Signup(c *gin.Context) {
 		return
 	}
 
+	// Validate request body
 	err := httpcommon.ValidatorParams(req)
 	if err != nil {
 		resErr := errHandler.InitErrorBuilder(c).
@@ -48,11 +49,13 @@ func (h *UserHandler) Signup(c *gin.Context) {
 		return
 	}
 
-	res, resErr := h.userService.Signup(c, req)
+	// Call usecase
+	res, resErr := h.authService.Signup(c, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
 		return
 	}
 
+	// Return response
 	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
 }

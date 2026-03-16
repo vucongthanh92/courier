@@ -11,18 +11,18 @@ import (
 
 type Server struct {
 	cfg             *config.AppConfig
-	userHandler     *v1.UserHandler
+	authHandler     *v1.AuthHandler
 	identityHandler *v1.IdentityHandler
 }
 
 func NewServer(
 	cfg *config.AppConfig,
-	userHandler *v1.UserHandler,
+	authHandler *v1.AuthHandler,
 	identityHandler *v1.IdentityHandler,
 ) *Server {
 	return &Server{
 		cfg:             cfg,
-		userHandler:     userHandler,
+		authHandler:     authHandler,
 		identityHandler: identityHandler,
 	}
 }
@@ -48,7 +48,7 @@ func (s *Server) Run() {
 	// In the future, if we have v2, v3..., we will add at here
 	v1.MapRoutes(
 		router,
-		s.userHandler,
+		s.authHandler,
 		s.identityHandler,
 	)
 	httpServer.Run()

@@ -14,12 +14,12 @@ import (
 	"github.com/vucongthanh92/courier/user-service/redis"
 
 	auditLogUc "github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
+	authUc "github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
 	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
-	userUc "github.com/vucongthanh92/courier/user-service/internal/usecase/user"
 
 	auditLogRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
 	authCredWriteRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
-	emailVerWriteRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
+	emailVerificationRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
 	identityRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
 	outboxRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
@@ -41,13 +41,13 @@ var apiSet = wire.NewSet(
 
 var handlerSet = wire.NewSet(
 	v1.InitIdentityHandler,
-	v1.InitUserHandler,
+	v1.InitAuthHandler,
 )
 
 var serviceSet = wire.NewSet(
 	cronjob.NewCronJobService,
 	auditLogUc.InitAuditLogUsecase,
-	userUc.InitUserUsecase,
+	authUc.InitAuthUsecase,
 	identityUc.InitIdentityService,
 )
 
@@ -59,7 +59,8 @@ var repoSet = wire.NewSet(
 	identityRepo.InitIdentityQueryRepository,
 	auditLogRepo.InitAuditLogCmdRepository,
 	authCredWriteRepo.InitAuthCredentialCmdRepository,
-	emailVerWriteRepo.InitEmailVerificationCmdRepository,
+	emailVerificationRepo.InitEmailVerificationCmdRepository,
+	emailVerificationRepo.InitEmailVerificationQueryRepository,
 	outboxRepo.InitOutboxCmdRepository,
 	outboxRepo.InitOutboxQueryRepository,
 )

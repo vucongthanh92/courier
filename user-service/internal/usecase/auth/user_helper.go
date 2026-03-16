@@ -1,4 +1,4 @@
-package user_uc
+package auth_uc
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 )
 
 // createUserCreatedOutboxEvent creates an outbox event for USER_CREATED
-func (s *UserUseCaseImpl) createUserCreatedOutboxEvent(
+func (s *AuthUseCaseImpl) createUserCreatedOutboxEvent(
 	ctx context.Context,
 	user *entities.User,
 ) *errHandler.ErrorBuilder {
