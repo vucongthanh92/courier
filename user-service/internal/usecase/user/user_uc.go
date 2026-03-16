@@ -54,8 +54,10 @@ func (s *UserUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 	// step 1. Map request to entity
 	var (
 		userEntity        = entities.User{}
-		emailVerifyEntity = entities.EmailVerification{}
-		authCredEntity    = entities.AuthCredential{}
+		emailVerifyEntity = entities.EmailVerification{
+			TokenHash: utils.RandString(7), // generate token hash for email verification
+		}
+		authCredEntity = entities.AuthCredential{}
 	)
 
 	req.MappingToUserEntity(&userEntity)

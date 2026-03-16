@@ -2,10 +2,15 @@ package utils
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"math/big"
 	"runtime/debug"
 	"strings"
+	"time"
+
+	mrand "math/rand"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -77,4 +82,30 @@ func GetClientIP(ctx context.Context) string {
 	}
 
 	return ""
+}
+
+// RandString generates a random string of the specified length using crypto/rand for better randomness.
+const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func init() {
+	mrand.Seed(time.Now().UnixNano())
+}
+
+func RandString(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	buf := make([]byte, n)
+	max := big.NewInt(int64(len(letters)))
+
+	for i := 0; i < n; i++ {
+		v, err := rand.Int(rand.Reader, max)
+		if err == nil {
+			buf[i] = letters[v.Int64()]
+			continue
+		}
+		// Fallback: non-crypto random
+		buf[i] = letters[mrand.Intn(len(letters))]
+	}
+	return string(buf)
 }

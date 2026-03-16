@@ -19,6 +19,7 @@ type SnowflakeConfig struct {
 	CheckMachineID func(uint16) (bool, error) // optional
 }
 
+// InitSnowflake initializes the Sonyflake ID generator with the provided configuration.
 func InitSnowflake(cfg SnowflakeConfig) {
 	once.Do(func() {
 		st := sonyflake.Settings{
@@ -41,6 +42,7 @@ func InitSnowflake(cfg SnowflakeConfig) {
 	})
 }
 
+// NewSnowflakeID generates a new unique ID using Sonyflake. It returns an error if the generator is not initialized or if ID generation fails.
 func NewSnowflakeID() (uint64, error) {
 	if sf == nil {
 		return 0, errors.New("idgen not initialized")

@@ -79,34 +79,6 @@ func Contains[T comparable](s []T, str T) bool {
 	return false
 }
 
-func ParserSeoulTime(val time.Time) time.Time {
-	return val.UTC().Add(9 * time.Hour)
-}
-
-func FormatSeoulTime(val time.Time) time.Time {
-	locSeoul := time.FixedZone("", 9*60*60)
-
-	resp := time.Date(val.Year(), val.Month(), val.Day(),
-		val.Hour(), val.Minute(), val.Second(), val.Nanosecond(), locSeoul,
-	)
-
-	return resp
-}
-
-func ConvertSeoulTime(val time.Time) time.Time {
-	// Load the location for Seoul
-	seoulLocation, err := time.LoadLocation("Asia/Seoul")
-	if err != nil {
-		fmt.Println("Error loading location:", err)
-		return time.Time{}
-	}
-
-	// Convert the appointment time to Seoul time
-	seoulTime := val.In(seoulLocation)
-
-	return RemoveNanoMilisecondTime(seoulTime)
-}
-
 func RemoveNanoMilisecondTime(val time.Time) time.Time {
 	result := val.Format(time.RFC3339)
 	value, _ := time.Parse(time.RFC3339, result)
