@@ -23,6 +23,7 @@ func InitOutboxCmdRepository(writeDb *database.GormWriteDb) interfaces.OutboxCom
 	}
 }
 
+// InsertOutbox inserts a new outbox record into the database
 func (repo *outboxCmdRepository) InsertOutbox(ctx context.Context, entity entities.Outbox) (
 	entities.Outbox, *errHandler.ErrorBuilder) {
 
@@ -39,4 +40,22 @@ func (repo *outboxCmdRepository) InsertOutbox(ctx context.Context, entity entiti
 	}
 
 	return entity, nil
+}
+
+// UpdateOutboxPublished updates the PublishedAt field of the outbox record to mark it as published
+func (repo *outboxCmdRepository) UpdateOutboxPublished(ctx context.Context, entity *entities.Outbox) *errHandler.ErrorBuilder {
+
+	// Start tracing span
+	ctx, span := tracing.StartSpanFromContext(ctx, "UpdateOutboxPublished")
+	defer span.End()
+	run := transaction.RunnerFromCtx(ctx, repo.writeDb)
+
+	// Update outbox record
+	err := run.Model(entities.Outbox{}).Where("id = ?", entity.ID).Update("published_at", entity.PublishedAt).Error
+	if err != nil {
+		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return resErr
+	}
+
+	return nil
 }

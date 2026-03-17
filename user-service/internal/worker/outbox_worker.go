@@ -20,6 +20,7 @@ type OutboxWorker struct {
 	outboxQueryRepo   interfaces.OutboxQueryRepoI
 	outboxCommandRepo interfaces.OutboxCommandRepoI
 	auditLogService   interfaces.AuditLogServiceI
+	emailSender       interfaces.EmailSenderI
 	logger            logger.Logger
 }
 
@@ -28,6 +29,7 @@ func InitOutboxWorker(
 	outboxQueryRepo interfaces.OutboxQueryRepoI,
 	outboxCommandRepo interfaces.OutboxCommandRepoI,
 	auditLogService interfaces.AuditLogServiceI,
+	emailSender interfaces.EmailSenderI,
 	logger logger.Logger,
 ) *OutboxWorker {
 	return &OutboxWorker{
@@ -35,6 +37,7 @@ func InitOutboxWorker(
 		outboxQueryRepo:   outboxQueryRepo,
 		outboxCommandRepo: outboxCommandRepo,
 		auditLogService:   auditLogService,
+		emailSender:       emailSender,
 		logger:            logger,
 	}
 }
@@ -123,14 +126,19 @@ func (w *OutboxWorker) processNotification(ctx context.Context, payload string) 
 		if err := w.processUserCreatedEvent(ctx, outboxEvent); err != nil {
 			return err
 		}
+	case "EMAIL_VERIFICATION_SEND":
+		if err := w.processSendVerifyEmail(ctx, outboxEvent); err != nil {
+			return err
+		}
 	default:
 		w.logger.Warn("Unknown event type", zap.String("event_type", outboxEvent.EventType), zap.Uint64("outbox_id", outboxID))
+		return nil
 	}
 
 	// Mark event as published
 	now := time.Now()
 	outboxEvent.PublishedAt = &now
-	_, txnErr = w.outboxCommandRepo.InsertOutbox(ctx, *outboxEvent)
+	txnErr = w.outboxCommandRepo.UpdateOutboxPublished(ctx, outboxEvent)
 	if txnErr != nil {
 		w.logger.Error("Failed to mark outbox event as published", zap.Any("error", txnErr), zap.Uint64("outbox_id", outboxID))
 		return fmt.Errorf("failed to mark outbox event as published: %w", txnErr)
@@ -162,5 +170,28 @@ func (w *OutboxWorker) processUserCreatedEvent(ctx context.Context, outboxEvent 
 	}
 
 	w.logger.Info("Successfully logged user created event", zap.Uint64("user_id", user.ID))
+	return nil
+}
+
+func (w *OutboxWorker) processSendVerifyEmail(ctx context.Context, outboxEvent *entities.Outbox) error {
+	ctx, span := tracing.StartSpanFromContext(ctx, "OutboxWorker.processSendVerifyEmail")
+	defer span.End()
+
+	var payload struct {
+		Email string `json:"email"`
+		Token string `json:"token"`
+	}
+
+	//
+	if err := json.Unmarshal(outboxEvent.Payload, &payload); err != nil {
+		w.logger.Error("Failed to deserialize payload", zap.Error(err))
+		return err
+	}
+
+	// Call email sender to send verification email
+	if err := w.emailSender.SendVerificationEmail(ctx, payload.Email, payload.Token); err != nil {
+		w.logger.Error("Send verification email failed", zap.Any("error", err), zap.String("email", payload.Email))
+		return fmt.Errorf("send verification email: %w", err)
+	}
 	return nil
 }

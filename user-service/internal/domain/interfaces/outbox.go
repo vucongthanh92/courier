@@ -12,8 +12,8 @@ type OutboxQueryRepoI interface {
 }
 
 type OutboxCommandRepoI interface {
-	InsertOutbox(ctx context.Context, entity entities.Outbox) (
-		entities.Outbox, *errHandler.ErrorBuilder)
+	InsertOutbox(ctx context.Context, entity entities.Outbox) (entities.Outbox, *errHandler.ErrorBuilder)
+	UpdateOutboxPublished(ctx context.Context, entity *entities.Outbox) *errHandler.ErrorBuilder
 }
 
 type OutboxServiceI interface {

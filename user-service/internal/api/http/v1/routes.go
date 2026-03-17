@@ -15,6 +15,8 @@ func MapRoutes(
 	{
 		// API for auth
 		v1.POST("/auth/sign-up", authHandler.Signup)
+		v1.POST("/auth/verify-email", authHandler.VerifyEmail)
+		v1.PUT("/auth/verify-email/resend", authHandler.ResendVerifyEmail)
 
 		// API for identity
 		v1.POST("/auth/identity/create", identityHandler.CreateIdentity)

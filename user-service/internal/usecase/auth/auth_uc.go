@@ -191,6 +191,8 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 }
 
 // ResendVerifyEmail implements interfaces.UserServiceI
+// this API will generate new token and expiry,
+// then update to email_verification table, and publish outbox event for sending email
 func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder) {
 	ctx, span := tracing.StartSpanFromContext(ctx, "ResendVerifyEmail")
 	defer span.End()
@@ -229,6 +231,7 @@ func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.Rese
 }
 
 // helper to publish outbox event
+// you can move this to a common place if needed by other usecases
 func (s *AuthUseCaseImpl) createSendVerifyEmailOutbox(ctx context.Context, email, token string) *errHandler.ErrorBuilder {
 	payload, _ := json.Marshal(map[string]string{"email": email, "token": token})
 	outboxID, _ := utils.NewSnowflakeID()

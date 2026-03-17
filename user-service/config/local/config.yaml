@@ -90,3 +90,13 @@ slackservice:
   channel: 
   username:
   urlSlackWebhook: 
+email:
+  enabled: false
+  provider: smtp
+  from: "vucongthanh92@gmail.com"
+  verifyUrl: "https://localhost:3000/verify-email"
+  smtp:
+    host: "smtp.gmail.com"
+    port: 587
+    username: ""
+    password: ""

@@ -59,3 +59,74 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	// Return response
 	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
 }
+
+// API VerifyEmail godoc
+// @Tags Auth
+// @Summary verify user email
+// @Accept json
+// @Produce json
+// @Param params body models.VerifyEmailRequest true "VerifyEmailRequest"
+// @Router /api/v1/auth/verify-email [post]
+// @Success	200 {object} models.VerifyEmailResponse
+func (h *AuthHandler) VerifyEmail(c *gin.Context) {
+
+	req := models.VerifyEmailRequest{}
+	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+		return
+	}
+
+	if err := httpcommon.ValidatorParams(req); err != nil {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusBadRequest).
+			SetArrayError(err).
+			ExposeHttpError(c)
+		return
+	}
+
+	// Call usecase
+	res, resErr := h.authService.VerifyEmail(c, req)
+	if resErr != nil {
+		resErr.ExposeHttpError(c)
+		return
+	}
+
+	// Return response
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
+}
+
+// API ResendVerifyEmail godoc
+// @Tags Auth
+// @Summary resend verification email
+// @Accept json
+// @Produce json
+// @Param params body models.ResendVerifyEmailRequest true "ResendVerifyEmailRequest"
+// @Router /api/v1/auth/verify-email/resend [post]
+// @Success	200 {object} models.ResendVerifyEmailResponse
+func (h *AuthHandler) ResendVerifyEmail(c *gin.Context) {
+
+	req := models.ResendVerifyEmailRequest{}
+	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+		return
+	}
+
+	// Validate request body
+	if err := httpcommon.ValidatorParams(req); err != nil {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusBadRequest).
+			SetArrayError(err).
+			ExposeHttpError(c)
+		return
+	}
+
+	// Call usecase
+	res, resErr := h.authService.ResendVerifyEmail(c, req)
+	if resErr != nil {
+		resErr.ExposeHttpError(c)
+		return
+	}
+
+	// Return response
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
+}

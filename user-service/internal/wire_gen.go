@@ -7,7 +7,9 @@
 package internal
 
 import (
+	"context"
 	"github.com/google/wire"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/database"
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
@@ -16,6 +18,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
@@ -26,7 +29,10 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 	identity2 "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
+	"github.com/vucongthanh92/courier/user-service/internal/worker"
 	"github.com/vucongthanh92/courier/user-service/redis"
+	"github.com/vucongthanh92/go-base-utils/logger"
+	"go.uber.org/zap"
 )
 
 // Injectors from wire.go:
@@ -50,11 +56,20 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	grpcServer := grpc.NewServer(appCfg)
 	cronJobService := cronjob.NewCronJobService()
 	cronServer := cron.NewServer(appCfg, cronJobService)
-	apiContainer := api.NewApiContainer(server, grpcServer, cronServer)
+	pool := newPgxPool(appCfg)
+	outboxQueryRepoI := outbox.InitOutboxQueryRepository(readDb)
+	auditLogServiceI := auditlog_uc.InitAuditLogUsecase(auditLogCommandRepoI)
+	emailConfig := provideEmailConfig(appCfg)
+	logger := provideLogger(appCfg)
+	emailSenderI := emailsender.InitSMTPSender(emailConfig, logger)
+	outboxWorker := worker.InitOutboxWorker(pool, outboxQueryRepoI, outboxCommandRepoI, auditLogServiceI, emailSenderI, logger)
+	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, outboxWorker)
 	return apiContainer
 }
 
 // wire.go:
+
+var workerSet = wire.NewSet(worker.InitOutboxWorker, newPgxPool)
 
 var container = wire.NewSet(api.NewApiContainer)
 
@@ -64,4 +79,24 @@ var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler)
 
 var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth_uc.InitAuthUsecase, identity2.InitIdentityService)
 
-var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository)
+var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, emailsender.InitSMTPSender, provideEmailConfig,
+	provideLogger,
+)
+
+func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
+	pool, err := pgxpool.New(context.Background(), cfg.Database.WriteDbCfg.ConnectionString)
+	if err != nil {
+		logger.Fatal("cannot init pgxpool", zap.Error(err))
+	}
+	return pool
+}
+
+// provideEmailConfig returns the nested email config for DI.
+func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
+	return cfg.Email
+}
+
+// provideLogger initializes a zap logger with configured level.
+func provideLogger(cfg *config.AppConfig) logger.Logger {
+	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}
