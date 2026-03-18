@@ -18,6 +18,7 @@ import (
 	auditLogUc "github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
 	authUc "github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
 	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
+	outboxUc "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
 
 	auditLogRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
 	authCredWriteRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
@@ -63,6 +64,7 @@ var serviceSet = wire.NewSet(
 	auditLogUc.InitAuditLogUsecase,
 	authUc.InitAuthUsecase,
 	identityUc.InitIdentityService,
+	outboxUc.InitOutboxUsecase,
 )
 
 var repoSet = wire.NewSet(

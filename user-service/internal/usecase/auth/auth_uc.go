@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/vucongthanh92/courier/user-service/helper/constants"
@@ -13,40 +14,42 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/logger"
 	"github.com/vucongthanh92/go-base-utils/tracing"
+	"go.uber.org/zap"
 	"gorm.io/datatypes"
 )
 
 type AuthUseCaseImpl struct {
 	txn                        *transaction.ManagerTxn
+	auditLogService            interfaces.AuditLogServiceI
+	outboxService              interfaces.OutboxServiceI
 	userReadRepo               interfaces.UserQueryRepoI
 	userWriteRepo              interfaces.UserCommandRepoI
 	authCredWriteRepo          interfaces.AuthCredentialCommandRepoI
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI
 	emailVerificationReadRepo  interfaces.EmailVerificationQueryRepoI
-	auditLogWriteRepo          interfaces.AuditLogCommandRepoI
-	outboxWriteRepo            interfaces.OutboxCommandRepoI
 }
 
 func InitAuthUsecase(
 	txn *transaction.ManagerTxn,
+	auditLogService interfaces.AuditLogServiceI,
+	outboxService interfaces.OutboxServiceI,
 	userReadRepo interfaces.UserQueryRepoI,
 	userWriteRepo interfaces.UserCommandRepoI,
 	authCredWriteRepo interfaces.AuthCredentialCommandRepoI,
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI,
 	emailVerificationReadRepo interfaces.EmailVerificationQueryRepoI,
-	auditLogWriteRepo interfaces.AuditLogCommandRepoI,
-	outboxWriteRepo interfaces.OutboxCommandRepoI,
 ) interfaces.AuthServiceI {
 	return &AuthUseCaseImpl{
 		txn:                        txn,
+		auditLogService:            auditLogService,
+		outboxService:              outboxService,
 		userReadRepo:               userReadRepo,
 		userWriteRepo:              userWriteRepo,
 		authCredWriteRepo:          authCredWriteRepo,
 		emailVerificationWriteRepo: emailVerificationWriteRepo,
 		emailVerificationReadRepo:  emailVerificationReadRepo,
-		auditLogWriteRepo:          auditLogWriteRepo,
-		outboxWriteRepo:            outboxWriteRepo,
 	}
 }
 
@@ -112,12 +115,20 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 			return txnErr
 		}
 
-		// create outbox event for USER_CREATED
-		txnErr = s.createUserCreatedOutboxEvent(txCtx, &userEntity)
+		// create outbox event for sending verification email
+		payload, _ := json.Marshal(map[string]string{"email": emailVerifyEntity.Email, "token": emailVerifyEntity.TokenHash})
+		outboxReq := models.CreateOutboxRequest{
+			AggregateType: "user_signup",
+			AggregateID:   strconv.FormatUint(userEntity.ID, 10),
+			EventType:     "email_verification_send",
+			Payload:       payload,
+		}
+		txnErr = s.outboxService.CreateOutbox(txCtx, outboxReq)
 		if txnErr != nil {
 			return txnErr
 		}
 
+		// if all operations in transaction are successful, return nil to commit transaction
 		return nil
 	})
 
@@ -127,32 +138,30 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 		return nil, commonErr
 	}
 
-	// step 4. handle after created user successfully, send verify email, sms, ...
-	// ...
-
 	// step 5. insert audit log for user signup action
-	audit := entities.AuditLog{
-		UserID:    userEntity.ID,
-		Action:    "USER_SIGNUP",
+	auditLogReq := models.AuditLogRequest{
+		CreatorID: userEntity.ID,
+		Action:    "user_signup",
 		IP:        utils.GetClientIP(ctx),
 		UserAgent: utils.GetUserAgent(ctx),
 		Metadata: datatypes.JSONMap{
 			"user": userEntity,
 		},
 	}
-
-	// decision: ignore or return?
-	_, logErr := s.auditLogWriteRepo.InsertAuditLog(ctx, audit)
+	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
 	if logErr != nil {
-		// Common approach: log and continue
-		logErr.ExposeLogError() // or logger.Warn(...)
+		logger.Error("Failed to log user created event", zap.Any("error", logErr), zap.Uint64("user_id", userEntity.ID))
 	}
 
+	// return response
 	return nil, nil
 }
 
 // VerifyEmail implements interfaces.UserServiceI
-func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmailRequest) (*models.VerifyEmailResponse, *errHandler.ErrorBuilder) {
+// this API will check token valid or not, if valid then mark email verified and token used in transaction
+func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmailRequest) (
+	*models.VerifyEmailResponse, *errHandler.ErrorBuilder) {
+
 	ctx, span := tracing.StartSpanFromContext(ctx, "VerifyEmail")
 	defer span.End()
 
@@ -193,29 +202,25 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 // ResendVerifyEmail implements interfaces.UserServiceI
 // this API will generate new token and expiry,
 // then update to email_verification table, and publish outbox event for sending email
-func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder) {
+func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (
+	*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder) {
+
 	ctx, span := tracing.StartSpanFromContext(ctx, "ResendVerifyEmail")
 	defer span.End()
 
 	// generate new token and expiry
 	token := utils.RandString(7)
 	expiresAt := time.Now().Add(24 * time.Hour)
+	emailVerification := entities.EmailVerification{}
 
+	// update to email_verification table in transaction
 	err := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
-		// if no existing row -> insert
-		_, qErr := s.emailVerificationReadRepo.GetActiveByEmail(txCtx, req.Email)
-		if qErr != nil {
-			// create a new record if not found
-			sid, _ := utils.NewSnowflakeID()
-			entity := entities.EmailVerification{
-				ID:        sid,
-				Email:     req.Email,
-				UserID:    0, // set if you can look up user by email
-				TokenHash: token,
-				ExpiresAt: expiresAt,
-			}
-			return s.emailVerificationWriteRepo.InsertEmailVerification(txCtx, &entity)
+		var txnErr *errHandler.ErrorBuilder
+		emailVerification, txnErr = s.emailVerificationReadRepo.GetActiveByEmail(txCtx, req.Email)
+		if txnErr != nil {
+			return txnErr
 		}
+
 		// update existing
 		return s.emailVerificationWriteRepo.UpdateToken(txCtx, req.Email, token, expiresAt)
 	})
@@ -225,23 +230,16 @@ func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.Rese
 	}
 
 	// send email async via outbox
-	_ = s.createSendVerifyEmailOutbox(ctx, req.Email, token)
-
-	return &models.ResendVerifyEmailResponse{Message: "Verification email resent"}, nil
-}
-
-// helper to publish outbox event
-// you can move this to a common place if needed by other usecases
-func (s *AuthUseCaseImpl) createSendVerifyEmailOutbox(ctx context.Context, email, token string) *errHandler.ErrorBuilder {
-	payload, _ := json.Marshal(map[string]string{"email": email, "token": token})
-	outboxID, _ := utils.NewSnowflakeID()
-	event := entities.Outbox{
-		ID:            outboxID,
-		AggregateType: "EmailVerification",
-		AggregateID:   email,
-		EventType:     "EMAIL_VERIFICATION_SEND",
+	payload, _ := json.Marshal(map[string]string{"email": req.Email, "token": token})
+	outboxReq := models.CreateOutboxRequest{
+		AggregateType: "user_resend_verify",
+		AggregateID:   strconv.FormatUint(emailVerification.UserID, 10),
+		EventType:     "email_verification_send",
 		Payload:       payload,
 	}
-	_, err := s.outboxWriteRepo.InsertOutbox(ctx, event)
-	return err
+
+	_ = s.outboxService.CreateOutbox(ctx, outboxReq)
+
+	// return response
+	return &models.ResendVerifyEmailResponse{Message: "Verification email resent"}, nil
 }

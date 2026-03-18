@@ -122,11 +122,11 @@ func (w *OutboxWorker) processNotification(ctx context.Context, payload string) 
 
 	// Process based on event type
 	switch outboxEvent.EventType {
-	case "USER_CREATED":
+	case "user_created":
 		if err := w.processUserCreatedEvent(ctx, outboxEvent); err != nil {
 			return err
 		}
-	case "EMAIL_VERIFICATION_SEND":
+	case "email_verification_send":
 		if err := w.processSendVerifyEmail(ctx, outboxEvent); err != nil {
 			return err
 		}
@@ -160,19 +160,10 @@ func (w *OutboxWorker) processUserCreatedEvent(ctx context.Context, outboxEvent 
 		return err
 	}
 
-	// Log user created event to audit log
-	// For now, we use "unknown" for IP and User-Agent since they are not in the payload
-	// This can be enhanced in Phase 3
-	txnErr := w.auditLogService.LogUserCreated(ctx, &user, "unknown", "unknown")
-	if txnErr != nil {
-		w.logger.Error("Failed to log user created event", zap.Any("error", txnErr), zap.Uint64("user_id", user.ID))
-		return fmt.Errorf("failed to log user created event: %w", txnErr)
-	}
-
-	w.logger.Info("Successfully logged user created event", zap.Uint64("user_id", user.ID))
 	return nil
 }
 
+// processSendVerifyEmail processes EMAIL_VERIFICATION_SEND event
 func (w *OutboxWorker) processSendVerifyEmail(ctx context.Context, outboxEvent *entities.Outbox) error {
 	ctx, span := tracing.StartSpanFromContext(ctx, "OutboxWorker.processSendVerifyEmail")
 	defer span.End()
@@ -182,7 +173,7 @@ func (w *OutboxWorker) processSendVerifyEmail(ctx context.Context, outboxEvent *
 		Token string `json:"token"`
 	}
 
-	//
+	// Deserialize payload
 	if err := json.Unmarshal(outboxEvent.Payload, &payload); err != nil {
 		w.logger.Error("Failed to deserialize payload", zap.Error(err))
 		return err

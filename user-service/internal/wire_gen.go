@@ -29,6 +29,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 	identity2 "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
+	outbox2 "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
 	"github.com/vucongthanh92/courier/user-service/internal/worker"
 	"github.com/vucongthanh92/courier/user-service/redis"
 	"github.com/vucongthanh92/go-base-utils/logger"
@@ -39,14 +40,17 @@ import (
 
 func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, writeDb *database.GormWriteDb, redisClient redis.Client) *api.ApiContainer {
 	managerTxn := transaction.InitManagerTxn(writeDb)
+	auditLogCommandRepoI := auditlog.InitAuditLogCmdRepository(writeDb)
+	auditLogServiceI := auditlog_uc.InitAuditLogUsecase(auditLogCommandRepoI)
+	outboxCommandRepoI := outbox.InitOutboxCmdRepository(writeDb)
+	outboxQueryRepoI := outbox.InitOutboxQueryRepository(readDb)
+	outboxServiceI := outbox2.InitOutboxUsecase(auditLogServiceI, outboxCommandRepoI, outboxQueryRepoI)
 	userQueryRepoI := user.InitUserQueryRepository(readDb)
 	userCommandRepoI := user.InitUserCmdRepository(writeDb)
 	authCredentialCommandRepoI := authcredential.InitAuthCredentialCmdRepository(writeDb)
 	emailVerificationCommandRepoI := emailverification.InitEmailVerificationCmdRepository(writeDb)
 	emailVerificationQueryRepoI := emailverification.InitEmailVerificationQueryRepository(readDb)
-	auditLogCommandRepoI := auditlog.InitAuditLogCmdRepository(writeDb)
-	outboxCommandRepoI := outbox.InitOutboxCmdRepository(writeDb)
-	authServiceI := auth_uc.InitAuthUsecase(managerTxn, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, auditLogCommandRepoI, outboxCommandRepoI)
+	authServiceI := auth_uc.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI)
 	authHandler := v1.InitAuthHandler(authServiceI)
 	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
@@ -57,8 +61,6 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	cronJobService := cronjob.NewCronJobService()
 	cronServer := cron.NewServer(appCfg, cronJobService)
 	pool := newPgxPool(appCfg)
-	outboxQueryRepoI := outbox.InitOutboxQueryRepository(readDb)
-	auditLogServiceI := auditlog_uc.InitAuditLogUsecase(auditLogCommandRepoI)
 	emailConfig := provideEmailConfig(appCfg)
 	logger := provideLogger(appCfg)
 	emailSenderI := emailsender.InitSMTPSender(emailConfig, logger)
@@ -77,7 +79,7 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth_uc.InitAuthUsecase, identity2.InitIdentityService)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth_uc.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase)
 
 var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, emailsender.InitSMTPSender, provideEmailConfig,
 	provideLogger,

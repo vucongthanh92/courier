@@ -98,5 +98,5 @@ email:
   smtp:
     host: "smtp.gmail.com"
     port: 587
-    username: ""
+    username: "vucongthanh92@gmail.com"
     password: ""

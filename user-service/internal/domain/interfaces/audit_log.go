@@ -5,6 +5,7 @@ import (
 
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
 type AuditLogQueryRepoI interface {
@@ -16,5 +17,5 @@ type AuditLogCommandRepoI interface {
 }
 
 type AuditLogServiceI interface {
-	LogUserCreated(ctx context.Context, user *entities.User, ip string, userAgent string) *errHandler.ErrorBuilder
+	CreateAuditLog(ctx context.Context, req models.AuditLogRequest) *errHandler.ErrorBuilder
 }
