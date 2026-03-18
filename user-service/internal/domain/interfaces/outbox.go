@@ -5,6 +5,7 @@ import (
 
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
 type OutboxQueryRepoI interface {
@@ -12,9 +13,10 @@ type OutboxQueryRepoI interface {
 }
 
 type OutboxCommandRepoI interface {
-	InsertOutbox(ctx context.Context, entity entities.Outbox) (
-		entities.Outbox, *errHandler.ErrorBuilder)
+	InsertOutbox(ctx context.Context, entity entities.Outbox) (entities.Outbox, *errHandler.ErrorBuilder)
+	UpdateOutboxPublished(ctx context.Context, entity *entities.Outbox) *errHandler.ErrorBuilder
 }
 
 type OutboxServiceI interface {
+	CreateOutbox(ctx context.Context, req models.CreateOutboxRequest) *errHandler.ErrorBuilder
 }

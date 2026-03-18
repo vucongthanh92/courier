@@ -45,6 +45,13 @@ func runServer(
 	// Run CronJob server
 	wp.Submit(container.CronServer.Run)
 
+	// Outbox worker
+	wp.Submit(func() {
+		if err := container.OutboxWorker.Start(ctx); err != nil {
+			logger.Error("outbox worker stopped", zap.Error(err))
+		}
+	})
+
 	wp.StopWait()
 }
 

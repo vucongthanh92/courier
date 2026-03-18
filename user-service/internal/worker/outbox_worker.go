@@ -20,6 +20,7 @@ type OutboxWorker struct {
 	outboxQueryRepo   interfaces.OutboxQueryRepoI
 	outboxCommandRepo interfaces.OutboxCommandRepoI
 	auditLogService   interfaces.AuditLogServiceI
+	emailSender       interfaces.EmailSenderI
 	logger            logger.Logger
 }
 
@@ -28,6 +29,7 @@ func InitOutboxWorker(
 	outboxQueryRepo interfaces.OutboxQueryRepoI,
 	outboxCommandRepo interfaces.OutboxCommandRepoI,
 	auditLogService interfaces.AuditLogServiceI,
+	emailSender interfaces.EmailSenderI,
 	logger logger.Logger,
 ) *OutboxWorker {
 	return &OutboxWorker{
@@ -35,6 +37,7 @@ func InitOutboxWorker(
 		outboxQueryRepo:   outboxQueryRepo,
 		outboxCommandRepo: outboxCommandRepo,
 		auditLogService:   auditLogService,
+		emailSender:       emailSender,
 		logger:            logger,
 	}
 }
@@ -119,18 +122,23 @@ func (w *OutboxWorker) processNotification(ctx context.Context, payload string) 
 
 	// Process based on event type
 	switch outboxEvent.EventType {
-	case "USER_CREATED":
+	case "user_created":
 		if err := w.processUserCreatedEvent(ctx, outboxEvent); err != nil {
+			return err
+		}
+	case "email_verification_send":
+		if err := w.processSendVerifyEmail(ctx, outboxEvent); err != nil {
 			return err
 		}
 	default:
 		w.logger.Warn("Unknown event type", zap.String("event_type", outboxEvent.EventType), zap.Uint64("outbox_id", outboxID))
+		return nil
 	}
 
 	// Mark event as published
 	now := time.Now()
 	outboxEvent.PublishedAt = &now
-	_, txnErr = w.outboxCommandRepo.InsertOutbox(ctx, *outboxEvent)
+	txnErr = w.outboxCommandRepo.UpdateOutboxPublished(ctx, outboxEvent)
 	if txnErr != nil {
 		w.logger.Error("Failed to mark outbox event as published", zap.Any("error", txnErr), zap.Uint64("outbox_id", outboxID))
 		return fmt.Errorf("failed to mark outbox event as published: %w", txnErr)
@@ -152,15 +160,29 @@ func (w *OutboxWorker) processUserCreatedEvent(ctx context.Context, outboxEvent 
 		return err
 	}
 
-	// Log user created event to audit log
-	// For now, we use "unknown" for IP and User-Agent since they are not in the payload
-	// This can be enhanced in Phase 3
-	txnErr := w.auditLogService.LogUserCreated(ctx, &user, "unknown", "unknown")
-	if txnErr != nil {
-		w.logger.Error("Failed to log user created event", zap.Any("error", txnErr), zap.Uint64("user_id", user.ID))
-		return fmt.Errorf("failed to log user created event: %w", txnErr)
+	return nil
+}
+
+// processSendVerifyEmail processes EMAIL_VERIFICATION_SEND event
+func (w *OutboxWorker) processSendVerifyEmail(ctx context.Context, outboxEvent *entities.Outbox) error {
+	ctx, span := tracing.StartSpanFromContext(ctx, "OutboxWorker.processSendVerifyEmail")
+	defer span.End()
+
+	var payload struct {
+		Email string `json:"email"`
+		Token string `json:"token"`
 	}
 
-	w.logger.Info("Successfully logged user created event", zap.Uint64("user_id", user.ID))
+	// Deserialize payload
+	if err := json.Unmarshal(outboxEvent.Payload, &payload); err != nil {
+		w.logger.Error("Failed to deserialize payload", zap.Error(err))
+		return err
+	}
+
+	// Call email sender to send verification email
+	if err := w.emailSender.SendVerificationEmail(ctx, payload.Email, payload.Token); err != nil {
+		w.logger.Error("Send verification email failed", zap.Any("error", err), zap.String("email", payload.Email))
+		return fmt.Errorf("send verification email: %w", err)
+	}
 	return nil
 }

@@ -2,6 +2,7 @@ package emailverification
 
 import (
 	"context"
+	"time"
 
 	"github.com/vucongthanh92/courier/user-service/database"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
@@ -23,6 +24,8 @@ func InitEmailVerificationCmdRepository(writeDb *database.GormWriteDb) interface
 	}
 }
 
+// InsertEmailVerification implements interfaces.EmailVerificationCommandRepoI
+// inserts a new email verification record into the database.
 func (repo *emailVerificationCmdRepository) InsertEmailVerification(ctx context.Context, entity *entities.EmailVerification) *errHandler.ErrorBuilder {
 
 	// Start tracing span
@@ -37,5 +40,40 @@ func (repo *emailVerificationCmdRepository) InsertEmailVerification(ctx context.
 		return resErr
 	}
 
+	return nil
+}
+
+// UpdateToken implements interfaces.EmailVerificationCommandRepoI
+// updates the token hash and expiration time for an active email verification record associated with the given email.
+func (repo *emailVerificationCmdRepository) UpdateToken(ctx context.Context, email, tokenHash string, expiresAt time.Time) *errHandler.ErrorBuilder {
+	ctx, span := tracing.StartSpanFromContext(ctx, "UpdateTokenEmailVerification")
+	defer span.End()
+	run := transaction.RunnerFromCtx(ctx, repo.writeDb)
+
+	err := run.Model(&entities.EmailVerification{}).
+		Where("email = ? AND used_at IS NULL", email).
+		Updates(map[string]interface{}{
+			"token_hash": tokenHash,
+			"expires_at": expiresAt,
+		}).Error
+	if err != nil {
+		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
+	return nil
+}
+
+// MarkUsed implements interfaces.EmailVerificationCommandRepoI
+// marks an email verification record as used by setting the used_at timestamp.
+func (repo *emailVerificationCmdRepository) MarkUsed(ctx context.Context, id uint64, usedAt time.Time) *errHandler.ErrorBuilder {
+	ctx, span := tracing.StartSpanFromContext(ctx, "MarkUsedEmailVerification")
+	defer span.End()
+	run := transaction.RunnerFromCtx(ctx, repo.writeDb)
+
+	err := run.Model(&entities.EmailVerification{}).
+		Where("id = ?", id).
+		Update("used_at", usedAt).Error
+	if err != nil {
+		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
 	return nil
 }
