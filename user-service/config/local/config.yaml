@@ -100,3 +100,10 @@ email:
     port: 587
     username: "vucongthanh92@gmail.com"
     password: ""
+jwt:
+  privateKey: |
+    -----BEGIN RSA PRIVATE KEY-----
+    ...
+    -----END RSA PRIVATE KEY-----
+  kid: "kid-001"
+  issuer: "user-service"

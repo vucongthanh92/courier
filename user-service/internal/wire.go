@@ -27,7 +27,8 @@ import (
 	outboxRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 
-	emailSenderRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
+	EmailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
+	jwtSigner "github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
 
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
@@ -82,11 +83,13 @@ var repoSet = wire.NewSet(
 	outboxRepo.InitOutboxQueryRepository,
 
 	// external repo
-	emailSenderRepo.InitSMTPSender,
+	EmailSender.InitSMTPSender,
+	jwtSigner.InitJWTSigner,
 
 	// shared dependencies
 	provideEmailConfig,
 	provideLogger,
+	provideJwtConfig,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -115,4 +118,9 @@ func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
 // provideLogger initializes a zap logger with configured level.
 func provideLogger(cfg *config.AppConfig) logger.Logger {
 	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}
+
+// provideJWTSigner initializes the JWT signer with RSA keys from config.
+func provideJwtConfig(cfg *config.AppConfig) *config.JWTConfig {
+	return cfg.JWT
 }

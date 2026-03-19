@@ -130,3 +130,26 @@ func (h *AuthHandler) ResendVerifyEmail(c *gin.Context) {
 	// Return response
 	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
 }
+
+// @Router /api/v1/auth/login [post]
+func (h *AuthHandler) Login(c *gin.Context) {
+	req := models.LoginRequest{}
+	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+		return
+	}
+	if err := httpcommon.ValidatorParams(req); err != nil { /* build 400 similar to others */
+		return
+	}
+	res, resErr := h.authService.Login(c, req)
+	if resErr != nil {
+		resErr.ExposeHttpError(c)
+		return
+	}
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
+}
+
+// @Router /api/v1/auth/token/refresh [post]
+func (h *AuthHandler) RefreshToken(c *gin.Context) {}
+
+// @Router /api/v1/auth/logout [post]
+func (h *AuthHandler) Logout(c *gin.Context) {}

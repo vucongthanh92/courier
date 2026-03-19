@@ -29,8 +29,8 @@ func InitIdentityHandler(
 // @Summary search products with filter and return pagination
 // @Accept json
 // @Produce json
-// @Param  params body models.CreateCategoryReq true "CreateCategoryReq"
-// @Router 	/api/v1/products [get]
+// @Param  params body models.CreateIdentityParams true "CreateIdentityParams"
+// @Router 	/api/v1/identities [post]
 // @Success	200
 func (h *IdentityHandler) CreateIdentity(c *gin.Context) {
 	req := models.CreateIdentityParams{}

@@ -16,61 +16,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/category": {
-            "get": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Category"
-                ],
-                "summary": "get list categories",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/entities.Category"
-                            }
-                        }
-                    }
-                }
-            },
-            "put": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Category"
-                ],
-                "summary": "delete category by id",
-                "parameters": [
-                    {
-                        "description": "UpdateCategoryReq",
-                        "name": "params",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.CreateCategoryReq"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/entities.Category"
-                        }
-                    }
-                }
-            },
+        "/api/v1/auth/sign-up": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -79,17 +25,17 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Category"
+                    "Auth"
                 ],
-                "summary": "create category by name",
+                "summary": "create new user",
                 "parameters": [
                     {
-                        "description": "CreateCategoryReq",
+                        "description": "SignupRequest",
                         "name": "params",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.CreateCategoryReq"
+                            "$ref": "#/definitions/models.SignupRequest"
                         }
                     }
                 ],
@@ -97,14 +43,14 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/entities.Category"
+                            "$ref": "#/definitions/entities.User"
                         }
                     }
                 }
             }
         },
-        "/api/v1/category/:id": {
-            "get": {
+        "/api/v1/auth/verify-email": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -112,21 +58,32 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Category"
+                    "Auth"
                 ],
-                "summary": "get list categories",
+                "summary": "verify user email",
+                "parameters": [
+                    {
+                        "description": "VerifyEmailRequest",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.VerifyEmailRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/entities.Category"
+                            "$ref": "#/definitions/models.VerifyEmailResponse"
                         }
                     }
                 }
             }
         },
-        "/api/v1/products": {
-            "get": {
+        "/api/v1/auth/verify-email/resend": {
+            "post": {
                 "consumes": [
                     "application/json"
                 ],
@@ -134,17 +91,50 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Supplier"
+                    "Auth"
+                ],
+                "summary": "resend verification email",
+                "parameters": [
+                    {
+                        "description": "ResendVerifyEmailRequest",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.ResendVerifyEmailRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ResendVerifyEmailResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/identities": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Identity"
                 ],
                 "summary": "search products with filter and return pagination",
                 "parameters": [
                     {
-                        "description": "CreateCategoryReq",
+                        "description": "CreateIdentityParams",
                         "name": "params",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.CreateCategoryReq"
+                            "$ref": "#/definitions/models.CreateIdentityParams"
                         }
                     }
                 ],
@@ -157,113 +147,109 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "entities.Category": {
+        "entities.User": {
             "type": "object",
             "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
                 "deleted_at": {
                     "type": "string"
                 },
-                "description": {
+                "display_name": {
                     "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "email_verified": {
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "name": {
+                "phone_number": {
                     "type": "string"
                 },
-                "products": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/entities.Product"
-                    }
+                "phone_verified": {
+                    "type": "boolean"
                 },
                 "status": {
-                    "type": "boolean"
+                    "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
                 }
             }
         },
-        "entities.Product": {
-            "type": "object",
-            "properties": {
-                "category": {
-                    "$ref": "#/definitions/entities.Category"
-                },
-                "categoryID": {
-                    "type": "integer"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "stock": {
-                    "type": "integer"
-                },
-                "supply": {
-                    "$ref": "#/definitions/entities.Supply"
-                },
-                "supplyID": {
-                    "type": "integer"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
+        "models.CreateIdentityParams": {
+            "type": "object"
         },
-        "entities.Supply": {
-            "type": "object",
-            "properties": {
-                "contact": {
-                    "type": "string"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "products": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/entities.Product"
-                    }
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.CreateCategoryReq": {
+        "models.ResendVerifyEmailRequest": {
             "type": "object",
             "required": [
-                "name"
+                "email"
             ],
             "properties": {
-                "description": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ResendVerifyEmailResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.SignupRequest": {
+            "type": "object",
+            "required": [
+                "display_name",
+                "email",
+                "password",
+                "phone_number"
+            ],
+            "properties": {
+                "display_name": {
                     "type": "string"
                 },
-                "name": {
+                "email": {
                     "type": "string"
                 },
-                "status": {
-                    "type": "boolean"
+                "password": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.VerifyEmailRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "token"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.VerifyEmailResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
                 }
             }
         }

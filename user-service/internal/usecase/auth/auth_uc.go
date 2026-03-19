@@ -1,4 +1,4 @@
-package auth_uc
+package auth
 
 import (
 	"context"
@@ -27,8 +27,12 @@ type AuthUseCaseImpl struct {
 	userReadRepo               interfaces.UserQueryRepoI
 	userWriteRepo              interfaces.UserCommandRepoI
 	authCredWriteRepo          interfaces.AuthCredentialCommandRepoI
+	authCredReadRepo           interfaces.AuthCredentialQueryRepoI
+	refreshTokenWriteRepo      interfaces.RefreshTokenCommandRepoI
+	refreshTokenReadRepo       interfaces.RefreshTokenQueryRepoI
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI
 	emailVerificationReadRepo  interfaces.EmailVerificationQueryRepoI
+	JwtSigner                  interfaces.JWTSignerI
 }
 
 func InitAuthUsecase(
@@ -40,6 +44,7 @@ func InitAuthUsecase(
 	authCredWriteRepo interfaces.AuthCredentialCommandRepoI,
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI,
 	emailVerificationReadRepo interfaces.EmailVerificationQueryRepoI,
+	JwtSigner interfaces.JWTSignerI,
 ) interfaces.AuthServiceI {
 	return &AuthUseCaseImpl{
 		txn:                        txn,
@@ -50,6 +55,7 @@ func InitAuthUsecase(
 		authCredWriteRepo:          authCredWriteRepo,
 		emailVerificationWriteRepo: emailVerificationWriteRepo,
 		emailVerificationReadRepo:  emailVerificationReadRepo,
+		JwtSigner:                  JwtSigner,
 	}
 }
 
@@ -251,4 +257,102 @@ func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.Rese
 
 	// return response
 	return &models.ResendVerifyEmailResponse{Message: "Verification email resent"}, nil
+}
+
+// Login implements interfaces.UserServiceI
+// this API will check user exist with email, then check email verified, then check password match,
+// if all valid then generate access token and refresh token, save refresh token to database, return access token and refresh token to client
+func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
+	*models.LoginResponse, *errHandler.ErrorBuilder) {
+
+	// tracing for login usecase, we want to trace the whole flow of login process, from checking user exist,
+	// checking email verified, checking password, generating token, saving refresh token to database
+	ctx, span := tracing.StartSpanFromContext(ctx, "Login")
+	defer span.End()
+
+	// check user exist with email
+	user, errUser := s.userReadRepo.GetUserByEmail(ctx, req.Email)
+	if errUser != nil {
+		return nil, errUser
+	}
+
+	// check email verified or not, if not verified then return error, only allow login when email is verified
+	if !user.EmailVerified || user.Status != "verified" {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusForbidden).
+			SetError(models.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
+	}
+
+	// get auth credential by user id, then check password match, if not match return error
+	cred, errCred := s.authCredReadRepo.GetByUserID(ctx, user.ID)
+	if errCred != nil {
+		return nil, errCred
+	}
+
+	// support bcrypt, sha256 fallback
+	if cred.PasswordAlgo == "bcrypt" {
+		if err := utils.CheckPwdByBcrypt(cred.PasswordHash, req.Password); err != nil {
+			return nil, errHandler.InitErrorBuilder(ctx).
+				SetStatus(http.StatusUnauthorized).
+				SetError(models.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
+		}
+	} else {
+		expected := utils.HashPwdBySha256(user.Email, req.Password)
+		if expected != cred.PasswordHash {
+			return nil, errHandler.InitErrorBuilder(ctx).
+				SetStatus(http.StatusUnauthorized).
+				SetError(models.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
+		}
+	}
+
+	// if all valid then generate access token and refresh token,
+	// save refresh token to database, return access token and refresh token to client
+	accessTTL := 15 * time.Minute
+	refreshTTL := 90 * 24 * time.Hour
+	now := time.Now()
+
+	// generate access token and refresh token, then save refresh token to database
+	accessToken, commonErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	if commonErr != nil {
+		return nil, commonErr
+	}
+
+	// for refresh token, we will generate random string and save hash to database for security,
+	// when refresh token request come, we will hash the token and compare with database
+	refreshPlain := utils.RandString(64)
+	refreshHash := utils.HashPwdBySha256(user.Email, refreshPlain)
+
+	// save refresh token to database
+	rt := entities.RefreshToken{
+		UserID:    user.ID,
+		TokenHash: refreshHash,
+		ExpiresAt: now.Add(refreshTTL),
+		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
+		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
+	}
+	if err := s.refreshTokenWriteRepo.Insert(ctx, &rt); err != nil {
+		return nil, err
+	}
+
+	// return response
+	res := &models.LoginResponse{
+		AccessToken:      accessToken,
+		ExpiresIn:        int64(accessTTL.Seconds()),
+		RefreshToken:     refreshPlain,
+		RefreshExpiresIn: int64(refreshTTL.Seconds()),
+		TokenType:        "Bearer",
+	}
+
+	return res, nil
+}
+
+// RefreshToken implements interfaces.UserServiceI
+func (s *AuthUseCaseImpl) Logout(ctx context.Context, req models.LogoutRequest) (*models.LogoutResponse, *errHandler.ErrorBuilder) {
+	return nil, nil
+}
+
+// RefreshToken implements interfaces.UserServiceI
+func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (
+	*models.RefreshTokenResponse, *errHandler.ErrorBuilder) {
+	return nil, nil
 }

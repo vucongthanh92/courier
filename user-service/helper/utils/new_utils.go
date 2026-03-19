@@ -53,6 +53,7 @@ func HashPwdBySha256(email, password string) string {
 	return result
 }
 
+// GetUserAgent retrieves the User-Agent from the context.
 func GetUserAgent(ctx context.Context) string {
 	if ctx == nil {
 		return ""
@@ -108,4 +109,12 @@ func RandString(n int) string {
 		buf[i] = letters[mrand.Intn(len(letters))]
 	}
 	return string(buf)
+}
+
+// StrPtr returns a *string; trả nil nếu chuỗi rỗng để tránh lưu giá trị trống.
+func StrPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

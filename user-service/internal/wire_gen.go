@@ -19,6 +19,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
@@ -50,7 +51,10 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	authCredentialCommandRepoI := authcredential.InitAuthCredentialCmdRepository(writeDb)
 	emailVerificationCommandRepoI := emailverification.InitEmailVerificationCmdRepository(writeDb)
 	emailVerificationQueryRepoI := emailverification.InitEmailVerificationQueryRepository(readDb)
-	authServiceI := auth_uc.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI)
+	jwtConfig := provideJwtConfig(appCfg)
+	logger := provideLogger(appCfg)
+	jwtSignerI := jwt.InitJWTSigner(jwtConfig, logger)
+	authServiceI := auth.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, jwtSignerI)
 	authHandler := v1.InitAuthHandler(authServiceI)
 	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
@@ -62,7 +66,6 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	cronServer := cron.NewServer(appCfg, cronJobService)
 	pool := newPgxPool(appCfg)
 	emailConfig := provideEmailConfig(appCfg)
-	logger := provideLogger(appCfg)
 	emailSenderI := emailsender.InitSMTPSender(emailConfig, logger)
 	outboxWorker := worker.InitOutboxWorker(pool, outboxQueryRepoI, outboxCommandRepoI, auditLogServiceI, emailSenderI, logger)
 	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, outboxWorker)
@@ -79,10 +82,11 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth_uc.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase)
 
-var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, emailsender.InitSMTPSender, provideEmailConfig,
+var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, emailsender.InitSMTPSender, jwt.InitJWTSigner, provideEmailConfig,
 	provideLogger,
+	provideJwtConfig,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -101,4 +105,9 @@ func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
 // provideLogger initializes a zap logger with configured level.
 func provideLogger(cfg *config.AppConfig) logger.Logger {
 	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}
+
+// provideJWTSigner initializes the JWT signer with RSA keys from config.
+func provideJwtConfig(cfg *config.AppConfig) *config.JWTConfig {
+	return cfg.JWT
 }
