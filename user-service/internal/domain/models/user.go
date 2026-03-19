@@ -1,6 +1,8 @@
 package models
 
 import (
+	"time"
+
 	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 )
@@ -22,6 +24,8 @@ func (r *SignupRequest) MappingToUserEntity(entity *entities.User) {
 
 func (r *SignupRequest) MappingToEmailVerifyEntity(entity *entities.EmailVerification) {
 	entity.Email = r.Email
+	entity.TokenHash = utils.RandString(7)
+	entity.ExpiresAt = time.Now().Add(24 * time.Hour)
 }
 
 func (r *SignupRequest) MappingToAuthCredEntity(entity *entities.AuthCredential) {
