@@ -21,13 +21,13 @@ func InitEmailVerificationQueryRepository(readDb *database.GormReadDb) interface
 	return &emailVerificationQueryRepository{readDb: *readDb}
 }
 
-func (repo *emailVerificationQueryRepository) GetActiveByEmail(ctx context.Context, email string) (entities.EmailVerification, *errHandler.ErrorBuilder) {
-	ctx, span := tracing.StartSpanFromContext(ctx, "GetActiveEmailVerification")
+func (repo *emailVerificationQueryRepository) GetOneByEmail(ctx context.Context, email string) (entities.EmailVerification, *errHandler.ErrorBuilder) {
+	ctx, span := tracing.StartSpanFromContext(ctx, "GetOneByEmail")
 	defer span.End()
 	run := transaction.RunnerFromCtx(ctx, repo.readDb)
 
 	var res entities.EmailVerification
-	err := run.Where("email = ? AND used_at IS NULL AND expires_at > now()", email).
+	err := run.Where("email = ? AND used_at IS NULL", email).
 		Order("created_at DESC").
 		Take(&res).Error
 	if err != nil {

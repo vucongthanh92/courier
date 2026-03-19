@@ -63,10 +63,8 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 	// step 1. Map request to entity
 	var (
 		userEntity        = entities.User{}
-		emailVerifyEntity = entities.EmailVerification{
-			TokenHash: utils.RandString(7), // generate token hash for email verification
-		}
-		authCredEntity = entities.AuthCredential{}
+		emailVerifyEntity = entities.EmailVerification{}
+		authCredEntity    = entities.AuthCredential{}
 	)
 
 	req.MappingToUserEntity(&userEntity)
@@ -165,17 +163,28 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 	ctx, span := tracing.StartSpanFromContext(ctx, "VerifyEmail")
 	defer span.End()
 
-	ver, resErr := s.emailVerificationReadRepo.GetActiveByEmail(ctx, req.Email)
+	verEmail, resErr := s.emailVerificationReadRepo.GetOneByEmail(ctx, req.Email)
 	if resErr != nil {
 		return nil, resErr
 	}
 
-	if ver.TokenHash != req.Token {
+	// check token valid or not (should check token match, expiry and not used before)
+	if verEmail.ExpiresAt.Before(time.Now()) {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{
+				Code:    "token_expired",
+				Message: "Token is expired",
+				Field:   "token",
+			})
+	}
+
+	if verEmail.TokenHash != req.Token {
 		return nil, errHandler.InitErrorBuilder(ctx).
 			SetStatus(http.StatusBadRequest).
 			SetError(models.ErrorDTO{Code: "invalid_token", Message: "Token is invalid"})
 	}
-	if time.Now().After(ver.ExpiresAt) {
+	if time.Now().After(verEmail.ExpiresAt) {
 		return nil, errHandler.InitErrorBuilder(ctx).
 			SetStatus(http.StatusBadRequest).
 			SetError(models.ErrorDTO{Code: "token_expired", Message: "Token is expired"})
@@ -183,10 +192,10 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 
 	// mark token used and update user email_verified status in transaction
 	err := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
-		if txnErr := s.emailVerificationWriteRepo.MarkUsed(txCtx, ver.ID, time.Now()); txnErr != nil {
+		if txnErr := s.emailVerificationWriteRepo.MarkUsed(txCtx, verEmail.ID, time.Now()); txnErr != nil {
 			return txnErr
 		}
-		if txnErr := s.userWriteRepo.UpdateEmailVerified(txCtx, ver.UserID, "verified"); txnErr != nil {
+		if txnErr := s.userWriteRepo.UpdateEmailVerified(txCtx, verEmail.UserID, "verified"); txnErr != nil {
 			return txnErr
 		}
 		return nil
@@ -216,7 +225,7 @@ func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.Rese
 	// update to email_verification table in transaction
 	err := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
 		var txnErr *errHandler.ErrorBuilder
-		emailVerification, txnErr = s.emailVerificationReadRepo.GetActiveByEmail(txCtx, req.Email)
+		emailVerification, txnErr = s.emailVerificationReadRepo.GetOneByEmail(txCtx, req.Email)
 		if txnErr != nil {
 			return txnErr
 		}

@@ -9,7 +9,7 @@ import (
 )
 
 type EmailVerificationQueryRepoI interface {
-	GetActiveByEmail(ctx context.Context, email string) (entities.EmailVerification, *errHandler.ErrorBuilder)
+	GetOneByEmail(ctx context.Context, email string) (entities.EmailVerification, *errHandler.ErrorBuilder)
 }
 
 type EmailVerificationCommandRepoI interface {
