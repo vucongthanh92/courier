@@ -9,7 +9,7 @@ import (
 )
 
 type RefreshTokenCommandRepoI interface {
-	Insert(ctx context.Context, entity *entities.RefreshToken) *errHandler.ErrorBuilder
+	UpsertByUserAgent(ctx context.Context, entity *entities.RefreshToken) *errHandler.ErrorBuilder
 	RevokeByID(ctx context.Context, id uint64, revokedAt time.Time) *errHandler.ErrorBuilder
 	RevokeByUser(ctx context.Context, userID uint64, revokedAt time.Time) *errHandler.ErrorBuilder // optional logout-all
 	Rotate(ctx context.Context, oldID uint64, newEntity *entities.RefreshToken) (*entities.RefreshToken, *errHandler.ErrorBuilder)

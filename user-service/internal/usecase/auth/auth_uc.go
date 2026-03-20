@@ -42,9 +42,12 @@ func InitAuthUsecase(
 	userReadRepo interfaces.UserQueryRepoI,
 	userWriteRepo interfaces.UserCommandRepoI,
 	authCredWriteRepo interfaces.AuthCredentialCommandRepoI,
+	authCredReadRepo interfaces.AuthCredentialQueryRepoI,
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI,
 	emailVerificationReadRepo interfaces.EmailVerificationQueryRepoI,
 	JwtSigner interfaces.JWTSignerI,
+	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI,
+	refreshTokenReadRepo interfaces.RefreshTokenQueryRepoI,
 ) interfaces.AuthServiceI {
 	return &AuthUseCaseImpl{
 		txn:                        txn,
@@ -53,9 +56,12 @@ func InitAuthUsecase(
 		userReadRepo:               userReadRepo,
 		userWriteRepo:              userWriteRepo,
 		authCredWriteRepo:          authCredWriteRepo,
+		authCredReadRepo:           authCredReadRepo,
 		emailVerificationWriteRepo: emailVerificationWriteRepo,
 		emailVerificationReadRepo:  emailVerificationReadRepo,
 		JwtSigner:                  JwtSigner,
+		refreshTokenWriteRepo:      refreshTokenWriteRepo,
+		refreshTokenReadRepo:       refreshTokenReadRepo,
 	}
 }
 
@@ -330,11 +336,11 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
 		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
 	}
-	if err := s.refreshTokenWriteRepo.Insert(ctx, &rt); err != nil {
+	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &rt); err != nil {
 		return nil, err
 	}
 
-	// return response
+	// return response to client
 	res := &models.LoginResponse{
 		AccessToken:      accessToken,
 		ExpiresIn:        int64(accessTTL.Seconds()),
@@ -343,6 +349,22 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 		TokenType:        "Bearer",
 	}
 
+	// insert audit log for user signup action
+	auditLogReq := models.AuditLogRequest{
+		CreatorID: user.ID,
+		Action:    "user_login",
+		IP:        utils.GetClientIP(ctx),
+		UserAgent: utils.GetUserAgent(ctx),
+		Metadata: datatypes.JSONMap{
+			"login_response": res,
+		},
+	}
+	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
+	if logErr != nil {
+		logger.Error("Failed to log user login event", zap.Any("error", logErr), zap.Uint64("user_id", user.ID))
+	}
+
+	// return response to client
 	return res, nil
 }
 

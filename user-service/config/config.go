@@ -25,7 +25,6 @@ type AppConfig struct {
 	PaymentService *PaymentServiceConfig `mapstructure:"paymentService"`
 	SlackService   *SlackConfig          `mapstructure:"slackService"`
 	Email          *EmailConfig          `mapstructure:"email"`
-	JWT            *JWTConfig            `mapstructure:"jwt"`
 }
 
 // GrpcClientConfig holds the configuration for gRPC clients that this service will call,
@@ -253,11 +252,4 @@ type SMTPConfig struct {
 	Port     int    `mapstructure:"port"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
-}
-
-// JWTConfig holds the configuration for JWT token generation and validation,
-type JWTConfig struct {
-	PrivateKey string `mapstructure:"privateKey"` // PEM RSA PRIVATE KEY
-	Kid        string `mapstructure:"kid"`
-	Issuer     string `mapstructure:"issuer"`
 }

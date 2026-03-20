@@ -21,14 +21,18 @@ import (
 	outboxUc "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
 
 	auditLogRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
-	authCredWriteRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
+	authCredentialRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
 	emailVerificationRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
 	identityRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
+	jwkRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/jwk"
 	outboxRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
+	refreshTokenRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 
 	EmailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	jwtSigner "github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
@@ -76,20 +80,23 @@ var repoSet = wire.NewSet(
 	identityRepo.InitIdentityCmdRepository,
 	identityRepo.InitIdentityQueryRepository,
 	auditLogRepo.InitAuditLogCmdRepository,
-	authCredWriteRepo.InitAuthCredentialCmdRepository,
+	authCredentialRepo.InitAuthCredentialCmdRepository,
+	authCredentialRepo.InitAuthCredentialQueryRepository,
 	emailVerificationRepo.InitEmailVerificationCmdRepository,
 	emailVerificationRepo.InitEmailVerificationQueryRepository,
 	outboxRepo.InitOutboxCmdRepository,
 	outboxRepo.InitOutboxQueryRepository,
+	refreshTokenRepo.InitRefreshTokenCmdRepository,
+	refreshTokenRepo.InitRefreshTokenQueryRepository,
+	jwkRepo.InitJWKQueryRepository,
 
 	// external repo
 	EmailSender.InitSMTPSender,
-	jwtSigner.InitJWTSigner,
 
 	// shared dependencies
 	provideEmailConfig,
 	provideLogger,
-	provideJwtConfig,
+	provideJWTSigner,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -121,6 +128,14 @@ func provideLogger(cfg *config.AppConfig) logger.Logger {
 }
 
 // provideJWTSigner initializes the JWT signer with RSA keys from config.
-func provideJwtConfig(cfg *config.AppConfig) *config.JWTConfig {
-	return cfg.JWT
+func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) interfaces.JWTSignerI {
+	jwk, err := jwkRepo.GetActiveKey(context.Background())
+	if err != nil {
+		log.Fatal("load active jwk failed", zap.Any("error", err))
+	}
+	s, err2 := jwtSigner.InitJWTSigner(jwk, log)
+	if err2 != nil {
+		log.Fatal("init jwt signer failed", zap.Error(err2))
+	}
+	return s
 }
