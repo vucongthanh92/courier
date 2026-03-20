@@ -11,7 +11,6 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type refreshTokenCmdRepo struct {
@@ -26,24 +25,40 @@ func InitRefreshTokenCmdRepository(writeDb *database.GormWriteDb) interfaces.Ref
 // if exist then update expires_at, otherwise insert new record
 func (r *refreshTokenCmdRepo) UpsertByUserAgent(ctx context.Context, entity *entities.RefreshToken) *errHandler.ErrorBuilder {
 
-	// Start tracing span
+	// Start tracing span for upsert operation
 	ctx, span := tracing.StartSpanFromContext(ctx, "UpsertRefreshTokenByUserAgent")
 	defer span.End()
 	run := transaction.RunnerFromCtx(ctx, r.writeDb)
 
-	// Upsert by user_id and user_agent, if exist then update expires_at, otherwise insert new record
-	err := run.Clauses(clause.OnConflict{
-		Columns: []clause.Column{
-			{Name: "user_id"},
-			{Name: "user_agent"},
-		},
-		DoUpdates: clause.Assignments(map[string]interface{}{
+	// Get user agent from entity, if nil then use empty string to prevent null value in database which can cause issues with unique index
+	ua := "unknown"
+	if entity.UserAgent != nil {
+		ua = *entity.UserAgent
+	}
+
+	// Try to update existing record first
+	res := run.Model(&entities.RefreshToken{}).
+		Where("user_id = ? AND user_agent = ? AND revoked_at IS NULL", entity.UserID, ua).
+		Updates(map[string]interface{}{
+			"token_hash": entity.TokenHash,
 			"expires_at": entity.ExpiresAt,
-		})}).Create(entity).Error
-	if err != nil {
+		})
+	if res.Error != nil {
+		return errHandler.InitErrorBuilder(ctx).ValidateError(res.Error)
+	}
+
+	// If existing record found and updated,
+	// return without inserting new record to prevent multiple active refresh tokens for same user and device
+	if res.RowsAffected > 0 {
+		return nil
+	}
+
+	// No existing record, insert new one
+	if err := run.Model(&entities.RefreshToken{}).Create(entity).Error; err != nil {
 		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
 	}
 
+	// Inserted new record successfully
 	return nil
 }
 
