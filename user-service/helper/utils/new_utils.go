@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -131,9 +133,17 @@ func RandString(n int) string {
 	return string(buf)
 }
 
-// StrPtr returns a *string; trả nil nếu chuỗi rỗng để tránh lưu giá trị trống.
+// StrPtr returns a pointer to the given string, or nil if the string is empty.
 func StrPtr(s string) *string {
 	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// Uint64Ptr returns a pointer to the given uint64, or nil if the value is 0.
+func Uint64Ptr(s uint64) *uint64 {
+	if s == 0 {
 		return nil
 	}
 	return &s
@@ -142,4 +152,20 @@ func StrPtr(s string) *string {
 // SetHeaderByKey sets the header from the gin context to a new context with the specified key.
 func SetHeaderByKey(c *gin.Context, key string) context.Context {
 	return utils.SetHeaderToContext(c, key)
+}
+
+// ParseUserID converts the sub claim to uint64 safely.
+func ParseUserID(sub any) uint64 {
+	switch v := sub.(type) {
+	case string:
+		id, _ := strconv.ParseUint(v, 10, 64)
+		return id
+	case float64:
+		return uint64(v)
+	case json.Number:
+		id, _ := v.Int64()
+		return uint64(id)
+	default:
+		return 0
+	}
 }

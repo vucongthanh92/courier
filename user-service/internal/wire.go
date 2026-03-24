@@ -29,8 +29,9 @@ import (
 	refreshTokenRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 
-	EmailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
+	emailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	jwtSigner "github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	redisRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 
@@ -91,7 +92,8 @@ var repoSet = wire.NewSet(
 	jwkRepo.InitJWKQueryRepository,
 
 	// external repo
-	EmailSender.InitSMTPSender,
+	emailSender.InitSMTPSender,
+	redisRepo.InitRedisDenylist,
 
 	// shared dependencies
 	provideEmailConfig,

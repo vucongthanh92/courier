@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
@@ -33,6 +34,7 @@ type AuthUseCaseImpl struct {
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI
 	emailVerificationReadRepo  interfaces.EmailVerificationQueryRepoI
 	JwtSigner                  interfaces.JWTSignerI
+	tokenDeny                  interfaces.TokenDenylistI
 }
 
 func InitAuthUsecase(
@@ -48,6 +50,7 @@ func InitAuthUsecase(
 	JwtSigner interfaces.JWTSignerI,
 	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI,
 	refreshTokenReadRepo interfaces.RefreshTokenQueryRepoI,
+	tokenDeny interfaces.TokenDenylistI,
 ) interfaces.AuthServiceI {
 	return &AuthUseCaseImpl{
 		txn:                        txn,
@@ -62,6 +65,7 @@ func InitAuthUsecase(
 		JwtSigner:                  JwtSigner,
 		refreshTokenWriteRepo:      refreshTokenWriteRepo,
 		refreshTokenReadRepo:       refreshTokenReadRepo,
+		tokenDeny:                  tokenDeny,
 	}
 }
 
@@ -368,13 +372,138 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	return res, nil
 }
 
-// RefreshToken implements interfaces.UserServiceI
-func (s *AuthUseCaseImpl) Logout(ctx context.Context, req models.LogoutRequest) (*models.LogoutResponse, *errHandler.ErrorBuilder) {
-	return nil, nil
-}
-
-// RefreshToken implements interfaces.UserServiceI
+// RefreshToken implements interfaces.AuthServiceI
 func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (
 	*models.RefreshTokenResponse, *errHandler.ErrorBuilder) {
-	return nil, nil
+
+	// tracing for refresh token usecase, we want to trace the whole flow of refresh token process, from checking token valid,
+	// checking token revoked, checking token expired, loading user,
+	// generating new access token and refresh token, saving new refresh token to database
+	ctx, span := tracing.StartSpanFromContext(ctx, "RefreshToken")
+	defer span.End()
+
+	// Hash incoming refresh token
+	refreshPlain := req.RefreshToken
+	if refreshPlain == "" {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{Code: "invalid_refresh", Message: "Refresh token required"})
+	}
+
+	// Get refresh token from database by hash
+	// Note: since we don't have user context here,
+	// we can't hash with email, so we will just hash the token alone and store in database,
+	tokenHash := utils.HashPwdBySha256("", refreshPlain)
+	rt, errRT := s.refreshTokenReadRepo.GetByTokenHash(ctx, tokenHash)
+	if errRT != nil {
+		return nil, errRT
+	}
+
+	// Check if refresh token is revoked
+	if err := rt.IsRevoked(); err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{Code: "refresh_revoked", Message: err.Error()})
+	}
+
+	// Check if refresh token is expired
+	if err := rt.IsExpired(); err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{Code: "refresh_expired", Message: err.Error()})
+	}
+
+	// Load user by refresh token's user ID
+	user, errUser := s.userReadRepo.GetUserByID(ctx, rt.UserID)
+	if errUser != nil {
+		return nil, errUser
+	}
+
+	// Optional: re-check email_verified/status
+	if !user.EmailVerified || user.Status != "verified" {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusForbidden).
+			SetError(models.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
+	}
+
+	// Issue new access token
+	accessTTL := 15 * time.Minute
+	now := time.Now()
+	accessToken, commonErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	if commonErr != nil {
+		return nil, commonErr
+	}
+
+	// Issue new refresh token, we will generate random string and save hash to database for security,
+	// when refresh token request come, we will hash the token and compare with database
+	refreshTTL := 90 * 24 * time.Hour
+	newPlain := utils.RandString(64)
+	newHash := utils.HashPwdBySha256("", newPlain)
+
+	// Save new refresh token to database
+	newRT := entities.RefreshToken{
+		UserID:    user.ID,
+		TokenHash: newHash,
+		ExpiresAt: now.Add(refreshTTL),
+		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
+		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
+		CreatedAt: now,
+		ParentID:  utils.Uint64Ptr(rt.ID),
+	}
+
+	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &newRT); err != nil {
+		return nil, err
+	}
+
+	// Optional: revoke old token to tránh replay
+	_ = s.refreshTokenWriteRepo.RevokeByID(ctx, rt.ID, now)
+
+	res := &models.RefreshTokenResponse{
+		AccessToken:      accessToken,
+		ExpiresIn:        int64(accessTTL.Seconds()),
+		RefreshToken:     newPlain,
+		RefreshExpiresIn: int64(refreshTTL.Seconds()),
+		TokenType:        "Bearer",
+	}
+
+	return res, nil
+}
+
+// Logout implements interfaces.AuthServiceI
+// this API will get token jti from context, then block the token in token denylist with expiry same as token expiry,
+// so even if the token is not expired, it will be rejected in next request
+func (s *AuthUseCaseImpl) Logout(ctx context.Context, req models.LogoutRequest) (
+	*models.LogoutResponse, *errHandler.ErrorBuilder) {
+
+	// tracing for logout usecase, we want to trace the whole flow of logout process, from checking user context,
+	ctx, span := tracing.StartSpanFromContext(ctx, "Logout")
+	defer span.End()
+
+	// Since this is a protected route, we should have user context and token claims in context,
+	// we will get the token jti from claims and block it in token denylist, so even if the token is not expired, it will be rejected in next request
+	claims := ctx.Value("authClaims").(jwt.MapClaims)
+	jti := claims["jti"].(string)
+	exp := int64(claims["exp"].(float64))
+	userID := utils.ParseUserID(claims["sub"])
+
+	// calculate TTL for the token, and block it in token denylist with the same TTL,
+	// so it will be automatically removed from denylist when expired
+	ttl := time.Until(time.Unix(exp, 0))
+	if ttl > 0 {
+		if err := s.tokenDeny.Block(ctx, jti, ttl); err != nil {
+			return nil, errHandler.InitErrorBuilder(ctx).SetLogError(err).SetStatus(500)
+		}
+	}
+
+	// revoke all refresh tokens of the user to force logout from all devices,
+	// we can optimize this by only revoking the current refresh token if we have jti stored in refresh token table
+	errCommon := s.refreshTokenWriteRepo.RevokeByUser(ctx, userID, time.Now())
+	if errCommon != nil {
+		return nil, errCommon
+	}
+
+	// insert audit log for user logout action
+	return &models.LogoutResponse{
+		Message: "logged out",
+	}, nil
 }

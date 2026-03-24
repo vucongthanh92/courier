@@ -21,6 +21,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	redis2 "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
@@ -60,7 +61,8 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	jwtSignerI := provideJWTSigner(jwkQueryRepoI, logger)
 	refreshTokenCommandRepoI := refreshtoken.InitRefreshTokenCmdRepository(writeDb)
 	refreshTokenQueryRepoI := refreshtoken.InitRefreshTokenQueryRepository(readDb)
-	authServiceI := auth.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, jwtSignerI, refreshTokenCommandRepoI, refreshTokenQueryRepoI)
+	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
+	authServiceI := auth.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, jwtSignerI, refreshTokenCommandRepoI, refreshTokenQueryRepoI, tokenDenylistI)
 	authHandler := v1.InitAuthHandler(authServiceI)
 	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
@@ -90,7 +92,7 @@ var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler)
 
 var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase)
 
-var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, provideEmailConfig,
+var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, provideEmailConfig,
 	provideLogger,
 	provideJWTSigner,
 )
