@@ -14,13 +14,13 @@ func MapRoutes(
 ) {
 
 	// Public routes
-	auth := router.Group("/api/auth/v1")
+	auth := router.Group("/api/v1/auth")
 	{
 		auth.POST("/sign-up", authHandler.Signup)
 		auth.POST("/verify-email", authHandler.VerifyEmail)
 		auth.PUT("/verify-email/resend", authHandler.ResendVerifyEmail)
 		auth.POST("/login", authHandler.Login)
-		auth.POST("/token/refresh", authHandler.RefreshToken)
+		auth.PUT("/refresh", authHandler.RefreshToken)
 
 		// API for identity
 		auth.POST("/identity/create", identityHandler.CreateIdentity)
@@ -30,7 +30,7 @@ func MapRoutes(
 	v1 := router.Group("/api/v1")
 	v1.Use(authMiddleWare)
 	{
-		v1.POST("/logout", authHandler.Logout)
+		v1.POST("/user/logout", authHandler.Logout)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
