@@ -1,4 +1,4 @@
-package auth_uc
+package auth
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
@@ -27,8 +28,13 @@ type AuthUseCaseImpl struct {
 	userReadRepo               interfaces.UserQueryRepoI
 	userWriteRepo              interfaces.UserCommandRepoI
 	authCredWriteRepo          interfaces.AuthCredentialCommandRepoI
+	authCredReadRepo           interfaces.AuthCredentialQueryRepoI
+	refreshTokenWriteRepo      interfaces.RefreshTokenCommandRepoI
+	refreshTokenReadRepo       interfaces.RefreshTokenQueryRepoI
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI
 	emailVerificationReadRepo  interfaces.EmailVerificationQueryRepoI
+	JwtSigner                  interfaces.JWTSignerI
+	tokenDeny                  interfaces.TokenDenylistI
 }
 
 func InitAuthUsecase(
@@ -38,8 +44,13 @@ func InitAuthUsecase(
 	userReadRepo interfaces.UserQueryRepoI,
 	userWriteRepo interfaces.UserCommandRepoI,
 	authCredWriteRepo interfaces.AuthCredentialCommandRepoI,
+	authCredReadRepo interfaces.AuthCredentialQueryRepoI,
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI,
 	emailVerificationReadRepo interfaces.EmailVerificationQueryRepoI,
+	JwtSigner interfaces.JWTSignerI,
+	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI,
+	refreshTokenReadRepo interfaces.RefreshTokenQueryRepoI,
+	tokenDeny interfaces.TokenDenylistI,
 ) interfaces.AuthServiceI {
 	return &AuthUseCaseImpl{
 		txn:                        txn,
@@ -48,8 +59,13 @@ func InitAuthUsecase(
 		userReadRepo:               userReadRepo,
 		userWriteRepo:              userWriteRepo,
 		authCredWriteRepo:          authCredWriteRepo,
+		authCredReadRepo:           authCredReadRepo,
 		emailVerificationWriteRepo: emailVerificationWriteRepo,
 		emailVerificationReadRepo:  emailVerificationReadRepo,
+		JwtSigner:                  JwtSigner,
+		refreshTokenWriteRepo:      refreshTokenWriteRepo,
+		refreshTokenReadRepo:       refreshTokenReadRepo,
+		tokenDeny:                  tokenDeny,
 	}
 }
 
@@ -251,4 +267,240 @@ func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.Rese
 
 	// return response
 	return &models.ResendVerifyEmailResponse{Message: "Verification email resent"}, nil
+}
+
+// Login implements interfaces.UserServiceI
+// this API will check user exist with email, then check email verified, then check password match,
+// if all valid then generate access token and refresh token, save refresh token to database, return access token and refresh token to client
+func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
+	*models.LoginResponse, *errHandler.ErrorBuilder) {
+
+	// tracing for login usecase, we want to trace the whole flow of login process, from checking user exist,
+	// checking email verified, checking password, generating token, saving refresh token to database
+	ctx, span := tracing.StartSpanFromContext(ctx, "Login")
+	defer span.End()
+
+	// check user exist with email
+	user, errUser := s.userReadRepo.GetUserByEmail(ctx, req.Email)
+	if errUser != nil {
+		return nil, errUser
+	}
+
+	// check email verified or not, if not verified then return error, only allow login when email is verified
+	if !user.EmailVerified || user.Status != "verified" {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusForbidden).
+			SetError(models.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
+	}
+
+	// get auth credential by user id, then check password match, if not match return error
+	cred, errCred := s.authCredReadRepo.GetByUserID(ctx, user.ID)
+	if errCred != nil {
+		return nil, errCred
+	}
+
+	// support bcrypt, sha256 fallback
+	if cred.PasswordAlgo == "bcrypt" {
+		if err := utils.CheckPwdByBcrypt(cred.PasswordHash, req.Password); err != nil {
+			return nil, errHandler.InitErrorBuilder(ctx).
+				SetStatus(http.StatusUnauthorized).
+				SetError(models.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
+		}
+	} else {
+		expected := utils.HashPwdBySha256(user.Email, req.Password)
+		if expected != cred.PasswordHash {
+			return nil, errHandler.InitErrorBuilder(ctx).
+				SetStatus(http.StatusUnauthorized).
+				SetError(models.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
+		}
+	}
+
+	// if all valid then generate access token and refresh token,
+	// save refresh token to database, return access token and refresh token to client
+	accessTTL := 15 * time.Minute
+	refreshTTL := 90 * 24 * time.Hour
+	now := time.Now()
+
+	// generate access token and refresh token, then save refresh token to database
+	accessToken, commonErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	if commonErr != nil {
+		return nil, commonErr
+	}
+
+	// for refresh token, we will generate random string and save hash to database for security,
+	// when refresh token request come, we will hash the token and compare with database
+	refreshPlain := utils.RandString(64)
+	refreshHash := utils.HashPwdBySha256(user.Email, refreshPlain)
+
+	// save refresh token to database
+	rt := entities.RefreshToken{
+		UserID:    user.ID,
+		TokenHash: refreshHash,
+		ExpiresAt: now.Add(refreshTTL),
+		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
+		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
+	}
+	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &rt); err != nil {
+		return nil, err
+	}
+
+	// return response to client
+	res := &models.LoginResponse{
+		AccessToken:      accessToken,
+		ExpiresIn:        int64(accessTTL.Seconds()),
+		RefreshToken:     refreshPlain,
+		RefreshExpiresIn: int64(refreshTTL.Seconds()),
+		TokenType:        "Bearer",
+	}
+
+	// insert audit log for user signup action
+	auditLogReq := models.AuditLogRequest{
+		CreatorID: user.ID,
+		Action:    "user_login",
+		IP:        utils.GetClientIP(ctx),
+		UserAgent: utils.GetUserAgent(ctx),
+		Metadata: datatypes.JSONMap{
+			"login_response": res,
+		},
+	}
+	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
+	if logErr != nil {
+		logger.Error("Failed to log user login event", zap.Any("error", logErr), zap.Uint64("user_id", user.ID))
+	}
+
+	// return response to client
+	return res, nil
+}
+
+// RefreshToken implements interfaces.AuthServiceI
+func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (
+	*models.RefreshTokenResponse, *errHandler.ErrorBuilder) {
+
+	// tracing for refresh token usecase, we want to trace the whole flow of refresh token process, from checking token valid,
+	// checking token revoked, checking token expired, loading user,
+	// generating new access token and refresh token, saving new refresh token to database
+	ctx, span := tracing.StartSpanFromContext(ctx, "RefreshToken")
+	defer span.End()
+
+	// Hash incoming refresh token
+	refreshPlain := req.RefreshToken
+	if refreshPlain == "" {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{Code: "invalid_refresh", Message: "Refresh token required"})
+	}
+
+	// Get refresh token from database by hash
+	// Note: since we don't have user context here,
+	// we can't hash with email, so we will just hash the token alone and store in database,
+	tokenHash := utils.HashPwdBySha256("", refreshPlain)
+	rt, errRT := s.refreshTokenReadRepo.GetByTokenHash(ctx, tokenHash)
+	if errRT != nil {
+		return nil, errRT
+	}
+
+	// Check if refresh token is revoked
+	if err := rt.IsRevoked(); err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{Code: "refresh_revoked", Message: err.Error()})
+	}
+
+	// Check if refresh token is expired
+	if err := rt.IsExpired(); err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{Code: "refresh_expired", Message: err.Error()})
+	}
+
+	// Load user by refresh token's user ID
+	user, errUser := s.userReadRepo.GetUserByID(ctx, rt.UserID)
+	if errUser != nil {
+		return nil, errUser
+	}
+
+	// Optional: re-check email_verified/status
+	if !user.EmailVerified || user.Status != "verified" {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusForbidden).
+			SetError(models.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
+	}
+
+	// Issue new access token
+	accessTTL := 15 * time.Minute
+	now := time.Now()
+	accessToken, commonErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	if commonErr != nil {
+		return nil, commonErr
+	}
+
+	// Issue new refresh token, we will generate random string and save hash to database for security,
+	// when refresh token request come, we will hash the token and compare with database
+	refreshTTL := 90 * 24 * time.Hour
+	newPlain := utils.RandString(64)
+	newHash := utils.HashPwdBySha256("", newPlain)
+
+	// Save new refresh token to database
+	newRT := entities.RefreshToken{
+		UserID:    user.ID,
+		TokenHash: newHash,
+		ExpiresAt: now.Add(refreshTTL),
+		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
+		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
+		CreatedAt: now,
+		ParentID:  utils.Uint64Ptr(rt.ID),
+	}
+
+	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &newRT); err != nil {
+		return nil, err
+	}
+
+	// Optional: revoke old token to tránh replay
+	_ = s.refreshTokenWriteRepo.RevokeByID(ctx, rt.ID, now)
+
+	res := &models.RefreshTokenResponse{
+		AccessToken:      accessToken,
+		ExpiresIn:        int64(accessTTL.Seconds()),
+		RefreshToken:     newPlain,
+		RefreshExpiresIn: int64(refreshTTL.Seconds()),
+		TokenType:        "Bearer",
+	}
+
+	return res, nil
+}
+
+// Logout implements interfaces.AuthServiceI
+// this API will get token jti from context, then block the token in token denylist with expiry same as token expiry,
+// so even if the token is not expired, it will be rejected in next request
+func (s *AuthUseCaseImpl) Logout(ctx context.Context) *errHandler.ErrorBuilder {
+
+	// tracing for logout usecase, we want to trace the whole flow of logout process, from checking user context,
+	ctx, span := tracing.StartSpanFromContext(ctx, "Logout")
+	defer span.End()
+
+	// Since this is a protected route, we should have user context and token claims in context,
+	// we will get the token jti from claims and block it in token denylist, so even if the token is not expired, it will be rejected in next request
+	claims := ctx.Value("authClaims").(jwt.MapClaims)
+	jti := claims["jti"].(string)
+	exp := int64(claims["exp"].(float64))
+	userID := utils.ParseUserID(claims["sub"])
+
+	// calculate TTL for the token, and block it in token denylist with the same TTL,
+	// so it will be automatically removed from denylist when expired
+	ttl := time.Until(time.Unix(exp, 0))
+	if ttl > 0 {
+		if err := s.tokenDeny.Block(ctx, jti, ttl); err != nil {
+			return errHandler.InitErrorBuilder(ctx).SetLogError(err).SetStatus(500)
+		}
+	}
+
+	// revoke all refresh tokens of the user to force logout from all devices,
+	// we can optimize this by only revoking the current refresh token if we have jti stored in refresh token table
+	errCommon := s.refreshTokenWriteRepo.RevokeByUser(ctx, userID, time.Now())
+	if errCommon != nil {
+		return errCommon
+	}
+
+	// insert audit log for user logout action
+	return nil
 }

@@ -8,6 +8,7 @@ import (
 )
 
 type AuthCredentialQueryRepoI interface {
+	GetByUserID(ctx context.Context, userID uint64) (entities.AuthCredential, *errHandler.ErrorBuilder)
 }
 
 type AuthCredentialCommandRepoI interface {

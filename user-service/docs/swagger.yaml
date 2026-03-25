@@ -1,160 +1,151 @@
 definitions:
-  entities.Category:
+  entities.User:
     properties:
+      avatar_url:
+        type: string
       created_at:
         type: string
       deleted_at:
         type: string
-      description:
+      display_name:
         type: string
+      email:
+        type: string
+      email_verified:
+        type: boolean
       id:
         type: integer
-      name:
+      phone_number:
         type: string
-      products:
-        items:
-          $ref: '#/definitions/entities.Product'
-        type: array
-      status:
+      phone_verified:
         type: boolean
+      status:
+        type: string
       updated_at:
         type: string
     type: object
-  entities.Product:
-    properties:
-      category:
-        $ref: '#/definitions/entities.Category'
-      categoryID:
-        type: integer
-      createdAt:
-        type: string
-      id:
-        type: integer
-      name:
-        type: string
-      price:
-        type: number
-      stock:
-        type: integer
-      supply:
-        $ref: '#/definitions/entities.Supply'
-      supplyID:
-        type: integer
-      updatedAt:
-        type: string
+  models.CreateIdentityParams:
     type: object
-  entities.Supply:
+  models.ResendVerifyEmailRequest:
     properties:
-      contact:
+      email:
         type: string
-      createdAt:
-        type: string
-      id:
-        type: integer
-      name:
-        type: string
-      products:
-        items:
-          $ref: '#/definitions/entities.Product'
-        type: array
-      updatedAt:
-        type: string
-    type: object
-  models.CreateCategoryReq:
-    properties:
-      description:
-        type: string
-      name:
-        type: string
-      status:
-        type: boolean
     required:
-    - name
+    - email
+    type: object
+  models.ResendVerifyEmailResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  models.SignupRequest:
+    properties:
+      display_name:
+        type: string
+      email:
+        type: string
+      password:
+        type: string
+      phone_number:
+        type: string
+    required:
+    - display_name
+    - email
+    - password
+    - phone_number
+    type: object
+  models.VerifyEmailRequest:
+    properties:
+      email:
+        type: string
+      token:
+        type: string
+    required:
+    - email
+    - token
+    type: object
+  models.VerifyEmailResponse:
+    properties:
+      message:
+        type: string
     type: object
 info:
   contact: {}
 paths:
-  /api/v1/category:
-    get:
-      consumes:
-      - application/json
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/entities.Category'
-            type: array
-      summary: get list categories
-      tags:
-      - Category
+  /api/v1/auth/sign-up:
     post:
       consumes:
       - application/json
       parameters:
-      - description: CreateCategoryReq
+      - description: SignupRequest
         in: body
         name: params
         required: true
         schema:
-          $ref: '#/definitions/models.CreateCategoryReq'
+          $ref: '#/definitions/models.SignupRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/entities.Category'
-      summary: create category by name
+            $ref: '#/definitions/entities.User'
+      summary: create new user
       tags:
-      - Category
-    put:
+      - Auth
+  /api/v1/auth/verify-email:
+    post:
       consumes:
       - application/json
       parameters:
-      - description: UpdateCategoryReq
+      - description: VerifyEmailRequest
         in: body
         name: params
         required: true
         schema:
-          $ref: '#/definitions/models.CreateCategoryReq'
+          $ref: '#/definitions/models.VerifyEmailRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/entities.Category'
-      summary: delete category by id
+            $ref: '#/definitions/models.VerifyEmailResponse'
+      summary: verify user email
       tags:
-      - Category
-  /api/v1/category/:id:
-    get:
-      consumes:
-      - application/json
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/entities.Category'
-      summary: get list categories
-      tags:
-      - Category
-  /api/v1/products:
-    get:
+      - Auth
+  /api/v1/auth/verify-email/resend:
+    post:
       consumes:
       - application/json
       parameters:
-      - description: CreateCategoryReq
+      - description: ResendVerifyEmailRequest
         in: body
         name: params
         required: true
         schema:
-          $ref: '#/definitions/models.CreateCategoryReq'
+          $ref: '#/definitions/models.ResendVerifyEmailRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ResendVerifyEmailResponse'
+      summary: resend verification email
+      tags:
+      - Auth
+  /api/v1/identities:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: CreateIdentityParams
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateIdentityParams'
       produces:
       - application/json
       responses:
@@ -162,5 +153,5 @@ paths:
           description: OK
       summary: search products with filter and return pagination
       tags:
-      - Supplier
+      - Identity
 swagger: "2.0"

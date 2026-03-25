@@ -21,13 +21,19 @@ import (
 	outboxUc "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
 
 	auditLogRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
-	authCredWriteRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
+	authCredentialRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
 	emailVerificationRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
 	identityRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
+	jwkRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/jwk"
 	outboxRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
+	refreshTokenRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 
-	emailSenderRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
+	emailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
+	jwtSigner "github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	redisRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
+
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
@@ -75,18 +81,24 @@ var repoSet = wire.NewSet(
 	identityRepo.InitIdentityCmdRepository,
 	identityRepo.InitIdentityQueryRepository,
 	auditLogRepo.InitAuditLogCmdRepository,
-	authCredWriteRepo.InitAuthCredentialCmdRepository,
+	authCredentialRepo.InitAuthCredentialCmdRepository,
+	authCredentialRepo.InitAuthCredentialQueryRepository,
 	emailVerificationRepo.InitEmailVerificationCmdRepository,
 	emailVerificationRepo.InitEmailVerificationQueryRepository,
 	outboxRepo.InitOutboxCmdRepository,
 	outboxRepo.InitOutboxQueryRepository,
+	refreshTokenRepo.InitRefreshTokenCmdRepository,
+	refreshTokenRepo.InitRefreshTokenQueryRepository,
+	jwkRepo.InitJWKQueryRepository,
 
 	// external repo
-	emailSenderRepo.InitSMTPSender,
+	emailSender.InitSMTPSender,
+	redisRepo.InitRedisDenylist,
 
 	// shared dependencies
 	provideEmailConfig,
 	provideLogger,
+	provideJWTSigner,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -115,4 +127,17 @@ func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
 // provideLogger initializes a zap logger with configured level.
 func provideLogger(cfg *config.AppConfig) logger.Logger {
 	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}
+
+// provideJWTSigner initializes the JWT signer with RSA keys from config.
+func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) interfaces.JWTSignerI {
+	jwk, err := jwkRepo.GetActiveKey(context.Background())
+	if err != nil {
+		log.Fatal("load active jwk failed", zap.Any("error", err))
+	}
+	s, err2 := jwtSigner.InitJWTSigner(jwk, log)
+	if err2 != nil {
+		log.Fatal("init jwt signer failed", zap.Error(err2))
+	}
+	return s
 }

@@ -23,6 +23,9 @@ func InitUserQueryRepository(readDb *database.GormReadDb) interfaces.UserQueryRe
 	}
 }
 
+// GetUserByID implements interfaces.UserQueryRepoI
+// This method retrieves a user record from the database based on the provided user ID.
+// It returns the user entity and an error builder if any error occurs during the retrieval process.
 func (repo *userQueryRepository) GetUserByID(ctx context.Context, id uint64) (
 	res entities.User, errRes *errHandler.ErrorBuilder) {
 
@@ -44,6 +47,9 @@ func (repo *userQueryRepository) GetUserByID(ctx context.Context, id uint64) (
 	return res, errRes
 }
 
+// CheckExistingEmailOrPhone implements interfaces.UserQueryRepoI
+// This method checks if a user with the given email or phone number already exists in the database.
+// It returns a boolean indicating existence and an error builder if any error occurs during the check.
 func (repo *userQueryRepository) CheckExistingEmailOrPhone(ctx context.Context, email string, phoneNumber string) (
 	res bool, errRes *errHandler.ErrorBuilder) {
 
@@ -63,5 +69,21 @@ func (repo *userQueryRepository) CheckExistingEmailOrPhone(ctx context.Context, 
 		return res, resErr
 	}
 
+	return res, nil
+}
+
+// GetUserByEmail implements interfaces.UserQueryRepoI
+// This method retrieves a user record from the database based on the provided email.
+// It returns the user entity and an error builder if any error occurs during the retrieval process.
+func (repo *userQueryRepository) GetUserByEmail(ctx context.Context, email string) (entities.User, *errHandler.ErrorBuilder) {
+	ctx, span := tracing.StartSpanFromContext(ctx, "GetUserByEmail")
+	defer span.End()
+	run := transaction.RunnerFromCtx(ctx, repo.readDb)
+
+	var res entities.User
+	err := run.Model(&entities.User{}).Where("email = ? AND deleted_at IS NULL", email).Take(&res).Error
+	if err != nil {
+		return res, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
 	return res, nil
 }

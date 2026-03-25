@@ -18,12 +18,17 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	redis2 "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/jwk"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
@@ -48,21 +53,27 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	userQueryRepoI := user.InitUserQueryRepository(readDb)
 	userCommandRepoI := user.InitUserCmdRepository(writeDb)
 	authCredentialCommandRepoI := authcredential.InitAuthCredentialCmdRepository(writeDb)
+	authCredentialQueryRepoI := authcredential.InitAuthCredentialQueryRepository(readDb)
 	emailVerificationCommandRepoI := emailverification.InitEmailVerificationCmdRepository(writeDb)
 	emailVerificationQueryRepoI := emailverification.InitEmailVerificationQueryRepository(readDb)
-	authServiceI := auth_uc.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI)
+	jwkQueryRepoI := jwk.InitJWKQueryRepository(readDb)
+	logger := provideLogger(appCfg)
+	jwtSignerI := provideJWTSigner(jwkQueryRepoI, logger)
+	refreshTokenCommandRepoI := refreshtoken.InitRefreshTokenCmdRepository(writeDb)
+	refreshTokenQueryRepoI := refreshtoken.InitRefreshTokenQueryRepository(readDb)
+	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
+	authServiceI := auth.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, jwtSignerI, refreshTokenCommandRepoI, refreshTokenQueryRepoI, tokenDenylistI)
 	authHandler := v1.InitAuthHandler(authServiceI)
 	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
 	identityServiceI := identity2.InitIdentityService(identityQueryRepoI, identityCommandRepoI)
 	identityHandler := v1.InitIdentityHandler(identityServiceI)
-	server := http.NewServer(appCfg, authHandler, identityHandler)
+	server := http.NewServer(appCfg, authHandler, identityHandler, jwkQueryRepoI, tokenDenylistI)
 	grpcServer := grpc.NewServer(appCfg)
 	cronJobService := cronjob.NewCronJobService()
 	cronServer := cron.NewServer(appCfg, cronJobService)
 	pool := newPgxPool(appCfg)
 	emailConfig := provideEmailConfig(appCfg)
-	logger := provideLogger(appCfg)
 	emailSenderI := emailsender.InitSMTPSender(emailConfig, logger)
 	outboxWorker := worker.InitOutboxWorker(pool, outboxQueryRepoI, outboxCommandRepoI, auditLogServiceI, emailSenderI, logger)
 	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, outboxWorker)
@@ -79,10 +90,11 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth_uc.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase)
 
-var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, emailsender.InitSMTPSender, provideEmailConfig,
+var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, provideEmailConfig,
 	provideLogger,
+	provideJWTSigner,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -101,4 +113,17 @@ func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
 // provideLogger initializes a zap logger with configured level.
 func provideLogger(cfg *config.AppConfig) logger.Logger {
 	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}
+
+// provideJWTSigner initializes the JWT signer with RSA keys from config.
+func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) interfaces.JWTSignerI {
+	jwk2, err := jwkRepo.GetActiveKey(context.Background())
+	if err != nil {
+		log.Fatal("load active jwk failed", zap.Any("error", err))
+	}
+	s, err2 := jwt.InitJWTSigner(jwk2, log)
+	if err2 != nil {
+		log.Fatal("init jwt signer failed", zap.Error(err2))
+	}
+	return s
 }

@@ -8,6 +8,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
+	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
@@ -50,7 +51,8 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	}
 
 	// Call usecase
-	res, resErr := h.authService.Signup(c, req)
+	ctx := utils.SetHeaderByKey(c, "headers")
+	res, resErr := h.authService.Signup(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
 		return
@@ -85,7 +87,8 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	}
 
 	// Call usecase
-	res, resErr := h.authService.VerifyEmail(c, req)
+	ctx := utils.SetHeaderByKey(c, "headers")
+	res, resErr := h.authService.VerifyEmail(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
 		return
@@ -121,7 +124,8 @@ func (h *AuthHandler) ResendVerifyEmail(c *gin.Context) {
 	}
 
 	// Call usecase
-	res, resErr := h.authService.ResendVerifyEmail(c, req)
+	ctx := utils.SetHeaderByKey(c, "headers")
+	res, resErr := h.authService.ResendVerifyEmail(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
 		return
@@ -129,4 +133,47 @@ func (h *AuthHandler) ResendVerifyEmail(c *gin.Context) {
 
 	// Return response
 	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
+}
+
+// @Router /api/v1/auth/login [post]
+func (h *AuthHandler) Login(c *gin.Context) {
+
+	req := models.LoginRequest{}
+	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+		return
+	}
+
+	// Validate request body
+	if err := httpcommon.ValidatorParams(req); err != nil { /* build 400 similar to others */
+		return
+	}
+
+	// Call usecase
+	ctx := utils.SetHeaderByKey(c, "headers")
+	res, resErr := h.authService.Login(ctx, req)
+	if resErr != nil {
+		resErr.ExposeHttpError(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
+}
+
+// @Router /api/v1/auth/token/refresh [post]
+func (h *AuthHandler) RefreshToken(c *gin.Context) {}
+
+// @Router /api/v1/auth/logout [post]
+func (h *AuthHandler) Logout(c *gin.Context) {
+
+	// Call usecase
+	resErr := h.authService.Logout(c)
+	if resErr != nil {
+		resErr.ExposeHttpError(c)
+		return
+	}
+
+	// Return response
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(models.LogoutResponse{
+		Message: "Logout successful",
+	}))
 }

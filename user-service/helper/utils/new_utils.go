@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"math/big"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +16,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	httpreq "github.com/vucongthanh92/go-base-utils/http/request"
+	utils "github.com/vucongthanh92/go-base-utils/http/request"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -53,6 +57,7 @@ func HashPwdBySha256(email, password string) string {
 	return result
 }
 
+// GetUserAgent retrieves the User-Agent from the context.
 func GetUserAgent(ctx context.Context) string {
 	if ctx == nil {
 		return ""
@@ -65,20 +70,38 @@ func GetUserAgent(ctx context.Context) string {
 		return ""
 	}
 
-	return GetHeaderFromKey(ctx, "headers", "User-Agent")
+	headers := httpreq.GetHeaderFromContext(ctx, "headers")
+	if ua := headers["User-Agent"]; len(ua) > 0 {
+		return ua[0]
+	}
+
+	return ""
 }
 
+// GetClientIP retrieves the client's IP address from the context, checking common proxy headers.
+// It checks the following headers in order: X-Forwarded-For, X-Real-IP, True-Client-IP.
 func GetClientIP(ctx context.Context) string {
-	if ctx == nil {
-		return ""
+
+	// Common proxy headers, ordered by trust/preference
+	if xff := GetHeaderFromKey(ctx, "headers", "X-Forwarded-For"); xff != "" {
+		// X-Forwarded-For can be a list: client, proxy1, proxy2...
+		if idx := strings.Index(xff, ","); idx >= 0 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
 	}
 
-	if ginCtx, ok := ctx.(*gin.Context); ok {
-		return ginCtx.ClientIP()
+	if xrip := GetHeaderFromKey(ctx, "headers", "X-Real-IP"); xrip != "" {
+		return strings.TrimSpace(xrip)
 	}
 
-	if ip := getIPFromHeader(ctx, "headers"); ip != "" {
-		return ip
+	if tcip := GetHeaderFromKey(ctx, "headers", "True-Client-IP"); tcip != "" {
+		return strings.TrimSpace(tcip)
+	}
+
+	headers := httpreq.GetHeaderFromContext(ctx, "headers")
+	if ua := headers["X-Request-Id"]; len(ua) > 0 {
+		return ua[0]
 	}
 
 	return ""
@@ -108,4 +131,41 @@ func RandString(n int) string {
 		buf[i] = letters[mrand.Intn(len(letters))]
 	}
 	return string(buf)
+}
+
+// StrPtr returns a pointer to the given string, or nil if the string is empty.
+func StrPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
+// Uint64Ptr returns a pointer to the given uint64, or nil if the value is 0.
+func Uint64Ptr(s uint64) *uint64 {
+	if s == 0 {
+		return nil
+	}
+	return &s
+}
+
+// SetHeaderByKey sets the header from the gin context to a new context with the specified key.
+func SetHeaderByKey(c *gin.Context, key string) context.Context {
+	return utils.SetHeaderToContext(c, key)
+}
+
+// ParseUserID converts the sub claim to uint64 safely.
+func ParseUserID(sub any) uint64 {
+	switch v := sub.(type) {
+	case string:
+		id, _ := strconv.ParseUint(v, 10, 64)
+		return id
+	case float64:
+		return uint64(v)
+	case json.Number:
+		id, _ := v.Int64()
+		return uint64(id)
+	default:
+		return 0
+	}
 }
