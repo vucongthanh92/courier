@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/go-base-utils/logger"
@@ -34,12 +35,14 @@ func InitJWTSigner(jwk entities.JWKKey, log logger.Logger) (interfaces.JWTSigner
 
 // SignAccessToken implements interfaces.JWTSignerI
 func (s *jwtSigner) SignAccessToken(user entities.User, now time.Time, ttl time.Duration) (string, *errHandler.ErrorBuilder) {
+	jti := utils.RandString(16)
 	claims := jwt.MapClaims{
 		"sub":   fmt.Sprintf("%d", user.ID),
 		"email": user.Email,
 		"scope": "user",
 		"iat":   now.Unix(),
 		"exp":   now.Add(ttl).Unix(),
+		"jti":   jti,
 		"iss":   s.issuer,
 	}
 

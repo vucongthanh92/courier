@@ -10,20 +10,27 @@ func MapRoutes(
 	router *gin.Engine,
 	authHandler *AuthHandler,
 	identityHandler *IdentityHandler,
+	authMiddleWare gin.HandlerFunc,
 ) {
-	v1 := router.Group("/api/v1")
-	{
-		// API for auth
-		v1.POST("/auth/sign-up", authHandler.Signup)
-		v1.POST("/auth/verify-email", authHandler.VerifyEmail)
-		v1.PUT("/auth/verify-email/resend", authHandler.ResendVerifyEmail)
 
-		v1.POST("/auth/login", authHandler.Login)
-		v1.POST("/auth/token/refresh", authHandler.RefreshToken)
-		v1.POST("/auth/logout", authHandler.Logout)
+	// Public routes
+	auth := router.Group("/api/auth/v1")
+	{
+		auth.POST("/sign-up", authHandler.Signup)
+		auth.POST("/verify-email", authHandler.VerifyEmail)
+		auth.PUT("/verify-email/resend", authHandler.ResendVerifyEmail)
+		auth.POST("/login", authHandler.Login)
+		auth.POST("/token/refresh", authHandler.RefreshToken)
 
 		// API for identity
-		v1.POST("/auth/identity/create", identityHandler.CreateIdentity)
+		auth.POST("/identity/create", identityHandler.CreateIdentity)
+	}
+
+	// Protected routes
+	v1 := router.Group("/api/v1")
+	v1.Use(authMiddleWare)
+	{
+		v1.POST("/logout", authHandler.Logout)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

@@ -27,5 +27,5 @@ type AuthServiceI interface {
 	VerifyEmail(ctx context.Context, req models.VerifyEmailRequest) (*models.VerifyEmailResponse, *errHandler.ErrorBuilder)
 	ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder)
 	RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (*models.RefreshTokenResponse, *errHandler.ErrorBuilder)
-	Logout(ctx context.Context, req models.LogoutRequest) (*models.LogoutResponse, *errHandler.ErrorBuilder)
+	Logout(ctx context.Context) *errHandler.ErrorBuilder
 }

@@ -87,9 +87,9 @@ cronjob:
 featureflag:
   payment: disable
 slackservice:
-  channel: 
+  channel:
   username:
-  urlSlackWebhook: 
+  urlSlackWebhook:
 email:
   enabled: false
   provider: smtp

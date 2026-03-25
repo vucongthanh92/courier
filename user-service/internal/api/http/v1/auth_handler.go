@@ -164,28 +164,16 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {}
 
 // @Router /api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
-	req := models.LogoutRequest{}
-	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
-		return
-	}
-
-	// Validate request body
-	if err := httpcommon.ValidatorParams(req); err != nil {
-		errHandler.InitErrorBuilder(c).
-			SetLogError(errors.New(constants.InvalidValue)).
-			SetStatus(http.StatusBadRequest).
-			SetArrayError(err).
-			ExposeHttpError(c)
-		return
-	}
 
 	// Call usecase
-	res, resErr := h.authService.Logout(c, req)
+	resErr := h.authService.Logout(c)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
 		return
 	}
 
 	// Return response
-	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(models.LogoutResponse{
+		Message: "Logout successful",
+	}))
 }

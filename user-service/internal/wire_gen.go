@@ -68,7 +68,7 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
 	identityServiceI := identity2.InitIdentityService(identityQueryRepoI, identityCommandRepoI)
 	identityHandler := v1.InitIdentityHandler(identityServiceI)
-	server := http.NewServer(appCfg, authHandler, identityHandler)
+	server := http.NewServer(appCfg, authHandler, identityHandler, jwkQueryRepoI, tokenDenylistI)
 	grpcServer := grpc.NewServer(appCfg)
 	cronJobService := cronjob.NewCronJobService()
 	cronServer := cron.NewServer(appCfg, cronJobService)

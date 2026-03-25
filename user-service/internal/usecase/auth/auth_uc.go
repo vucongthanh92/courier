@@ -472,8 +472,7 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 // Logout implements interfaces.AuthServiceI
 // this API will get token jti from context, then block the token in token denylist with expiry same as token expiry,
 // so even if the token is not expired, it will be rejected in next request
-func (s *AuthUseCaseImpl) Logout(ctx context.Context, req models.LogoutRequest) (
-	*models.LogoutResponse, *errHandler.ErrorBuilder) {
+func (s *AuthUseCaseImpl) Logout(ctx context.Context) *errHandler.ErrorBuilder {
 
 	// tracing for logout usecase, we want to trace the whole flow of logout process, from checking user context,
 	ctx, span := tracing.StartSpanFromContext(ctx, "Logout")
@@ -491,7 +490,7 @@ func (s *AuthUseCaseImpl) Logout(ctx context.Context, req models.LogoutRequest) 
 	ttl := time.Until(time.Unix(exp, 0))
 	if ttl > 0 {
 		if err := s.tokenDeny.Block(ctx, jti, ttl); err != nil {
-			return nil, errHandler.InitErrorBuilder(ctx).SetLogError(err).SetStatus(500)
+			return errHandler.InitErrorBuilder(ctx).SetLogError(err).SetStatus(500)
 		}
 	}
 
@@ -499,11 +498,9 @@ func (s *AuthUseCaseImpl) Logout(ctx context.Context, req models.LogoutRequest) 
 	// we can optimize this by only revoking the current refresh token if we have jti stored in refresh token table
 	errCommon := s.refreshTokenWriteRepo.RevokeByUser(ctx, userID, time.Now())
 	if errCommon != nil {
-		return nil, errCommon
+		return errCommon
 	}
 
 	// insert audit log for user logout action
-	return &models.LogoutResponse{
-		Message: "logged out",
-	}, nil
+	return nil
 }
