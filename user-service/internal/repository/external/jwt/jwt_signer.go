@@ -35,14 +35,14 @@ func InitJWTSigner(jwk entities.JWKKey, log logger.Logger) (interfaces.JWTSigner
 
 // SignAccessToken implements interfaces.JWTSignerI
 func (s *jwtSigner) SignAccessToken(user entities.User, now time.Time, ttl time.Duration) (string, *errHandler.ErrorBuilder) {
-	jti := utils.RandString(16)
+	jti, _ := utils.NewSnowflakeID()
 	claims := jwt.MapClaims{
 		"sub":   fmt.Sprintf("%d", user.ID),
 		"email": user.Email,
 		"scope": "user",
 		"iat":   now.Unix(),
 		"exp":   now.Add(ttl).Unix(),
-		"jti":   jti,
+		"jti":   fmt.Sprintf("%d", jti),
 		"iss":   s.issuer,
 	}
 

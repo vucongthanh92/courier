@@ -317,7 +317,7 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 
 	// if all valid then generate access token and refresh token,
 	// save refresh token to database, return access token and refresh token to client
-	accessTTL := 15 * time.Minute
+	accessTTL := 30 * time.Minute
 	refreshTTL := 90 * 24 * time.Hour
 	now := time.Now()
 
@@ -472,7 +472,7 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 // Logout implements interfaces.AuthServiceI
 // this API will get token jti from context, then block the token in token denylist with expiry same as token expiry,
 // so even if the token is not expired, it will be rejected in next request
-func (s *AuthUseCaseImpl) Logout(ctx context.Context) *errHandler.ErrorBuilder {
+func (s *AuthUseCaseImpl) Logout(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder {
 
 	// tracing for logout usecase, we want to trace the whole flow of logout process, from checking user context,
 	ctx, span := tracing.StartSpanFromContext(ctx, "Logout")
@@ -480,7 +480,6 @@ func (s *AuthUseCaseImpl) Logout(ctx context.Context) *errHandler.ErrorBuilder {
 
 	// Since this is a protected route, we should have user context and token claims in context,
 	// we will get the token jti from claims and block it in token denylist, so even if the token is not expired, it will be rejected in next request
-	claims := ctx.Value("authClaims").(jwt.MapClaims)
 	jti := claims["jti"].(string)
 	exp := int64(claims["exp"].(float64))
 	userID := utils.ParseUserID(claims["sub"])
@@ -499,6 +498,21 @@ func (s *AuthUseCaseImpl) Logout(ctx context.Context) *errHandler.ErrorBuilder {
 	errCommon := s.refreshTokenWriteRepo.RevokeByUser(ctx, userID, time.Now())
 	if errCommon != nil {
 		return errCommon
+	}
+
+	// insert audit log for user signup action
+	auditLogReq := models.AuditLogRequest{
+		CreatorID: userID,
+		Action:    "user_logout",
+		IP:        utils.GetClientIP(ctx),
+		UserAgent: utils.GetUserAgent(ctx),
+		Metadata: datatypes.JSONMap{
+			"claims": claims,
+		},
+	}
+	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
+	if logErr != nil {
+		logger.Error("Failed to log user logout event", zap.Any("error", logErr), zap.Uint64("user_id", userID))
 	}
 
 	// insert audit log for user logout action

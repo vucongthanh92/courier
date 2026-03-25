@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
@@ -165,8 +166,12 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {}
 // @Router /api/v1/auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 
+	// Get claims from context
+	ctx := utils.SetHeaderByKey(c, "headers")
+	claims := c.Value("authClaims").(jwt.MapClaims)
+
 	// Call usecase
-	resErr := h.authService.Logout(c)
+	resErr := h.authService.Logout(ctx, claims)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
 		return
