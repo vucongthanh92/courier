@@ -377,96 +377,89 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 	*models.RefreshTokenResponse, *errHandler.ErrorBuilder) {
 
 	// tracing for refresh token usecase, we want to trace the whole flow of refresh token process, from checking token valid,
-	// checking token revoked, checking token expired, loading user,
-	// generating new access token and refresh token, saving new refresh token to database
 	ctx, span := tracing.StartSpanFromContext(ctx, "RefreshToken")
 	defer span.End()
 
-	// Hash incoming refresh token
-	refreshPlain := req.RefreshToken
-	if refreshPlain == "" {
-		return nil, errHandler.InitErrorBuilder(ctx).
-			SetStatus(http.StatusBadRequest).
-			SetError(models.ErrorDTO{Code: "invalid_refresh", Message: "Refresh token required"})
-	}
-
-	// Get refresh token from database by hash
-	// Note: since we don't have user context here,
-	// we can't hash with email, so we will just hash the token alone and store in database,
-	tokenHash := utils.HashPwdBySha256("", refreshPlain)
-	rt, errRT := s.refreshTokenReadRepo.GetByTokenHash(ctx, tokenHash)
+	// check refresh token exist and valid, if not valid then return error, only allow refresh when token is valid
+	rt, errRT := s.refreshTokenReadRepo.GetByTokenHash(ctx, req.RefreshToken)
 	if errRT != nil {
 		return nil, errRT
 	}
 
-	// Check if refresh token is revoked
-	if err := rt.IsRevoked(); err != nil {
+	// check token valid, if not valid then return error, only allow refresh when token is valid
+	if rt.UserID != req.UserID {
 		return nil, errHandler.InitErrorBuilder(ctx).
 			SetStatus(http.StatusUnauthorized).
-			SetError(models.ErrorDTO{Code: "refresh_revoked", Message: err.Error()})
+			SetError(models.ErrorDTO{
+				Code:    "invalid_refresh",
+				Message: "Refresh token not owned by user",
+			})
 	}
 
-	// Check if refresh token is expired
-	if err := rt.IsExpired(); err != nil {
+	// check token revoked or expired, if revoked or expired then return error
+	if rt.RevokedAt != nil {
 		return nil, errHandler.InitErrorBuilder(ctx).
 			SetStatus(http.StatusUnauthorized).
-			SetError(models.ErrorDTO{Code: "refresh_expired", Message: err.Error()})
+			SetError(models.ErrorDTO{
+				Code:    "refresh_revoked",
+				Message: "Refresh token revoked",
+			})
 	}
 
-	// Load user by refresh token's user ID
-	user, errUser := s.userReadRepo.GetUserByID(ctx, rt.UserID)
+	if time.Now().After(rt.ExpiresAt) {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{
+				Code:    "refresh_expired",
+				Message: "Refresh token expired",
+			})
+	}
+
+	// check user exist with id from token, if not exist return error
+	user, errUser := s.userReadRepo.GetUserByID(ctx, req.UserID)
 	if errUser != nil {
 		return nil, errUser
 	}
 
-	// Optional: re-check email_verified/status
+	// check email verified or not, if not verified then return error, only allow refresh when email is verified
 	if !user.EmailVerified || user.Status != "verified" {
 		return nil, errHandler.InitErrorBuilder(ctx).
 			SetStatus(http.StatusForbidden).
 			SetError(models.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
 	}
 
-	// Issue new access token
-	accessTTL := 15 * time.Minute
+	// if all valid then generate new access token,
+	// if refresh token is about to expire (e.g. less than 7 days), then also generate new refresh token,
+	accessTTL := 30 * time.Minute
 	now := time.Now()
-	accessToken, commonErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
-	if commonErr != nil {
-		return nil, commonErr
+	accessToken, signErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	if signErr != nil {
+		return nil, signErr
 	}
 
-	// Issue new refresh token, we will generate random string and save hash to database for security,
-	// when refresh token request come, we will hash the token and compare with database
-	refreshTTL := 90 * 24 * time.Hour
-	newPlain := utils.RandString(64)
-	newHash := utils.HashPwdBySha256("", newPlain)
-
-	// Save new refresh token to database
-	newRT := entities.RefreshToken{
-		UserID:    user.ID,
-		TokenHash: newHash,
-		ExpiresAt: now.Add(refreshTTL),
-		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
-		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
-		CreatedAt: now,
-		ParentID:  utils.Uint64Ptr(rt.ID),
+	// insert audit log for user signup action
+	auditLogReq := models.AuditLogRequest{
+		CreatorID: req.UserID,
+		Action:    "refresh_token",
+		IP:        utils.GetClientIP(ctx),
+		UserAgent: utils.GetUserAgent(ctx),
+		Metadata: datatypes.JSONMap{
+			"access_token": accessToken,
+			"expires_in":   int64(accessTTL.Seconds()),
+			"token_type":   "Bearer",
+		},
+	}
+	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
+	if logErr != nil {
+		logger.Error("Failed to log user refresh token event", zap.Any("error", logErr), zap.Uint64("user_id", req.UserID))
 	}
 
-	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &newRT); err != nil {
-		return nil, err
-	}
-
-	// Optional: revoke old token to tránh replay
-	_ = s.refreshTokenWriteRepo.RevokeByID(ctx, rt.ID, now)
-
-	res := &models.RefreshTokenResponse{
-		AccessToken:      accessToken,
-		ExpiresIn:        int64(accessTTL.Seconds()),
-		RefreshToken:     newPlain,
-		RefreshExpiresIn: int64(refreshTTL.Seconds()),
-		TokenType:        "Bearer",
-	}
-
-	return res, nil
+	// if refresh token is about to expire in 7 days, then generate new refresh token and update to database
+	return &models.RefreshTokenResponse{
+		AccessToken: accessToken,
+		ExpiresIn:   int64(accessTTL.Seconds()),
+		TokenType:   "Bearer",
+	}, nil
 }
 
 // Logout implements interfaces.AuthServiceI
