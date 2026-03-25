@@ -20,7 +20,7 @@ func MapRoutes(
 		auth.POST("/verify-email", authHandler.VerifyEmail)
 		auth.PUT("/verify-email/resend", authHandler.ResendVerifyEmail)
 		auth.POST("/login", authHandler.Login)
-		auth.PUT("/refresh", authHandler.RefreshToken)
+		auth.PATCH("/refresh", authHandler.RefreshToken)
 
 		// API for identity
 		auth.POST("/identity/create", identityHandler.CreateIdentity)

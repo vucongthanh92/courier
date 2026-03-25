@@ -160,10 +160,51 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
 }
 
-// @Router /api/v1/auth/token/refresh [post]
-func (h *AuthHandler) RefreshToken(c *gin.Context) {}
+// @Router /api/v1/auth/token/refresh [patch]
+// @Security BearerAuth
+// @Param params body models.RefreshTokenRequest true "RefreshTokenRequest"
+// @Success 200 {object} models.RefreshTokenResponse
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+
+	// Validate request body
+	req := models.RefreshTokenRequest{}
+	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusBadRequest).
+			SetArrayError([]models.ErrorDTO{
+				{
+					Message: err.Error(),
+				},
+			}).ExposeHttpError(c)
+		return
+	}
+
+	// Validate request body
+	if err := httpcommon.ValidatorParams(req); err != nil {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusBadRequest).
+			SetArrayError(err).
+			ExposeHttpError(c)
+		return
+	}
+
+	// Call usecase
+	ctx := utils.SetHeaderByKey(c, "headers")
+	res, resErr := h.authService.RefreshToken(ctx, req)
+	if resErr != nil {
+		resErr.ExposeHttpError(c)
+		return
+	}
+
+	// Return response
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
+}
 
 // @Router /api/v1/auth/logout [post]
+// @Security BearerAuth
+// @Success 200 {object} models.LogoutResponse
 func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// Get claims from context

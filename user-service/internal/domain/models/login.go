@@ -15,6 +15,7 @@ type LoginResponse struct {
 
 type RefreshTokenRequest struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
+	UserID       uint64 `json:"user_id" binding:"required"`
 }
 
 type RefreshTokenResponse struct {
