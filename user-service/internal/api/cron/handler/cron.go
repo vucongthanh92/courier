@@ -9,13 +9,13 @@ import (
 	"github.com/jasonlvhit/gocron"
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/helper/utils"
-	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/go-base-utils/logger"
 )
 
 func Crawl(
 	cfg *config.AppConfig,
-	cronService cronjob.CronJobService,
+	cronService interfaces.CronJobServiceI,
 ) {
 	ctx, cancel := context.WithCancel(context.Background())
 	shutdownCh := make(chan struct{})

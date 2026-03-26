@@ -11,8 +11,9 @@ import (
 type RefreshTokenCommandRepoI interface {
 	UpsertByUserAgent(ctx context.Context, entity *entities.RefreshToken) *errHandler.ErrorBuilder
 	RevokeByID(ctx context.Context, id uint64, revokedAt time.Time) *errHandler.ErrorBuilder
-	RevokeByUser(ctx context.Context, userID uint64, revokedAt time.Time) *errHandler.ErrorBuilder // optional logout-all
+	RevokeByUser(ctx context.Context, userID uint64, revokedAt time.Time) *errHandler.ErrorBuilder
 	Rotate(ctx context.Context, oldID uint64, newEntity *entities.RefreshToken) (*entities.RefreshToken, *errHandler.ErrorBuilder)
+	DeleteExpiredAndRevoked(ctx context.Context, now time.Time) error
 }
 
 type RefreshTokenQueryRepoI interface {

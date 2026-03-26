@@ -105,3 +105,10 @@ func (r *refreshTokenCmdRepo) Rotate(ctx context.Context, oldID uint64, newEntit
 	}
 	return newEntity, nil
 }
+
+func (r *refreshTokenCmdRepo) DeleteExpiredAndRevoked(ctx context.Context, now time.Time) error {
+	run := transaction.RunnerFromCtx(ctx, r.writeDb)
+	return run.
+		Where("(revoked_at IS NOT NULL) OR (expires_at <= ?)", now).
+		Delete(&entities.RefreshToken{}).Error
+}

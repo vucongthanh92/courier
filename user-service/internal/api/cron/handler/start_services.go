@@ -1,9 +1,16 @@
 package handler
 
 import (
-	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
+	"context"
+
+	"github.com/jasonlvhit/gocron"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 )
 
-func StartServices(cronService cronjob.CronJobService) {
-
+// StartServices starts the cron jobs for the application.
+func StartServices(cronService interfaces.CronJobServiceI) {
+	gocron.Every(1).Minutes().Do(func() {
+		_ = cronService.CleanupRefreshTokens(context.Background())
+	})
+	go gocron.Start()
 }

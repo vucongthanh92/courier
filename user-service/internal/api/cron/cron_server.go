@@ -3,19 +3,19 @@ package cron
 import (
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/internal/api/cron/handler"
-	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 
 	"github.com/vucongthanh92/go-base-utils/logger"
 )
 
 type Server struct {
 	cfg         *config.AppConfig
-	cronService cronjob.CronJobService
+	cronService interfaces.CronJobServiceI
 }
 
 func NewServer(
 	cfg *config.AppConfig,
-	cronService cronjob.CronJobService,
+	cronService interfaces.CronJobServiceI,
 ) *Server {
 	return &Server{
 		cfg:         cfg,
