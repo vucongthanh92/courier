@@ -84,8 +84,6 @@ cronjob:
   dispatchSms: 60
   stat: "0"
   FILELOC5: ""
-featureflag:
-  payment: disable
 slackservice:
   channel:
   username:
@@ -100,3 +98,12 @@ email:
     port: 587
     username: "vucongthanh92@gmail.com"
     password: ""
+loki:
+  url: http://localhost:3100/loki/api/v1/push
+  env: local
+  service: user-service
+  batchSize: 20
+  flushMs: 1000
+  maxQueue: 1000
+  retry: 3
+  timeoutMs: 2000

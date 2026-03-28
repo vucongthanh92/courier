@@ -15,11 +15,13 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 	"github.com/vucongthanh92/courier/user-service/redis"
 
+	// internal usecases
 	auditLogUc "github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
 	authUc "github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
 	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	outboxUc "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
 
+	// internal repositories
 	auditLogRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
 	authCredentialRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
 	emailVerificationRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
@@ -29,16 +31,21 @@ import (
 	refreshTokenRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 
+	// external repositories
 	emailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	jwtSigner "github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	lokiClient "github.com/vucongthanh92/courier/user-service/internal/repository/external/loki"
 	redisRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 
+	// shared interfaces
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 
+	// helper
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 
+	// third-party
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vucongthanh92/courier/user-service/internal/worker"
 	"github.com/vucongthanh92/go-base-utils/logger"
@@ -74,6 +81,7 @@ var serviceSet = wire.NewSet(
 )
 
 var repoSet = wire.NewSet(
+
 	// internal repo
 	transaction.InitManagerTxn,
 	userRepo.InitUserCmdRepository,
@@ -99,6 +107,7 @@ var repoSet = wire.NewSet(
 	provideEmailConfig,
 	provideLogger,
 	provideJWTSigner,
+	provideLokiClient,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -140,4 +149,8 @@ func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) inter
 		log.Fatal("init jwt signer failed", zap.Error(err2))
 	}
 	return s
+}
+
+func provideLokiClient(cfg *config.AppConfig, log logger.Logger) lokiClient.Client {
+	return lokiClient.InitLokiClient(cfg.Loki, log)
 }
