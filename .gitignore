@@ -1,0 +1,19 @@
+# Local development artifacts
+logs/*.log
+
+# Go build outputs
+bin/
+*.exe
+*.test
+
+# Environment/config overrides (keep secrets local)
+.env
+config/local/config.yaml
+
+# IDE/editor cruft
+.DS_Store
+.idea/
+.vscode/
+
+# Test coverage
+coverage.out
