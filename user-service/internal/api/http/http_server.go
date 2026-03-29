@@ -9,7 +9,6 @@ import (
 	middleware "github.com/vucongthanh92/courier/user-service/internal/api/http/middleware"
 	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/external/loki"
 	"github.com/vucongthanh92/go-base-utils/http/middlewares"
 	httpserver "github.com/vucongthanh92/go-base-utils/http/server"
 	"github.com/vucongthanh92/go-base-utils/logger"
@@ -22,7 +21,6 @@ type Server struct {
 	identityHandler *v1.IdentityHandler
 	jwkRepo         interfaces.JWKQueryRepoI
 	tokenDeny       interfaces.TokenDenylistI
-	lokiClient      loki.Client
 }
 
 func NewServer(
@@ -31,7 +29,6 @@ func NewServer(
 	identityHandler *v1.IdentityHandler,
 	jwkRepo interfaces.JWKQueryRepoI,
 	tokenDeny interfaces.TokenDenylistI,
-	lokiClient loki.Client,
 ) *Server {
 	return &Server{
 		cfg:             cfg,
@@ -39,7 +36,6 @@ func NewServer(
 		identityHandler: identityHandler,
 		jwkRepo:         jwkRepo,
 		tokenDeny:       tokenDeny,
-		lokiClient:      lokiClient,
 	}
 }
 
@@ -61,9 +57,6 @@ func (s *Server) Run() {
 		// 	UrlSlackWebHook: s.cfg.SlackService.UrlSlackWebhook,
 		// },
 	}))
-
-	// Add request logging middleware
-	router.Use(middleware.RequestLoggingMiddleware(s.lokiClient))
 
 	// Load public keys for JWT middleware. Currently we only support 1 active key,
 	// but we design the return type as map to support multiple keys in the future without changing middleware code.

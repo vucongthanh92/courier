@@ -34,7 +34,6 @@ import (
 	// external repositories
 	emailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	jwtSigner "github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
-	lokiClient "github.com/vucongthanh92/courier/user-service/internal/repository/external/loki"
 	redisRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 
 	// shared interfaces
@@ -107,7 +106,6 @@ var repoSet = wire.NewSet(
 	provideEmailConfig,
 	provideLogger,
 	provideJWTSigner,
-	provideLokiClient,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -149,8 +147,4 @@ func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) inter
 		log.Fatal("init jwt signer failed", zap.Error(err2))
 	}
 	return s
-}
-
-func provideLokiClient(cfg *config.AppConfig, log logger.Logger) lokiClient.Client {
-	return lokiClient.InitLokiClient(cfg.Loki, log)
 }
