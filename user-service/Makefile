@@ -30,3 +30,6 @@ proto-gen:
 
 run-local:
 	go run -gcflags="-m" main.go start --config=./config/local/config.yaml
+
+run-user:
+	go run -gcflags="-m" main.go start --config=./config/local/config.yaml 2>&1 | tee -a ../logs/user-service-$$(date +%Y-%m-%d).log

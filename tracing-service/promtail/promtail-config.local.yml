@@ -1,0 +1,31 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions-local.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: user-service-files
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: user-service
+          service: user-service
+          env: local
+          __path__: /usr/src/app/logs/*.log
+    pipeline_stages:
+      - json:
+          expressions:
+            request_id: request_id
+            user_id: user_id
+            level: level
+            path: path
+            status: status
+            duration_ms: duration_ms
+      - timestamp:
+          source: ts
+          format: RFC3339

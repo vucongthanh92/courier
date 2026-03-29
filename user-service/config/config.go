@@ -19,12 +19,11 @@ type AppConfig struct {
 	Authenticate   *Authenticate         `mapstructure:"authenticate"`
 	Client         *GrpcClientConfig     `mapstructure:"client"`
 	S3             *S3Config             `mapstructure:"s3"`
-	DaService      *DaService            `mapstructure:"daservice"`
 	CronJob        *CronJob              `mapstructure:"cronjob"`
-	FeatureFlag    *FeatureFlag          `mapstructure:"featureFlag"`
 	PaymentService *PaymentServiceConfig `mapstructure:"paymentService"`
 	SlackService   *SlackConfig          `mapstructure:"slackService"`
 	Email          *EmailConfig          `mapstructure:"email"`
+	Loki           *LokiConfig           `mapstructure:"loki"`
 }
 
 // GrpcClientConfig holds the configuration for gRPC clients that this service will call,
@@ -191,19 +190,6 @@ type S3Config struct {
 	Reconci string `mapstructure:"reconci"`
 }
 
-// DaService holds the configuration for external services that the application interacts with, such as web APIs,
-// notification services, and other third-party integrations. Each field represents a specific service endpoint or configuration related to that service.
-type DaService struct {
-	WebApi                  string `mapstructure:"webApi"`
-	Notification            string `mapstructure:"notification"`
-	Webhook                 string `mapstructure:"webhook"`
-	UpdateNotification      string `mapstructure:"updateNotification"`
-	CancelOrderNotification string `mapstructure:"cancelOrderNotification"`
-	SubmitOrderNotification string `mapstructure:"submitOrderNotification"`
-	GetListCoupons          string `mapstructure:"getListCoupons"`
-	SubmitTipOrderAssigned  string `mapstructure:"submitTipOrderAssigned"`
-}
-
 // CronJob holds the configuration for scheduled tasks or cron jobs in the application
 type CronJob struct {
 	Disable     bool   `mapstructure:"disable"`
@@ -215,11 +201,6 @@ type CronJob struct {
 // Encryption holds the encryption configuration for the application
 type Encryption struct {
 	Salt string `mapstructure:"salt"`
-}
-
-// FeatureFlag holds the feature flags for the application
-type FeatureFlag struct {
-	Payment string `mapstructure:"payment"`
 }
 
 // PaymentServiceConfig holds the configuration for the payment service integration
@@ -252,4 +233,16 @@ type SMTPConfig struct {
 	Port     int    `mapstructure:"port"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
+}
+
+// LokiConfig holds the configuration for Loki logging, including URL, environment, service name, and batching settings.
+type LokiConfig struct {
+	URL       string `mapstructure:"url"`
+	Env       string `mapstructure:"env"`
+	Service   string `mapstructure:"service"`
+	BatchSize int    `mapstructure:"batchSize"`
+	FlushMs   int    `mapstructure:"flushMs"`
+	MaxQueue  int    `mapstructure:"maxQueue"`
+	Retry     int    `mapstructure:"retry"`
+	TimeoutMs int    `mapstructure:"timeoutMs"`
 }
