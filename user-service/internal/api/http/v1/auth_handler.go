@@ -15,12 +15,17 @@ import (
 )
 
 type AuthHandler struct {
-	authService interfaces.AuthServiceI
+	authService     interfaces.AuthServiceI
+	oauth3rdService interfaces.Oauth3rdUseCaseI
 }
 
-func InitAuthHandler(authService interfaces.AuthServiceI) *AuthHandler {
+func InitAuthHandler(
+	authService interfaces.AuthServiceI,
+	oauth3rdService interfaces.Oauth3rdUseCaseI,
+) *AuthHandler {
 	return &AuthHandler{
-		authService: authService,
+		authService:     authService,
+		oauth3rdService: oauth3rdService,
 	}
 }
 
@@ -222,4 +227,40 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(models.LogoutResponse{
 		Message: "Logout successful",
 	}))
+}
+
+// @Tags Auth
+// @Summary OAuth login/signup via provider
+// @Param provider path string true "google or github"
+// @Param params body models.OAuthLoginRequest true "OAuth token"
+// @Success 200 {object} models.OAuthLoginResponse
+// @Router /api/v1/auth/3rd/{provider} [post]
+func (h *AuthHandler) OAuthLogin(c *gin.Context) {
+
+	// Validate request body
+	req := models.OAuthLoginRequest{}
+	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+		return
+	}
+
+	// Get provider from path param and set to request
+	req.Provider = c.Param("provider")
+	if err := httpcommon.ValidatorParams(req); err != nil {
+		errHandler.InitErrorBuilder(c).
+			SetStatus(http.StatusBadRequest).
+			SetArrayError(err).
+			ExposeHttpError(c)
+		return
+	}
+
+	// Call usecase
+	ctx := utils.SetHeaderByKey(c, "headers")
+	res, resErr := h.oauth3rdService.OAuthLogin(ctx, req)
+	if resErr != nil {
+		resErr.ExposeHttpError(c)
+		return
+	}
+
+	// Return response
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
 }

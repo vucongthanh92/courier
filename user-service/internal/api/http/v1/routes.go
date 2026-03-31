@@ -22,6 +22,8 @@ func MapRoutes(
 		auth.POST("/login", authHandler.Login)
 		auth.PATCH("/refresh", authHandler.RefreshToken)
 
+		auth.POST("/3rd/:provider", authHandler.OAuthLogin)
+
 		// API for identity
 		auth.POST("/identity/create", identityHandler.CreateIdentity)
 	}

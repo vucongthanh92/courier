@@ -299,6 +299,14 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 		return nil, errCred
 	}
 
+	// if password version is 0, it means password not set,
+	// we can return specific error to client to ask them to set password
+	if cred.PasswordVersion == 0 {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusForbidden).
+			SetError(models.ErrorDTO{Code: "password_not_set", Message: "Password not set; please create password"})
+	}
+
 	// support bcrypt, sha256 fallback
 	if cred.PasswordAlgo == "bcrypt" {
 		if err := utils.CheckPwdByBcrypt(cred.PasswordHash, req.Password); err != nil {

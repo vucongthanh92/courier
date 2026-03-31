@@ -30,3 +30,8 @@ type AuthServiceI interface {
 	RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (*models.RefreshTokenResponse, *errHandler.ErrorBuilder)
 	Logout(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder
 }
+
+// usecase interface
+type Oauth3rdUseCaseI interface {
+	OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
+}

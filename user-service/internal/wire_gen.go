@@ -21,6 +21,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	redis2 "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
@@ -63,9 +64,12 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	refreshTokenQueryRepoI := refreshtoken.InitRefreshTokenQueryRepository(readDb)
 	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
 	authServiceI := auth.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, jwtSignerI, refreshTokenCommandRepoI, refreshTokenQueryRepoI, tokenDenylistI)
-	authHandler := v1.InitAuthHandler(authServiceI)
-	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
+	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
+	googleProviderClient := provideGoogleClient(appCfg)
+	githubProviderClient := provideGitHubClient(appCfg)
+	oauth3rdUseCaseI := auth.InitOauth3rdUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, identityCommandRepoI, identityQueryRepoI, googleProviderClient, githubProviderClient, jwtSignerI, authCredentialCommandRepoI, authCredentialQueryRepoI, refreshTokenCommandRepoI)
+	authHandler := v1.InitAuthHandler(authServiceI, oauth3rdUseCaseI)
 	identityServiceI := identity2.InitIdentityService(identityQueryRepoI, identityCommandRepoI)
 	identityHandler := v1.InitIdentityHandler(identityServiceI)
 	server := http.NewServer(appCfg, authHandler, identityHandler, jwkQueryRepoI, tokenDenylistI)
@@ -90,11 +94,13 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase, auth.InitOauth3rdUsecase)
 
 var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, provideEmailConfig,
 	provideLogger,
 	provideJWTSigner,
+	provideGoogleClient,
+	provideGitHubClient,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -126,4 +132,18 @@ func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) inter
 		log.Fatal("init jwt signer failed", zap.Error(err2))
 	}
 	return s
+}
+
+// provideGoogleClient initializes the Google OAuth client with credentials from config.
+func provideGoogleClient(cfg *config.AppConfig) interfaces.GoogleProviderClient {
+	return oauth.NewGoogleClient(cfg.OAuth.Google.ClientID)
+}
+
+// provideGitHubClient initializes the GitHub OAuth client with API base URL from config.
+func provideGitHubClient(cfg *config.AppConfig) interfaces.GithubProviderClient {
+	api2 := cfg.OAuth.Github.APIBase
+	if api2 == "" {
+		api2 = "https://api.github.com"
+	}
+	return oauth.NewGitHubClient(api2)
 }

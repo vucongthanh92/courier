@@ -107,3 +107,10 @@ loki:
   maxQueue: 1000
   retry: 3
   timeoutMs: 2000
+oauth:
+  google:
+    client_id: "YOUR_GOOGLE_CLIENT_ID"
+  github:
+    client_id: "YOUR_GITHUB_CLIENT_ID"
+    client_secret: "YOUR_GITHUB_CLIENT_SECRET"
+    api_base: "https://api.github.com"
