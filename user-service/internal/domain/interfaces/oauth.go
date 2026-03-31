@@ -13,3 +13,7 @@ type GoogleProviderClient interface {
 type GithubProviderClient interface {
 	Verify(ctx context.Context, token string) (models.ProviderProfile, error)
 }
+
+type GithubCodeExchanger interface {
+	ExchangeCode(ctx context.Context, code, redirectURI string) (accessToken string, err error)
+}

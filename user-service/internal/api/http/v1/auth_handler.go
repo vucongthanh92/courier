@@ -264,3 +264,47 @@ func (h *AuthHandler) OAuthLogin(c *gin.Context) {
 	// Return response
 	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
 }
+
+// @Tags Auth
+// @Summary OAuth callback (GitHub code flow)
+// @Param provider path string true "github"
+// @Param code query string true "code from GitHub"
+// @Param state query string false "csrf state"
+// @Success 200 {object} models.OAuthLoginResponse
+// @Router /api/v1/auth/3rd/{provider}/callback [get]
+func (h *AuthHandler) OAuthCallback(c *gin.Context) {
+
+	// Validate request body
+	req := models.OAuthCallbackRequest{}
+	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+		return
+	}
+
+	// Get provider from path param and set to request
+	if req.Code == "" {
+		req.Code = c.Query("code")
+		req.State = c.Query("state")
+		req.RedirectURI = c.Query("redirect_uri")
+	}
+
+	// Get provider from path param and set to request
+	req.Provider = c.Param("provider")
+	if req.Code == "" {
+		errHandler.InitErrorBuilder(c).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{Code: "missing_code", Message: "code required"}).
+			ExposeHttpError(c)
+		return
+	}
+
+	// Call usecase
+	ctx := utils.SetHeaderByKey(c, "headers")
+	res, resErr := h.oauth3rdService.OAuthCallback(ctx, req)
+	if resErr != nil {
+		resErr.ExposeHttpError(c)
+		return
+	}
+
+	// Return response
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(res))
+}

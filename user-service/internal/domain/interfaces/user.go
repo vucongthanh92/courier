@@ -31,7 +31,8 @@ type AuthServiceI interface {
 	Logout(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder
 }
 
-// usecase interface
+// identity service interface
 type Oauth3rdUseCaseI interface {
 	OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
+	OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
 }

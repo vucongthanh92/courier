@@ -23,3 +23,10 @@ type ProviderProfile struct {
 	Name          string
 	AvatarURL     string
 }
+
+type OAuthCallbackRequest struct {
+	Code        string `json:"code" form:"code" binding:"required"`
+	State       string `json:"state" form:"state"`
+	RedirectURI string `json:"redirect_uri,omitempty" form:"redirect_uri"`
+	Provider    string `json:"-"`
+}

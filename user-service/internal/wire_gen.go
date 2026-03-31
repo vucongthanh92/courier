@@ -142,8 +142,5 @@ func provideGoogleClient(cfg *config.AppConfig) interfaces.GoogleProviderClient 
 // provideGitHubClient initializes the GitHub OAuth client with API base URL from config.
 func provideGitHubClient(cfg *config.AppConfig) interfaces.GithubProviderClient {
 	api2 := cfg.OAuth.Github.APIBase
-	if api2 == "" {
-		api2 = "https://api.github.com"
-	}
-	return oauth.NewGitHubClient(api2)
+	return oauth.NewGitHubClient(api2, cfg.OAuth.Github.ClientID, cfg.OAuth.Github.ClientSecret)
 }

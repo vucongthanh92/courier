@@ -111,6 +111,6 @@ oauth:
   google:
     client_id: "YOUR_GOOGLE_CLIENT_ID"
   github:
-    client_id: "YOUR_GITHUB_CLIENT_ID"
-    client_secret: "YOUR_GITHUB_CLIENT_SECRET"
+    client_id: "Ov23li1Nv25coyuTubQX"
+    client_secret: "cea1c4a0e4b21b366eb7622a2cf3ffb675147238"
     api_base: "https://api.github.com"

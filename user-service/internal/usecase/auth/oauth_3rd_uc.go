@@ -187,3 +187,36 @@ func (s *Oauth3rdUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 		NeedPasswordSetup: needPwd, // if user has no password set, prompt them to set one for better security
 	}, nil
 }
+
+// OAuthCallback implements interfaces.Oauth3rdUseCaseI
+func (s *Oauth3rdUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (
+	*models.OAuthLoginResponse, *errHandler.ErrorBuilder) {
+
+	// Start tracing span
+	ctx, span := tracing.StartSpanFromContext(ctx, "OAuthCallback")
+	defer span.End()
+
+	// For security reasons, we should only support code exchange for providers that require it (like GitHub).
+	if req.Provider != "github" {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{
+				Code:    "unsupported_provider",
+				Message: "Callback not supported for provider",
+			})
+	}
+
+	// Exchange the authorization code for an access token
+	accessToken, err := s.githubClient.(interfaces.GithubCodeExchanger).ExchangeCode(ctx, req.Code, req.RedirectURI)
+	if err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{Code: "oauth_code_exchange_failed", Message: err.Error()})
+	}
+
+	// With the access token, we can now call the same logic as OAuthLogin to verify the token, get the user profile, and issue our own tokens.
+	return s.OAuthLogin(ctx, models.OAuthLoginRequest{
+		Token:    accessToken,
+		Provider: req.Provider,
+	})
+}

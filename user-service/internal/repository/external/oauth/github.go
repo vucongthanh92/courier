@@ -1,9 +1,11 @@
 package oauth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,14 +14,21 @@ import (
 )
 
 type GitHubClient struct {
-	HTTPClient *http.Client
-	APIBase    string
+	HTTPClient   *http.Client
+	APIBase      string
+	ClientID     string
+	ClientSecret string
 }
 
-func NewGitHubClient(apiBase string) *GitHubClient {
+func NewGitHubClient(apiBase, clientID, clientSecret string) *GitHubClient {
+	if apiBase == "" {
+		apiBase = "https://api.github.com"
+	}
 	return &GitHubClient{
-		HTTPClient: http.DefaultClient,
-		APIBase:    apiBase,
+		HTTPClient:   http.DefaultClient,
+		APIBase:      apiBase,
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 	}
 }
 
@@ -93,4 +102,50 @@ func (c *GitHubClient) primaryVerifiedEmail(ctx context.Context, token string) (
 	}
 
 	return "", errors.New("no verified primary email")
+}
+
+// ExchangeCode exchanges the authorization code for an access token using GitHub's OAuth API.
+func (c *GitHubClient) ExchangeCode(ctx context.Context, code, redirectURI string) (string, error) {
+
+	// GitHub expects the parameters in the request body as JSON
+	payload := map[string]string{
+		"client_id":     c.ClientID,
+		"client_secret": c.ClientSecret,
+		"code":          code,
+	}
+
+	if redirectURI != "" {
+		payload["redirect_uri"] = redirectURI
+	}
+
+	// Make the POST request to GitHub's token endpoint
+	b, _ := json.Marshal(payload)
+	req, _ := http.NewRequestWithContext(ctx, "POST", "https://github.com/login/oauth/access_token", bytes.NewReader(b))
+	req.Header.Set("Accept", "application/json")
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	// GitHub returns the access token in the response body as JSON
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("exchange failed status=%d", resp.StatusCode)
+	}
+
+	// The response JSON will contain the access token in the "access_token" field
+	var res struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	// Decode the response and extract the access token
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return "", err
+	}
+
+	if res.AccessToken == "" {
+		return "", errors.New("access_token empty")
+	}
+
+	return res.AccessToken, nil
 }
