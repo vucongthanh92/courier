@@ -8,42 +8,35 @@ package internal
 import (
 	"crypto/tls"
 	"errors"
-	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"cloud.google.com/go/auth"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/internal/credentialstype"
 	"google.golang.org/api/internal/impersonate"
 	"google.golang.org/grpc"
 )
 
 const (
-	newAuthLibEnvVar        = "GOOGLE_API_GO_EXPERIMENTAL_ENABLE_NEW_AUTH_LIB"
-	newAuthLibDisabledEnVar = "GOOGLE_API_GO_EXPERIMENTAL_DISABLE_NEW_AUTH_LIB"
-	universeDomainEnvVar    = "GOOGLE_CLOUD_UNIVERSE_DOMAIN"
-	defaultUniverseDomain   = "googleapis.com"
+	newAuthLibEnVar       = "GOOGLE_API_GO_EXPERIMENTAL_USE_NEW_AUTH_LIB"
+	universeDomainDefault = "googleapis.com"
 )
 
 // DialSettings holds information needed to establish a connection with a
 // Google API service.
 type DialSettings struct {
-	Endpoint                string
-	DefaultEndpoint         string
-	DefaultEndpointTemplate string
-	DefaultMTLSEndpoint     string
-	Scopes                  []string
-	DefaultScopes           []string
-	EnableJwtWithScope      bool
-	TokenSource             oauth2.TokenSource
-	Credentials             *google.Credentials
-	// Deprecated: Use AuthCredentialsFile instead, due to security risk.
-	CredentialsFile string
-	// Deprecated: Use AuthCredentialsJSON instead, due to security risk.
+	Endpoint                      string
+	DefaultEndpoint               string
+	DefaultEndpointTemplate       string
+	DefaultMTLSEndpoint           string
+	Scopes                        []string
+	DefaultScopes                 []string
+	EnableJwtWithScope            bool
+	TokenSource                   oauth2.TokenSource
+	Credentials                   *google.Credentials
+	CredentialsFile               string // if set, Token Source is ignored.
 	CredentialsJSON               []byte
 	InternalCredentials           *google.Credentials
 	UserAgent                     string
@@ -63,32 +56,15 @@ type DialSettings struct {
 	ImpersonationConfig           *impersonate.Config
 	EnableDirectPath              bool
 	EnableDirectPathXds           bool
+	EnableNewAuthLibrary          bool
 	AllowNonDefaultServiceAccount bool
-	DefaultUniverseDomain         string
 	UniverseDomain                string
-	AllowHardBoundTokens          []string
-	Logger                        *slog.Logger
+	DefaultUniverseDomain         string
+
 	// Google API system parameters. For more information please read:
 	// https://cloud.google.com/apis/docs/system-parameters
 	QuotaProject  string
 	RequestReason string
-
-	// TelemetryAttributes specifies a map of telemetry attributes to be added
-	// to all OpenTelemetry signals, such as tracing and metrics, for purposes
-	// including representing the static identity of the client (e.g., service
-	// name, version). These attributes are expected to be consistent across all
-	// signals to enable cross-signal correlation.
-	TelemetryAttributes map[string]string
-
-	// New Auth library Options
-	AuthCredentials      *auth.Credentials
-	AuthCredentialsJSON  []byte
-	AuthCredentialsFile  string
-	AuthCredentialsType  credentialstype.CredType
-	EnableNewAuthLibrary bool
-
-	// TODO(b/372244283): Remove after b/358175516 has been fixed
-	EnableAsyncRefreshDryRun func()
 }
 
 // GetScopes returns the user-provided scopes, if set, or else falls back to the
@@ -115,51 +91,13 @@ func (ds *DialSettings) HasCustomAudience() bool {
 
 // IsNewAuthLibraryEnabled returns true if the new auth library should be used.
 func (ds *DialSettings) IsNewAuthLibraryEnabled() bool {
-	// Disabled env is for future rollouts to make sure there is a way to easily
-	// disable this behaviour once we switch in on by default.
-	if b, err := strconv.ParseBool(os.Getenv(newAuthLibDisabledEnVar)); err == nil && b {
-		return false
-	}
 	if ds.EnableNewAuthLibrary {
 		return true
 	}
-	if ds.AuthCredentials != nil {
-		return true
-	}
-	if len(ds.AuthCredentialsJSON) > 0 {
-		return true
-	}
-	if ds.AuthCredentialsFile != "" {
-		return true
-	}
-	if b, err := strconv.ParseBool(os.Getenv(newAuthLibEnvVar)); err == nil {
+	if b, err := strconv.ParseBool(os.Getenv(newAuthLibEnVar)); err == nil {
 		return b
 	}
 	return false
-}
-
-// GetAuthCredentialsJSON returns the AuthCredentialsJSON and AuthCredentialsType, if set.
-// Otherwise it falls back to the deprecated CredentialsJSON with an Unknown type.
-//
-// Use AuthCredentialsJSON if provided, as it is the safer, recommended option.
-// CredentialsJSON is populated by the deprecated WithCredentialsJSON.
-func (ds *DialSettings) GetAuthCredentialsJSON() ([]byte, credentialstype.CredType) {
-	if len(ds.AuthCredentialsJSON) > 0 {
-		return ds.AuthCredentialsJSON, ds.AuthCredentialsType
-	}
-	return ds.CredentialsJSON, credentialstype.Unknown
-}
-
-// GetAuthCredentialsFile returns the AuthCredentialsFile and AuthCredentialsType, if set.
-// Otherwise it falls back to the deprecated CredentialsFile with an Unknown type.
-//
-// Use AuthCredentialsFile if provided, as it is the safer, recommended option.
-// CredentialsFile is populated by the deprecated WithCredentialsFile.
-func (ds *DialSettings) GetAuthCredentialsFile() (string, credentialstype.CredType) {
-	if ds.AuthCredentialsFile != "" {
-		return ds.AuthCredentialsFile, ds.AuthCredentialsType
-	}
-	return ds.CredentialsFile, credentialstype.Unknown
 }
 
 // Validate reports an error if ds is invalid.
@@ -167,27 +105,18 @@ func (ds *DialSettings) Validate() error {
 	if ds.SkipValidation {
 		return nil
 	}
-	hasCreds := ds.APIKey != "" || ds.TokenSource != nil || ds.CredentialsFile != "" || ds.Credentials != nil || ds.AuthCredentials != nil || len(ds.AuthCredentialsJSON) > 0 || ds.AuthCredentialsFile != ""
+	hasCreds := ds.APIKey != "" || ds.TokenSource != nil || ds.CredentialsFile != "" || ds.Credentials != nil
 	if ds.NoAuth && hasCreds {
 		return errors.New("options.WithoutAuthentication is incompatible with any option that provides credentials")
 	}
 	// Credentials should not appear with other options.
-	// AuthCredentials is a special case that may be present with
-	// with other options in order to facilitate automatic conversion of
-	// oauth2 types (old auth) to cloud.google.com/go/auth types (new auth).
 	// We currently allow TokenSource and CredentialsFile to coexist.
 	// TODO(jba): make TokenSource & CredentialsFile an error (breaking change).
 	nCreds := 0
 	if ds.Credentials != nil {
 		nCreds++
 	}
-	if len(ds.CredentialsJSON) > 0 {
-		nCreds++
-	}
-	if len(ds.AuthCredentialsJSON) > 0 {
-		nCreds++
-	}
-	if ds.AuthCredentialsFile != "" {
+	if ds.CredentialsJSON != nil {
 		nCreds++
 	}
 	if ds.CredentialsFile != "" {
@@ -236,36 +165,36 @@ func (ds *DialSettings) Validate() error {
 	return nil
 }
 
-// GetDefaultUniverseDomain returns the Google default universe domain
-// ("googleapis.com").
+// GetDefaultUniverseDomain returns the default service domain for a given Cloud
+// universe, as configured with internaloption.WithDefaultUniverseDomain.
+// The default value is "googleapis.com".
 func (ds *DialSettings) GetDefaultUniverseDomain() string {
-	return defaultUniverseDomain
+	if ds.DefaultUniverseDomain == "" {
+		return universeDomainDefault
+	}
+	return ds.DefaultUniverseDomain
 }
 
 // GetUniverseDomain returns the default service domain for a given Cloud
-// universe, with the following precedence:
-//
-// 1. A non-empty option.WithUniverseDomain.
-// 2. A non-empty environment variable GOOGLE_CLOUD_UNIVERSE_DOMAIN.
-// 3. The default value "googleapis.com".
+// universe, as configured with option.WithUniverseDomain.
+// The default value is the value of GetDefaultUniverseDomain, as configured
+// with internaloption.WithDefaultUniverseDomain.
 func (ds *DialSettings) GetUniverseDomain() string {
-	if ds.UniverseDomain != "" {
-		return ds.UniverseDomain
+	if ds.UniverseDomain == "" {
+		return ds.GetDefaultUniverseDomain()
 	}
-	if envUD := os.Getenv(universeDomainEnvVar); envUD != "" {
-		return envUD
-	}
-	return defaultUniverseDomain
+	return ds.UniverseDomain
 }
 
 // IsUniverseDomainGDU returns true if the universe domain is the default Google
-// universe ("googleapis.com").
+// universe.
 func (ds *DialSettings) IsUniverseDomainGDU() bool {
-	return ds.GetUniverseDomain() == defaultUniverseDomain
+	return ds.GetUniverseDomain() == ds.GetDefaultUniverseDomain()
 }
 
 // GetUniverseDomain returns the default service domain for a given Cloud
-// universe, from google.Credentials. This wrapper function should be removed
+// universe, from google.Credentials, for comparison with the value returned by
+// (*DialSettings).GetUniverseDomain. This wrapper function should be removed
 // to close https://github.com/googleapis/google-api-go-client/issues/2399.
 func GetUniverseDomain(creds *google.Credentials) (string, error) {
 	timer := time.NewTimer(time.Second)
@@ -286,7 +215,7 @@ func GetUniverseDomain(creds *google.Credentials) (string, error) {
 	case <-errors:
 		// An error that is returned before the timer expires is likely to be
 		// connection refused. Temporarily (2024-03-21) return the GDU domain.
-		return defaultUniverseDomain, nil
+		return universeDomainDefault, nil
 	case res := <-results:
 		return res, nil
 	case <-timer.C: // Timer is expired.
@@ -298,6 +227,6 @@ func GetUniverseDomain(creds *google.Credentials) (string, error) {
 		// calls to creds.GetUniverseDomain() in grpc/dial.go and http/dial.go
 		// and remove this method to close
 		// https://github.com/googleapis/google-api-go-client/issues/2399.
-		return defaultUniverseDomain, nil
+		return universeDomainDefault, nil
 	}
 }

@@ -27,7 +27,7 @@ func InitUserQueryRepository(readDb *database.GormReadDb) interfaces.UserQueryRe
 // This method retrieves a user record from the database based on the provided user ID.
 // It returns the user entity and an error builder if any error occurs during the retrieval process.
 func (repo *userQueryRepository) GetUserByID(ctx context.Context, id uint64) (
-	res entities.User, errRes *errHandler.ErrorBuilder) {
+	res *entities.User, errRes *errHandler.ErrorBuilder) {
 
 	// Start tracing
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetUserByID")
@@ -37,7 +37,7 @@ func (repo *userQueryRepository) GetUserByID(ctx context.Context, id uint64) (
 	// Query user by ID
 	err := run.Model(&entities.User{}).Select("*").
 		Where("id = ?", id).Where("deleted_at is null").
-		Take(&res).Error
+		Take(res).Error
 
 	if err != nil {
 		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
@@ -75,15 +75,15 @@ func (repo *userQueryRepository) CheckExistingEmailOrPhone(ctx context.Context, 
 // GetUserByEmail implements interfaces.UserQueryRepoI
 // This method retrieves a user record from the database based on the provided email.
 // It returns the user entity and an error builder if any error occurs during the retrieval process.
-func (repo *userQueryRepository) GetUserByEmail(ctx context.Context, email string) (entities.User, *errHandler.ErrorBuilder) {
+func (repo *userQueryRepository) GetUserByEmail(ctx context.Context, email string) (res *entities.User, resErr *errHandler.ErrorBuilder) {
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetUserByEmail")
 	defer span.End()
 	run := transaction.RunnerFromCtx(ctx, repo.readDb)
 
-	var res entities.User
-	err := run.Model(&entities.User{}).Where("email = ? AND deleted_at IS NULL", email).Take(&res).Error
+	err := run.Model(&entities.User{}).Where("email = ? AND deleted_at IS NULL", email).Take(res).Error
 	if err != nil {
-		return res, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		resErr = errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return res, resErr
 	}
 	return res, nil
 }

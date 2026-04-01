@@ -9,12 +9,11 @@ import (
 )
 
 type IdentityQueryRepoI interface {
-	GetByProviderUID(ctx context.Context, provider, providerUID string) (entities.Identity, *errHandler.ErrorBuilder)
+	GetByProviderUID(ctx context.Context, provider, providerUID string) (*entities.Identity, *errHandler.ErrorBuilder)
 }
 
 type IdentityCommandRepoI interface {
-	InserIdentity(ctx context.Context, entity entities.Identity) (entities.Identity, *errHandler.ErrorBuilder)
-	UpsertIdentity(ctx context.Context, entity entities.Identity) (entities.Identity, *errHandler.ErrorBuilder)
+	InserIdentity(ctx context.Context, entity *entities.Identity) *errHandler.ErrorBuilder
 }
 
 type IdentityServiceI interface {

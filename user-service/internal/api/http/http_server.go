@@ -9,7 +9,6 @@ import (
 	middleware "github.com/vucongthanh92/courier/user-service/internal/api/http/middleware"
 	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
-	"github.com/vucongthanh92/go-base-utils/http/middlewares"
 	httpserver "github.com/vucongthanh92/go-base-utils/http/server"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
@@ -49,14 +48,14 @@ func (s *Server) Run() {
 	}
 	httpServer, router := httpserver.NewServer(*config)
 
-	// Add recover panic middleware
-	router.Use(middlewares.RecoverPanicMiddleware(middlewares.RecoverPanicMiddlewareConfig{
-		// SlackConfig: slack.SlackConfig{
-		// 	Channel:         s.cfg.SlackService.Channel,
-		// 	Username:        s.cfg.SlackService.Username,
-		// 	UrlSlackWebHook: s.cfg.SlackService.UrlSlackWebhook,
-		// },
-	}))
+	// // Add recover panic middleware
+	// router.Use(middlewares.RecoverPanicMiddleware(middlewares.RecoverPanicMiddlewareConfig{
+	// 	SlackConfig: slack.SlackConfig{
+	// 		Channel:         s.cfg.SlackService.Channel,
+	// 		Username:        s.cfg.SlackService.Username,
+	// 		UrlSlackWebHook: s.cfg.SlackService.UrlSlackWebhook,
+	// 	},
+	// }))
 
 	// Load public keys for JWT middleware. Currently we only support 1 active key,
 	// but we design the return type as map to support multiple keys in the future without changing middleware code.

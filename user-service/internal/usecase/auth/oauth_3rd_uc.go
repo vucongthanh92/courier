@@ -11,7 +11,10 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/logger"
 	"github.com/vucongthanh92/go-base-utils/tracing"
+	"go.uber.org/zap"
+	"gorm.io/datatypes"
 )
 
 type Oauth3rdUseCaseImpl struct {
@@ -95,30 +98,27 @@ func (s *Oauth3rdUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 			SetError(models.ErrorDTO{Code: "oauth_invalid_token", Message: "Invalid or unverified token"})
 	}
 
-	// Try identity first
+	// Log the OAuth login attempt (without sensitive token info)
+	var user *entities.User
 	identity, idErr := s.identityReadRepo.GetByProviderUID(ctx, profile.Provider, profile.ProviderUID)
-	var user entities.User
-	if idErr == nil && identity.ID > 0 {
+	if idErr == nil && identity != nil {
 		user, _ = s.userReadRepo.GetUserByID(ctx, identity.UserID)
 	} else {
-		// fallback: lookup by email
-		u, uErr := s.userReadRepo.GetUserByEmail(ctx, profile.Email)
-		if uErr == nil && u.ID > 0 {
-			user = u
-		}
+		user, _ = s.userReadRepo.GetUserByEmail(ctx, profile.Email)
 	}
 
 	// Transaction: create/link user + identity + auth_credential when needed
 	errTxn := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
-		if user.ID == 0 {
-			user = entities.User{
+		if user == nil {
+			user = &entities.User{
 				Email:         profile.Email,
 				DisplayName:   profile.Name,
 				AvatarURL:     profile.AvatarURL,
 				EmailVerified: true,
 				Status:        "verified",
 			}
-			if txnErr := s.userWriteRepo.InsertUser(txCtx, &user); txnErr != nil {
+			user.ID, _ = utils.NewSnowflakeID()
+			if txnErr := s.userWriteRepo.InsertUser(txCtx, user); txnErr != nil {
 				return txnErr
 			}
 
@@ -140,8 +140,12 @@ func (s *Oauth3rdUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 			Provider:    profile.Provider,
 			ProviderUID: profile.ProviderUID,
 			EmailAtAuth: utils.StrPtr(profile.Email),
+			// Scopes:      []string{"profile", "email"},
+			AccessTokenEnc:  []byte(req.Token),
+			RefreshTokenEnc: []byte(req.Provider),
 		}
-		_, txnErr := s.identityWriteRepo.UpsertIdentity(txCtx, identityEntity)
+
+		txnErr := s.identityWriteRepo.InserIdentity(txCtx, &identityEntity)
 		return txnErr
 	})
 
@@ -155,10 +159,11 @@ func (s *Oauth3rdUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 	now := time.Now()
 	accessTTL := 30 * time.Minute
 	refreshTTL := 90 * 24 * time.Hour
-	accessToken, signErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	accessToken, signErr := s.JwtSigner.SignAccessToken(*user, now, accessTTL)
 	if signErr != nil {
 		return nil, signErr
 	}
+
 	refreshPlain := utils.RandString(64)
 	refreshHash := utils.HashPwdBySha256(user.Email, refreshPlain)
 	rt := entities.RefreshToken{
@@ -168,6 +173,7 @@ func (s *Oauth3rdUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
 		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
 	}
+
 	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &rt); err != nil {
 		return nil, err
 	}
@@ -212,6 +218,24 @@ func (s *Oauth3rdUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAut
 		return nil, errHandler.InitErrorBuilder(ctx).
 			SetStatus(http.StatusUnauthorized).
 			SetError(models.ErrorDTO{Code: "oauth_code_exchange_failed", Message: err.Error()})
+	}
+
+	// insert audit log for user signup action
+	auditLogReq := models.AuditLogRequest{
+		CreatorID: 0,
+		Action:    "github_oauth_callback",
+		IP:        utils.GetClientIP(ctx),
+		UserAgent: utils.GetUserAgent(ctx),
+		Metadata: datatypes.JSONMap{
+			"oauth_github": models.OAuthLoginRequest{
+				Token:    accessToken,
+				Provider: req.Provider,
+			},
+		},
+	}
+	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
+	if logErr != nil {
+		logger.Error("Failed to log GitHub OAuth callback event", zap.Any("error", logErr), zap.Uint64("user_id", 0))
 	}
 
 	// With the access token, we can now call the same logic as OAuthLogin to verify the token, get the user profile, and issue our own tokens.

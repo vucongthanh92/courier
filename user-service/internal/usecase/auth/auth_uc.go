@@ -330,7 +330,7 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	now := time.Now()
 
 	// generate access token and refresh token, then save refresh token to database
-	accessToken, commonErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	accessToken, commonErr := s.JwtSigner.SignAccessToken(*user, now, accessTTL)
 	if commonErr != nil {
 		return nil, commonErr
 	}
@@ -440,7 +440,7 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 	// if refresh token is about to expire (e.g. less than 7 days), then also generate new refresh token,
 	accessTTL := 30 * time.Minute
 	now := time.Now()
-	accessToken, signErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	accessToken, signErr := s.JwtSigner.SignAccessToken(*user, now, accessTTL)
 	if signErr != nil {
 		return nil, signErr
 	}

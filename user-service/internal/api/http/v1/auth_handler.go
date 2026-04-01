@@ -276,7 +276,11 @@ func (h *AuthHandler) OAuthCallback(c *gin.Context) {
 
 	// Validate request body
 	req := models.OAuthCallbackRequest{}
-	if err := httpcommon.GetBodyParamsHTTP(c, &req); err != nil {
+	if err := httpcommon.GetQueryParamsHTTP(c, &req); err != nil {
+		errHandler.InitErrorBuilder(c).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{Code: "invalid_request", Message: err.Error()}).
+			ExposeHttpError(c)
 		return
 	}
 

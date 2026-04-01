@@ -35,10 +35,10 @@ func (s *IdentityServiceImpl) CreateIdentity(ctx context.Context, req models.Cre
 	identityEntity := entities.Identity{}
 	copier.Copy(&identityEntity, &req)
 
-	res, resErr := s.identityWriteRepo.InserIdentity(ctx, identityEntity)
+	resErr := s.identityWriteRepo.InserIdentity(ctx, &identityEntity)
 	if resErr != nil {
-		return res, resErr
+		return identityEntity, resErr
 	}
 
-	return res, nil
+	return identityEntity, nil
 }

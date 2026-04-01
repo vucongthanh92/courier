@@ -1,12 +1,13 @@
 package oauth
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -106,46 +107,44 @@ func (c *GitHubClient) primaryVerifiedEmail(ctx context.Context, token string) (
 
 // ExchangeCode exchanges the authorization code for an access token using GitHub's OAuth API.
 func (c *GitHubClient) ExchangeCode(ctx context.Context, code, redirectURI string) (string, error) {
-
-	// GitHub expects the parameters in the request body as JSON
-	payload := map[string]string{
-		"client_id":     c.ClientID,
-		"client_secret": c.ClientSecret,
-		"code":          code,
-	}
-
+	form := url.Values{}
+	form.Set("client_id", c.ClientID)
+	form.Set("client_secret", c.ClientSecret)
+	form.Set("code", code)
 	if redirectURI != "" {
-		payload["redirect_uri"] = redirectURI
+		form.Set("redirect_uri", redirectURI)
 	}
 
-	// Make the POST request to GitHub's token endpoint
-	b, _ := json.Marshal(payload)
-	req, _ := http.NewRequestWithContext(ctx, "POST", "https://github.com/login/oauth/access_token", bytes.NewReader(b))
+	req, _ := http.NewRequestWithContext(
+		ctx,
+		"POST",
+		"https://github.com/login/oauth/access_token",
+		strings.NewReader(form.Encode()),
+	)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}
-
-	// GitHub returns the access token in the response body as JSON
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("exchange failed status=%d", resp.StatusCode)
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("exchange failed status=%d body=%s", resp.StatusCode, string(body))
 	}
 
-	// The response JSON will contain the access token in the "access_token" field
 	var res struct {
 		AccessToken string `json:"access_token"`
+		Error       string `json:"error"`
+		ErrorDesc   string `json:"error_description"`
 	}
-
-	// Decode the response and extract the access token
-	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+	if err := json.Unmarshal(body, &res); err != nil {
 		return "", err
 	}
-
 	if res.AccessToken == "" {
-		return "", errors.New("access_token empty")
+		return "", fmt.Errorf("exchange error: %s %s", res.Error, res.ErrorDesc)
 	}
-
 	return res.AccessToken, nil
 }

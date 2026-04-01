@@ -11,8 +11,8 @@ import (
 
 // repository interface
 type UserQueryRepoI interface {
-	GetUserByID(ctx context.Context, id uint64) (res entities.User, errRes *errHandler.ErrorBuilder)
-	GetUserByEmail(ctx context.Context, email string) (entities.User, *errHandler.ErrorBuilder) // new
+	GetUserByID(ctx context.Context, id uint64) (*entities.User, *errHandler.ErrorBuilder)
+	GetUserByEmail(ctx context.Context, email string) (*entities.User, *errHandler.ErrorBuilder)
 	CheckExistingEmailOrPhone(ctx context.Context, email string, phoneNumber string) (res bool, errRes *errHandler.ErrorBuilder)
 }
 
