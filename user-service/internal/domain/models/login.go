@@ -5,13 +5,17 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
-type LoginResponse struct {
+type JwtTokenResponse struct {
 	AccessToken       string `json:"access_token"`
-	ExpiresIn         int64  `json:"expires_in"` // seconds
+	ExpiresIn         int64  `json:"expires_in"`
 	RefreshToken      string `json:"refresh_token"`
 	RefreshExpiresIn  int64  `json:"refresh_expires_in"`
-	TokenType         string `json:"token_type"` // "Bearer"
+	TokenType         string `json:"token_type"`
 	NeedPasswordSetup bool   `json:"need_password_setup,omitempty"`
+}
+
+func (r *JwtTokenResponse) CheckPasswordSetup(pwdVersion int16, pwdAlgo string) {
+	r.NeedPasswordSetup = pwdVersion == 0 || pwdAlgo == ""
 }
 
 type RefreshTokenRequest struct {
@@ -19,12 +23,10 @@ type RefreshTokenRequest struct {
 	UserID       uint64 `json:"user_id" binding:"required"`
 }
 
-type RefreshTokenResponse struct {
-	AccessToken      string `json:"access_token"`
-	ExpiresIn        int64  `json:"expires_in"`
-	RefreshToken     string `json:"refresh_token,omitempty"`
-	RefreshExpiresIn int64  `json:"refresh_expires_in,omitempty"`
-	TokenType        string `json:"token_type"`
+type RenewTokenResponse struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int64  `json:"expires_in"`
+	TokenType   string `json:"token_type"`
 }
 
 type LogoutRequest struct {

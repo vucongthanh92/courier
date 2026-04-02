@@ -17,5 +17,5 @@ type AuditLogCommandRepoI interface {
 }
 
 type AuditLogServiceI interface {
-	CreateAuditLog(ctx context.Context, req models.AuditLogRequest) *errHandler.ErrorBuilder
+	CreateAuditLog(ctx context.Context, req models.AuditLogRequest)
 }

@@ -12,11 +12,11 @@ import (
 )
 
 type IdentityHandler struct {
-	identityService interfaces.IdentityServiceI
+	identityService interfaces.IdentityUseCaseI
 }
 
 func InitIdentityHandler(
-	identityService interfaces.IdentityServiceI,
+	identityService interfaces.IdentityUseCaseI,
 ) *IdentityHandler {
 	return &IdentityHandler{
 		identityService: identityService,

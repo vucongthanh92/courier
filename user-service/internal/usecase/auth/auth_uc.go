@@ -15,9 +15,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
-	"github.com/vucongthanh92/go-base-utils/logger"
 	"github.com/vucongthanh92/go-base-utils/tracing"
-	"go.uber.org/zap"
 	"gorm.io/datatypes"
 )
 
@@ -33,11 +31,11 @@ type AuthUseCaseImpl struct {
 	refreshTokenReadRepo       interfaces.RefreshTokenQueryRepoI
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI
 	emailVerificationReadRepo  interfaces.EmailVerificationQueryRepoI
-	JwtSigner                  interfaces.JWTSignerI
 	tokenDeny                  interfaces.TokenDenylistI
+	tokenService               interfaces.TokenUseCaseI
 }
 
-func InitAuthUsecase(
+func InitAuthUseCase(
 	txn *transaction.ManagerTxn,
 	auditLogService interfaces.AuditLogServiceI,
 	outboxService interfaces.OutboxServiceI,
@@ -47,10 +45,10 @@ func InitAuthUsecase(
 	authCredReadRepo interfaces.AuthCredentialQueryRepoI,
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI,
 	emailVerificationReadRepo interfaces.EmailVerificationQueryRepoI,
-	JwtSigner interfaces.JWTSignerI,
 	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI,
 	refreshTokenReadRepo interfaces.RefreshTokenQueryRepoI,
 	tokenDeny interfaces.TokenDenylistI,
+	tokenService interfaces.TokenUseCaseI,
 ) interfaces.AuthServiceI {
 	return &AuthUseCaseImpl{
 		txn:                        txn,
@@ -62,14 +60,14 @@ func InitAuthUsecase(
 		authCredReadRepo:           authCredReadRepo,
 		emailVerificationWriteRepo: emailVerificationWriteRepo,
 		emailVerificationReadRepo:  emailVerificationReadRepo,
-		JwtSigner:                  JwtSigner,
 		refreshTokenWriteRepo:      refreshTokenWriteRepo,
 		refreshTokenReadRepo:       refreshTokenReadRepo,
 		tokenDeny:                  tokenDeny,
+		tokenService:               tokenService,
 	}
 }
 
-// Signup implements interfaces.UserServiceI
+// Signup implements interfaces.AuthServiceI
 func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) (
 	*entities.User, *errHandler.ErrorBuilder) {
 
@@ -153,19 +151,16 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 	}
 
 	// step 5. insert audit log for user signup action
-	auditLogReq := models.AuditLogRequest{
-		CreatorID: userEntity.ID,
-		Action:    "user_signup",
-		IP:        utils.GetClientIP(ctx),
-		UserAgent: utils.GetUserAgent(ctx),
-		Metadata: datatypes.JSONMap{
-			"user": userEntity,
-		},
-	}
-	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
-	if logErr != nil {
-		logger.Error("Failed to log user created event", zap.Any("error", logErr), zap.Uint64("user_id", userEntity.ID))
-	}
+	s.auditLogService.CreateAuditLog(ctx,
+		models.AuditLogRequest{
+			CreatorID: userEntity.ID,
+			Action:    "user_signup",
+			IP:        utils.GetClientIP(ctx),
+			UserAgent: utils.GetUserAgent(ctx),
+			Metadata: datatypes.JSONMap{
+				"user": userEntity,
+			},
+		})
 
 	// return response
 	return nil, nil
@@ -273,7 +268,7 @@ func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.Rese
 // this API will check user exist with email, then check email verified, then check password match,
 // if all valid then generate access token and refresh token, save refresh token to database, return access token and refresh token to client
 func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
-	*models.LoginResponse, *errHandler.ErrorBuilder) {
+	*models.JwtTokenResponse, *errHandler.ErrorBuilder) {
 
 	// tracing for login usecase, we want to trace the whole flow of login process, from checking user exist,
 	// checking email verified, checking password, generating token, saving refresh token to database
@@ -325,66 +320,33 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 		}
 	}
 
-	// if all valid then generate access token and refresh token,
-	// save refresh token to database, return access token and refresh token to client
-	accessTTL := 30 * time.Minute
-	refreshTTL := 90 * 24 * time.Hour
-	now := time.Now()
-
-	// generate access token and refresh token, then save refresh token to database
-	accessToken, commonErr := s.JwtSigner.SignAccessToken(*user, now, accessTTL)
+	// Return response with issued tokens and whether password setup is needed
+	jwtToken, commonErr := s.tokenService.GenerateJwtToken(ctx, user)
 	if commonErr != nil {
 		return nil, commonErr
 	}
 
-	// for refresh token, we will generate random string and save hash to database for security,
-	// when refresh token request come, we will hash the token and compare with database
-	refreshPlain := utils.RandString(64)
-	refreshHash := utils.HashPwdBySha256(user.Email, refreshPlain)
-
-	// save refresh token to database
-	rt := entities.RefreshToken{
-		UserID:    user.ID,
-		TokenHash: refreshHash,
-		ExpiresAt: now.Add(refreshTTL),
-		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
-		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
-	}
-	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &rt); err != nil {
-		return nil, err
-	}
-
-	// return response to client
-	res := &models.LoginResponse{
-		AccessToken:      accessToken,
-		ExpiresIn:        int64(accessTTL.Seconds()),
-		RefreshToken:     refreshPlain,
-		RefreshExpiresIn: int64(refreshTTL.Seconds()),
-		TokenType:        "Bearer",
-	}
+	jwtToken.CheckPasswordSetup(cred.PasswordVersion, cred.PasswordAlgo)
 
 	// insert audit log for user signup action
-	auditLogReq := models.AuditLogRequest{
-		CreatorID: user.ID,
-		Action:    "user_login",
-		IP:        utils.GetClientIP(ctx),
-		UserAgent: utils.GetUserAgent(ctx),
-		Metadata: datatypes.JSONMap{
-			"login_response": res,
-		},
-	}
-	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
-	if logErr != nil {
-		logger.Error("Failed to log user login event", zap.Any("error", logErr), zap.Uint64("user_id", user.ID))
-	}
+	s.auditLogService.CreateAuditLog(ctx,
+		models.AuditLogRequest{
+			CreatorID: user.ID,
+			Action:    "user_login",
+			IP:        utils.GetClientIP(ctx),
+			UserAgent: utils.GetUserAgent(ctx),
+			Metadata: datatypes.JSONMap{
+				"login_response": jwtToken,
+			},
+		})
 
 	// return response to client
-	return res, nil
+	return jwtToken, nil
 }
 
 // RefreshToken implements interfaces.AuthServiceI
 func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (
-	*models.RefreshTokenResponse, *errHandler.ErrorBuilder) {
+	*models.RenewTokenResponse, *errHandler.ErrorBuilder) {
 
 	// tracing for refresh token usecase, we want to trace the whole flow of refresh token process, from checking token valid,
 	ctx, span := tracing.StartSpanFromContext(ctx, "RefreshToken")
@@ -426,7 +388,7 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 	}
 
 	// check user exist with id from token, if not exist return error
-	user, errUser := s.userReadRepo.GetUserByIdOrEmail(ctx, models.GetUserByIdOrEmailRequest{
+	userEntity, errUser := s.userReadRepo.GetUserByIdOrEmail(ctx, models.GetUserByIdOrEmailRequest{
 		UserID: utils.Uint64Ptr(req.UserID),
 	})
 	if errUser != nil {
@@ -434,44 +396,31 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 	}
 
 	// check email verified or not, if not verified then return error, only allow refresh when email is verified
-	if !user.EmailVerified || user.Status != "verified" {
+	if !userEntity.EmailVerified || userEntity.Status != "verified" {
 		return nil, errHandler.InitErrorBuilder(ctx).
 			SetStatus(http.StatusForbidden).
 			SetError(models.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
 	}
 
-	// if all valid then generate new access token,
-	// if refresh token is about to expire (e.g. less than 7 days), then also generate new refresh token,
-	accessTTL := 30 * time.Minute
-	now := time.Now()
-	accessToken, signErr := s.JwtSigner.SignAccessToken(*user, now, accessTTL)
-	if signErr != nil {
-		return nil, signErr
+	jwtToken, commonErr := s.tokenService.RenewJwtToken(ctx, userEntity)
+	if commonErr != nil {
+		return nil, commonErr
 	}
 
 	// insert audit log for user signup action
-	auditLogReq := models.AuditLogRequest{
-		CreatorID: req.UserID,
-		Action:    "refresh_token",
-		IP:        utils.GetClientIP(ctx),
-		UserAgent: utils.GetUserAgent(ctx),
-		Metadata: datatypes.JSONMap{
-			"access_token": accessToken,
-			"expires_in":   int64(accessTTL.Seconds()),
-			"token_type":   "Bearer",
-		},
-	}
-	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
-	if logErr != nil {
-		logger.Error("Failed to log user refresh token event", zap.Any("error", logErr), zap.Uint64("user_id", req.UserID))
-	}
+	s.auditLogService.CreateAuditLog(ctx,
+		models.AuditLogRequest{
+			CreatorID: req.UserID,
+			Action:    "refresh_token",
+			IP:        utils.GetClientIP(ctx),
+			UserAgent: utils.GetUserAgent(ctx),
+			Metadata: datatypes.JSONMap{
+				"renew_token": jwtToken,
+			},
+		})
 
-	// if refresh token is about to expire in 7 days, then generate new refresh token and update to database
-	return &models.RefreshTokenResponse{
-		AccessToken: accessToken,
-		ExpiresIn:   int64(accessTTL.Seconds()),
-		TokenType:   "Bearer",
-	}, nil
+	// return response to client
+	return jwtToken, nil
 }
 
 // Logout implements interfaces.AuthServiceI
@@ -506,19 +455,16 @@ func (s *AuthUseCaseImpl) Logout(ctx context.Context, claims jwt.MapClaims) *err
 	}
 
 	// insert audit log for user signup action
-	auditLogReq := models.AuditLogRequest{
-		CreatorID: userID,
-		Action:    "user_logout",
-		IP:        utils.GetClientIP(ctx),
-		UserAgent: utils.GetUserAgent(ctx),
-		Metadata: datatypes.JSONMap{
-			"claims": claims,
-		},
-	}
-	logErr := s.auditLogService.CreateAuditLog(ctx, auditLogReq)
-	if logErr != nil {
-		logger.Error("Failed to log user logout event", zap.Any("error", logErr), zap.Uint64("user_id", userID))
-	}
+	s.auditLogService.CreateAuditLog(ctx,
+		models.AuditLogRequest{
+			CreatorID: userID,
+			Action:    "user_logout",
+			IP:        utils.GetClientIP(ctx),
+			UserAgent: utils.GetUserAgent(ctx),
+			Metadata: datatypes.JSONMap{
+				"claims": claims,
+			},
+		})
 
 	// insert audit log for user logout action
 	return nil

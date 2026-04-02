@@ -3,7 +3,6 @@ package identity
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/lib/pq"
 	"github.com/vucongthanh92/courier/user-service/helper/constants"
@@ -17,57 +16,51 @@ import (
 	"gorm.io/datatypes"
 )
 
-type IdentityServiceImpl struct {
-	txn                   *transaction.ManagerTxn
-	auditLogService       interfaces.AuditLogServiceI
-	outboxService         interfaces.OutboxServiceI
-	userReadRepo          interfaces.UserQueryRepoI
-	userWriteRepo         interfaces.UserCommandRepoI
-	identityWriteRepo     interfaces.IdentityCommandRepoI
-	identityReadRepo      interfaces.IdentityQueryRepoI
-	googleClient          interfaces.GoogleProviderClient
-	githubClient          interfaces.GithubProviderClient
-	JwtSigner             interfaces.JWTSignerI
-	authCredWriteRepo     interfaces.AuthCredentialCommandRepoI
-	authCredReadRepo      interfaces.AuthCredentialQueryRepoI
-	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI
+type IdentityUseCaseImpl struct {
+	txn               *transaction.ManagerTxn
+	auditLogService   interfaces.AuditLogServiceI
+	userReadRepo      interfaces.UserQueryRepoI
+	userWriteRepo     interfaces.UserCommandRepoI
+	identityWriteRepo interfaces.IdentityCommandRepoI
+	identityReadRepo  interfaces.IdentityQueryRepoI
+	googleClient      interfaces.GoogleProviderClient
+	githubClient      interfaces.GithubProviderClient
+	authCredWriteRepo interfaces.AuthCredentialCommandRepoI
+	authCredReadRepo  interfaces.AuthCredentialQueryRepoI
+	tokenService      interfaces.TokenUseCaseI
 }
 
-func InitIdentityService(
+func InitIdentityUseCase(
 	txn *transaction.ManagerTxn,
 	auditLogService interfaces.AuditLogServiceI,
-	outboxService interfaces.OutboxServiceI,
 	userReadRepo interfaces.UserQueryRepoI,
 	userWriteRepo interfaces.UserCommandRepoI,
 	identityWriteRepo interfaces.IdentityCommandRepoI,
 	identityReadRepo interfaces.IdentityQueryRepoI,
 	googleClient interfaces.GoogleProviderClient,
 	githubClient interfaces.GithubProviderClient,
-	JwtSigner interfaces.JWTSignerI,
 	authCredWriteRepo interfaces.AuthCredentialCommandRepoI,
 	authCredReadRepo interfaces.AuthCredentialQueryRepoI,
-	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI,
-) interfaces.IdentityServiceI {
-	return &IdentityServiceImpl{
-		txn:                   txn,
-		auditLogService:       auditLogService,
-		outboxService:         outboxService,
-		userReadRepo:          userReadRepo,
-		userWriteRepo:         userWriteRepo,
-		identityWriteRepo:     identityWriteRepo,
-		identityReadRepo:      identityReadRepo,
-		googleClient:          googleClient,
-		githubClient:          githubClient,
-		JwtSigner:             JwtSigner,
-		authCredWriteRepo:     authCredWriteRepo,
-		authCredReadRepo:      authCredReadRepo,
-		refreshTokenWriteRepo: refreshTokenWriteRepo,
+	tokenService interfaces.TokenUseCaseI,
+) interfaces.IdentityUseCaseI {
+	return &IdentityUseCaseImpl{
+		txn:               txn,
+		auditLogService:   auditLogService,
+		userReadRepo:      userReadRepo,
+		userWriteRepo:     userWriteRepo,
+		identityWriteRepo: identityWriteRepo,
+		identityReadRepo:  identityReadRepo,
+		googleClient:      googleClient,
+		githubClient:      githubClient,
+		authCredWriteRepo: authCredWriteRepo,
+		authCredReadRepo:  authCredReadRepo,
+		tokenService:      tokenService,
 	}
 }
 
 // OAuthLogin implements interfaces.Oauth3rdUseCaseI
-func (s *IdentityServiceImpl) OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (
-	*models.OAuthLoginResponse, *errHandler.ErrorBuilder) {
+func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (
+	*models.JwtTokenResponse, *errHandler.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "OAuthLogin")
@@ -103,13 +96,13 @@ func (s *IdentityServiceImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 		errHandler.InitErrorBuilder(ctx).SetLogError(logErr.LogError).ExposeLogError()
 	}
 
-	// If identity exists, we can get the user ID from it. If not, we will create a new user and identity record in the transaction below.
+	// If identity exists, we can get the user ID from it.
+	// If not, we will create a new user and identity record in the transaction below.
 	var getUserReq = models.GetUserByIdOrEmailRequest{
-		Email: utils.StrPtr(profile.Email),
+		Email:  utils.StrPtr(profile.Email),
+		UserID: utils.Uint64Ptr(identity.UserID),
 	}
-	if identity != nil {
-		getUserReq.UserID = utils.Uint64Ptr(identity.UserID)
-	}
+
 	userEntity, logErr = s.userReadRepo.GetUserByIdOrEmail(ctx, getUserReq)
 	if logErr != nil {
 		errHandler.InitErrorBuilder(ctx).SetLogError(logErr.LogError).ExposeLogError()
@@ -167,66 +160,35 @@ func (s *IdentityServiceImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 		return nil, commonErr
 	}
 
-	// Issue tokens
-	now := time.Now()
-	accessTTL := 30 * time.Minute
-	refreshTTL := 90 * 24 * time.Hour
-	accessToken, signErr := s.JwtSigner.SignAccessToken(*userEntity, now, accessTTL)
-	if signErr != nil {
-		return nil, signErr
-	}
-
-	// Store refresh token hash in DB for later verification.
-	// We will use the same random string as the raw refresh token to return to client,
-	// and only store the hash in DB for better security.
-	refreshPlain := utils.RandString(64)
-	refreshHash := utils.HashPwdBySha256(userEntity.Email, refreshPlain)
-	rt := entities.RefreshToken{
-		UserID:    userEntity.ID,
-		TokenHash: refreshHash,
-		ExpiresAt: now.Add(refreshTTL),
-		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
-		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
-	}
-
-	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &rt); err != nil {
-		return nil, err
-	}
-
 	// Check if user needs to set up password
 	// (for better security, in case they want to use non-3rd-party login in the future)
 	cred, _ := s.authCredReadRepo.GetByUserID(ctx, userEntity.ID)
-	needPwd := cred.PasswordVersion == 0 || cred.PasswordHash == ""
 
-	// insert audit log for user signup action
-	auditLogReq := models.AuditLogRequest{
-		CreatorID: userEntity.ID,
-		Action:    req.Provider + "_oauth",
-		IP:        utils.GetClientIP(ctx),
-		UserAgent: utils.GetUserAgent(ctx),
-		Metadata: datatypes.JSONMap{
-			"identities": identity,
-		},
+	// Return response with issued tokens and whether password setup is needed
+	jwtToken, commonErr := s.tokenService.GenerateJwtToken(ctx, userEntity)
+	if commonErr != nil {
+		return nil, commonErr
 	}
-	logErr = s.auditLogService.CreateAuditLog(ctx, auditLogReq)
-	if logErr != nil {
-		errHandler.InitErrorBuilder(ctx).SetLogError(logErr.LogError).ExposeLogError()
-	}
+	jwtToken.CheckPasswordSetup(cred.PasswordVersion, cred.PasswordAlgo)
 
-	// Return tokens
-	return &models.OAuthLoginResponse{
-		AccessToken:       accessToken,
-		ExpiresIn:         int64(accessTTL.Seconds()),
-		RefreshToken:      refreshPlain,
-		RefreshExpiresIn:  int64(refreshTTL.Seconds()),
-		TokenType:         "Bearer",
-		NeedPasswordSetup: needPwd,
-	}, nil
+	// Log the successful OAuth login with audit log (after transaction to ensure we have user ID)
+	s.auditLogService.CreateAuditLog(ctx,
+		models.AuditLogRequest{
+			CreatorID: userEntity.ID,
+			Action:    req.Provider + "_oauth",
+			IP:        utils.GetClientIP(ctx),
+			UserAgent: utils.GetUserAgent(ctx),
+			Metadata: datatypes.JSONMap{
+				"response": jwtToken,
+			},
+		})
+
+	return jwtToken, nil
 }
 
 // OAuthCallback implements interfaces.IdentityServiceI
-func (s *IdentityServiceImpl) OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (
-	*models.OAuthLoginResponse, *errHandler.ErrorBuilder) {
+func (s *IdentityUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (
+	*models.JwtTokenResponse, *errHandler.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "OAuthCallback")
