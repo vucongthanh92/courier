@@ -17,5 +17,6 @@ type IdentityCommandRepoI interface {
 }
 
 type IdentityServiceI interface {
-	CreateIdentity(ctx context.Context, req models.CreateIdentityParams) (entities.Identity, *errHandler.ErrorBuilder)
+	OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
+	OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
 }

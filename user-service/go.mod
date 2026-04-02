@@ -16,6 +16,7 @@ require (
 	github.com/jasonlvhit/gocron v0.0.1
 	github.com/jinzhu/copier v0.4.0
 	github.com/jmoiron/sqlx v1.4.0
+	github.com/lib/pq v1.12.1
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/sony/sonyflake v1.3.0
 	github.com/spf13/viper v1.19.0

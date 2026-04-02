@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
@@ -118,7 +119,7 @@ func (c *GitHubClient) ExchangeCode(ctx context.Context, code, redirectURI strin
 	req, _ := http.NewRequestWithContext(
 		ctx,
 		"POST",
-		"https://github.com/login/oauth/access_token",
+		constants.GithubAccessTokenURL,
 		strings.NewReader(form.Encode()),
 	)
 	req.Header.Set("Accept", "application/json")
@@ -140,11 +141,14 @@ func (c *GitHubClient) ExchangeCode(ctx context.Context, code, redirectURI strin
 		Error       string `json:"error"`
 		ErrorDesc   string `json:"error_description"`
 	}
+
 	if err := json.Unmarshal(body, &res); err != nil {
 		return "", err
 	}
+
 	if res.AccessToken == "" {
 		return "", fmt.Errorf("exchange error: %s %s", res.Error, res.ErrorDesc)
 	}
+
 	return res.AccessToken, nil
 }

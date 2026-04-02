@@ -6,6 +6,10 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
+type ProviderClient interface {
+	Verify(ctx context.Context, token string) (models.ProviderProfile, error)
+}
+
 type GoogleProviderClient interface {
 	Verify(ctx context.Context, token string) (models.ProviderProfile, error)
 }

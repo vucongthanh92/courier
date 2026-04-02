@@ -11,8 +11,7 @@ import (
 
 // repository interface
 type UserQueryRepoI interface {
-	GetUserByID(ctx context.Context, id uint64) (*entities.User, *errHandler.ErrorBuilder)
-	GetUserByEmail(ctx context.Context, email string) (*entities.User, *errHandler.ErrorBuilder)
+	GetUserByIdOrEmail(ctx context.Context, req models.GetUserByIdOrEmailRequest) (res *entities.User, errRes *errHandler.ErrorBuilder)
 	CheckExistingEmailOrPhone(ctx context.Context, email string, phoneNumber string) (res bool, errRes *errHandler.ErrorBuilder)
 }
 
@@ -29,10 +28,4 @@ type AuthServiceI interface {
 	ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder)
 	RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (*models.RefreshTokenResponse, *errHandler.ErrorBuilder)
 	Logout(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder
-}
-
-// identity service interface
-type Oauth3rdUseCaseI interface {
-	OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
-	OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
 }

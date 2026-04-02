@@ -281,7 +281,9 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	defer span.End()
 
 	// check user exist with email
-	user, errUser := s.userReadRepo.GetUserByEmail(ctx, req.Email)
+	user, errUser := s.userReadRepo.GetUserByIdOrEmail(ctx, models.GetUserByIdOrEmailRequest{
+		Email: utils.StrPtr(req.Email),
+	})
 	if errUser != nil {
 		return nil, errUser
 	}
@@ -424,7 +426,9 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 	}
 
 	// check user exist with id from token, if not exist return error
-	user, errUser := s.userReadRepo.GetUserByID(ctx, req.UserID)
+	user, errUser := s.userReadRepo.GetUserByIdOrEmail(ctx, models.GetUserByIdOrEmailRequest{
+		UserID: utils.Uint64Ptr(req.UserID),
+	})
 	if errUser != nil {
 		return nil, errUser
 	}

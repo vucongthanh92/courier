@@ -149,6 +149,13 @@ func Uint64Ptr(s uint64) *uint64 {
 	return &s
 }
 
+func StringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 // SetHeaderByKey sets the header from the gin context to a new context with the specified key.
 func SetHeaderByKey(c *gin.Context, key string) context.Context {
 	return utils.SetHeaderToContext(c, key)

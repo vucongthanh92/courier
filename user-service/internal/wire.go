@@ -78,7 +78,6 @@ var serviceSet = wire.NewSet(
 	authUc.InitAuthUsecase,
 	identityUc.InitIdentityService,
 	outboxUc.InitOutboxUsecase,
-	authUc.InitOauth3rdUsecase,
 )
 
 var repoSet = wire.NewSet(
