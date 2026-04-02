@@ -281,7 +281,9 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	defer span.End()
 
 	// check user exist with email
-	user, errUser := s.userReadRepo.GetUserByEmail(ctx, req.Email)
+	user, errUser := s.userReadRepo.GetUserByIdOrEmail(ctx, models.GetUserByIdOrEmailRequest{
+		Email: utils.StrPtr(req.Email),
+	})
 	if errUser != nil {
 		return nil, errUser
 	}
@@ -297,6 +299,14 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	cred, errCred := s.authCredReadRepo.GetByUserID(ctx, user.ID)
 	if errCred != nil {
 		return nil, errCred
+	}
+
+	// if password version is 0, it means password not set,
+	// we can return specific error to client to ask them to set password
+	if cred.PasswordVersion == 0 {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusForbidden).
+			SetError(models.ErrorDTO{Code: "password_not_set", Message: "Password not set; please create password"})
 	}
 
 	// support bcrypt, sha256 fallback
@@ -322,7 +332,7 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	now := time.Now()
 
 	// generate access token and refresh token, then save refresh token to database
-	accessToken, commonErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	accessToken, commonErr := s.JwtSigner.SignAccessToken(*user, now, accessTTL)
 	if commonErr != nil {
 		return nil, commonErr
 	}
@@ -416,7 +426,9 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 	}
 
 	// check user exist with id from token, if not exist return error
-	user, errUser := s.userReadRepo.GetUserByID(ctx, req.UserID)
+	user, errUser := s.userReadRepo.GetUserByIdOrEmail(ctx, models.GetUserByIdOrEmailRequest{
+		UserID: utils.Uint64Ptr(req.UserID),
+	})
 	if errUser != nil {
 		return nil, errUser
 	}
@@ -432,7 +444,7 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 	// if refresh token is about to expire (e.g. less than 7 days), then also generate new refresh token,
 	accessTTL := 30 * time.Minute
 	now := time.Now()
-	accessToken, signErr := s.JwtSigner.SignAccessToken(user, now, accessTTL)
+	accessToken, signErr := s.JwtSigner.SignAccessToken(*user, now, accessTTL)
 	if signErr != nil {
 		return nil, signErr
 	}

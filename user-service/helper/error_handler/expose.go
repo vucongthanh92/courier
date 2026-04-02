@@ -43,10 +43,5 @@ func (b *ErrorBuilder) ExposeLogError() {
 		zap.Any("errors", b.Errors),
 	}
 
-	if b.ctx != nil {
-		logger.ErrorCtx(b.ctx, "ErrorBuilder", fields...)
-		return
-	}
-
 	logger.Error("ErrorBuilder", fields...)
 }

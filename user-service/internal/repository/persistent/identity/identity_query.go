@@ -45,3 +45,21 @@ func (repo *identityQueryRepository) GetIdentityByID(ctx context.Context, id uin
 
 	return res, errRes
 }
+
+// GetByProviderUID retrieves an identity based on the provider and provider UID.
+func (repo *identityQueryRepository) GetByProviderUID(ctx context.Context, provider, providerUID string) (
+	res *entities.Identity, errRes *errHandler.ErrorBuilder) {
+
+	ctx, span := tracing.StartSpanFromContext(ctx, "GetByProviderUID")
+	defer span.End()
+	run := transaction.RunnerFromCtx(ctx, repo.readDb)
+
+	err := run.Model(&entities.Identity{}).
+		Where("provider = ? AND provider_uid = ?", provider, providerUID).
+		Where("deleted_at is null").
+		Take(res).Error
+	if err != nil {
+		return res, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
+	return res, nil
+}

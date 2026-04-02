@@ -23,3 +23,10 @@ const (
 	GoroutineThreshold = "goroutine-threshold"
 	Kafka              = "kafka"
 )
+
+const (
+	GithubProvider       = "github"
+	GithubAccessTokenURL = "https://github.com/login/oauth/access_token"
+
+	GoogleProvider = "google"
+)

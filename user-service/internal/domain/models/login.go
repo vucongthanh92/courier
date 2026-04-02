@@ -6,11 +6,12 @@ type LoginRequest struct {
 }
 
 type LoginResponse struct {
-	AccessToken      string `json:"access_token"`
-	ExpiresIn        int64  `json:"expires_in"` // seconds
-	RefreshToken     string `json:"refresh_token"`
-	RefreshExpiresIn int64  `json:"refresh_expires_in"`
-	TokenType        string `json:"token_type"` // "Bearer"
+	AccessToken       string `json:"access_token"`
+	ExpiresIn         int64  `json:"expires_in"` // seconds
+	RefreshToken      string `json:"refresh_token"`
+	RefreshExpiresIn  int64  `json:"refresh_expires_in"`
+	TokenType         string `json:"token_type"` // "Bearer"
+	NeedPasswordSetup bool   `json:"need_password_setup,omitempty"`
 }
 
 type RefreshTokenRequest struct {

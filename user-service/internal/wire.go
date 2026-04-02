@@ -34,6 +34,7 @@ import (
 	// external repositories
 	emailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	jwtSigner "github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	oauthRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	redisRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 
 	// shared interfaces
@@ -106,6 +107,8 @@ var repoSet = wire.NewSet(
 	provideEmailConfig,
 	provideLogger,
 	provideJWTSigner,
+	provideGoogleClient,
+	provideGitHubClient,
 )
 
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
@@ -147,4 +150,15 @@ func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) inter
 		log.Fatal("init jwt signer failed", zap.Error(err2))
 	}
 	return s
+}
+
+// provideGoogleClient initializes the Google OAuth client with credentials from config.
+func provideGoogleClient(cfg *config.AppConfig) interfaces.GoogleProviderClient {
+	return oauthRepo.NewGoogleClient(cfg.OAuth.Google.ClientID)
+}
+
+// provideGitHubClient initializes the GitHub OAuth client with API base URL from config.
+func provideGitHubClient(cfg *config.AppConfig) interfaces.GithubProviderClient {
+	api := cfg.OAuth.Github.APIBase
+	return oauthRepo.NewGitHubClient(api, cfg.OAuth.Github.ClientID, cfg.OAuth.Github.ClientSecret)
 }

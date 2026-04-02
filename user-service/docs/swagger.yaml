@@ -26,6 +26,60 @@ definitions:
     type: object
   models.CreateIdentityParams:
     type: object
+  models.LogoutResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  models.OAuthLoginRequest:
+    properties:
+      redirect_uri:
+        description: for future PKCE/exchange
+        type: string
+      token:
+        description: Google id_token or GitHub access_token
+        type: string
+    required:
+    - token
+    type: object
+  models.OAuthLoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      need_password_setup:
+        type: boolean
+      refresh_expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+    type: object
+  models.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+      user_id:
+        type: integer
+    required:
+    - refresh_token
+    - user_id
+    type: object
+  models.RefreshTokenResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+    type: object
   models.ResendVerifyEmailRequest:
     properties:
       email:
@@ -72,6 +126,65 @@ definitions:
 info:
   contact: {}
 paths:
+  /api/v1/auth/3rd/{provider}:
+    post:
+      parameters:
+      - description: google or github
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: OAuth token
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.OAuthLoginRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OAuthLoginResponse'
+      summary: OAuth login/signup via provider
+      tags:
+      - Auth
+  /api/v1/auth/3rd/{provider}/callback:
+    get:
+      parameters:
+      - description: github
+        in: path
+        name: provider
+        required: true
+        type: string
+      - description: code from GitHub
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: csrf state
+        in: query
+        name: state
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OAuthLoginResponse'
+      summary: OAuth callback (GitHub code flow)
+      tags:
+      - Auth
+  /api/v1/auth/login:
+    post:
+      responses: {}
+  /api/v1/auth/logout:
+    post:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.LogoutResponse'
+      security:
+      - BearerAuth: []
   /api/v1/auth/sign-up:
     post:
       consumes:
@@ -93,6 +206,22 @@ paths:
       summary: create new user
       tags:
       - Auth
+  /api/v1/auth/token/refresh:
+    patch:
+      parameters:
+      - description: RefreshTokenRequest
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.RefreshTokenRequest'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RefreshTokenResponse'
+      security:
+      - BearerAuth: []
   /api/v1/auth/verify-email:
     post:
       consumes:

@@ -18,7 +18,9 @@ type AuthHandler struct {
 	authService interfaces.AuthServiceI
 }
 
-func InitAuthHandler(authService interfaces.AuthServiceI) *AuthHandler {
+func InitAuthHandler(
+	authService interfaces.AuthServiceI,
+) *AuthHandler {
 	return &AuthHandler{
 		authService: authService,
 	}

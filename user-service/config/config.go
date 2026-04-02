@@ -24,6 +24,7 @@ type AppConfig struct {
 	SlackService   *SlackConfig          `mapstructure:"slackService"`
 	Email          *EmailConfig          `mapstructure:"email"`
 	Loki           *LokiConfig           `mapstructure:"loki"`
+	OAuth          *OAuthConfig          `mapstructure:"oauth"`
 }
 
 // GrpcClientConfig holds the configuration for gRPC clients that this service will call,
@@ -245,4 +246,17 @@ type LokiConfig struct {
 	MaxQueue  int    `mapstructure:"maxQueue"`
 	Retry     int    `mapstructure:"retry"`
 	TimeoutMs int    `mapstructure:"timeoutMs"`
+}
+
+// OAuthConfig holds the configuration for third-party OAuth providers,
+// including client IDs and secrets for Google and GitHub.
+type OAuthConfig struct {
+	Google struct {
+		ClientID string `mapstructure:"client_id"`
+	} `mapstructure:"google"`
+	Github struct {
+		ClientID     string `mapstructure:"client_id"`
+		ClientSecret string `mapstructure:"client_secret"`
+		APIBase      string `mapstructure:"api_base"`
+	} `mapstructure:"github"`
 }

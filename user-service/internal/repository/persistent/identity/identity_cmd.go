@@ -17,14 +17,15 @@ type identityCmdRepository struct {
 	writeDb *gorm.DB
 }
 
+// InitIdentityCmdRepository initializes a new instance of identityCmdRepository with the provided write database connection.
 func InitIdentityCmdRepository(writeDb *database.GormWriteDb) interfaces.IdentityCommandRepoI {
 	return &identityCmdRepository{
 		writeDb: *writeDb,
 	}
 }
 
-func (repo *identityCmdRepository) InserIdentity(ctx context.Context, entity entities.Identity) (
-	entities.Identity, *errHandler.ErrorBuilder) {
+// InserIdentity inserts a new identity record into the database and returns the created entity along with any potential error.
+func (repo *identityCmdRepository) InserIdentity(ctx context.Context, entity *entities.Identity) *errHandler.ErrorBuilder {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "InserIdentity")
@@ -32,11 +33,11 @@ func (repo *identityCmdRepository) InserIdentity(ctx context.Context, entity ent
 	run := transaction.RunnerFromCtx(ctx, repo.writeDb)
 
 	// Insert identity record
-	err := run.Model(entities.Identity{}).Create(&entity).Error
+	err := run.Model(entities.Identity{}).Create(entity).Error
 	if err != nil {
 		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
-		return entity, resErr
+		return resErr
 	}
 
-	return entity, nil
+	return nil
 }

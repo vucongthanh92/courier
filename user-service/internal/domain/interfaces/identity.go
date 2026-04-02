@@ -9,14 +9,14 @@ import (
 )
 
 type IdentityQueryRepoI interface {
+	GetByProviderUID(ctx context.Context, provider, providerUID string) (*entities.Identity, *errHandler.ErrorBuilder)
 }
 
 type IdentityCommandRepoI interface {
-	InserIdentity(ctx context.Context, entity entities.Identity) (
-		entities.Identity, *errHandler.ErrorBuilder)
+	InserIdentity(ctx context.Context, entity *entities.Identity) *errHandler.ErrorBuilder
 }
 
 type IdentityServiceI interface {
-	CreateIdentity(ctx context.Context, req models.CreateIdentityParams) (
-		entities.Identity, *errHandler.ErrorBuilder)
+	OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
+	OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
 }

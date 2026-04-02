@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"strings"
 
 	"github.com/vucongthanh92/courier/user-service/database"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 )
 
 type userQueryRepository struct {
@@ -23,28 +25,47 @@ func InitUserQueryRepository(readDb *database.GormReadDb) interfaces.UserQueryRe
 	}
 }
 
-// GetUserByID implements interfaces.UserQueryRepoI
+// GetUserByIdOrEmail implements interfaces.UserQueryRepoI
 // This method retrieves a user record from the database based on the provided user ID.
 // It returns the user entity and an error builder if any error occurs during the retrieval process.
-func (repo *userQueryRepository) GetUserByID(ctx context.Context, id uint64) (
-	res entities.User, errRes *errHandler.ErrorBuilder) {
+func (repo *userQueryRepository) GetUserByIdOrEmail(ctx context.Context, req models.GetUserByIdOrEmailRequest) (
+	res *entities.User, errRes *errHandler.ErrorBuilder) {
 
 	// Start tracing
-	ctx, span := tracing.StartSpanFromContext(ctx, "GetUserByID")
+	ctx, span := tracing.StartSpanFromContext(ctx, "GetUserByIdOrEmail")
 	defer span.End()
-	run := transaction.RunnerFromCtx(ctx, repo.readDb)
+	runner := transaction.RunnerFromCtx(ctx, repo.readDb)
 
-	// Query user by ID
-	err := run.Model(&entities.User{}).Select("*").
-		Where("id = ?", id).Where("deleted_at is null").
-		Take(&res).Error
+	// Build query
+	ors := []string{}
+	args := []interface{}{}
+	runner = runner.Model(&entities.User{}).Select("*").Where("deleted_at is null")
 
-	if err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
-		return res, resErr
+	// Add conditions based on provided parameters
+	if req.UserID != nil {
+		ors = append(ors, "id = ?")
+		args = append(args, *req.UserID)
 	}
 
-	return res, errRes
+	// If email is provided, add OR condition for email
+	if req.Email != nil {
+		ors = append(ors, "email = ?")
+		args = append(args, *req.Email)
+	}
+
+	// Combine OR conditions
+	if len(ors) > 0 {
+		runner = runner.Where("("+strings.Join(ors, " OR ")+")", args...)
+	}
+
+	// Execute query and handle result
+	var user entities.User
+	if err := runner.Take(&user).Error; err != nil {
+		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return nil, resErr
+	}
+
+	return &user, nil
 }
 
 // CheckExistingEmailOrPhone implements interfaces.UserQueryRepoI
@@ -69,21 +90,5 @@ func (repo *userQueryRepository) CheckExistingEmailOrPhone(ctx context.Context, 
 		return res, resErr
 	}
 
-	return res, nil
-}
-
-// GetUserByEmail implements interfaces.UserQueryRepoI
-// This method retrieves a user record from the database based on the provided email.
-// It returns the user entity and an error builder if any error occurs during the retrieval process.
-func (repo *userQueryRepository) GetUserByEmail(ctx context.Context, email string) (entities.User, *errHandler.ErrorBuilder) {
-	ctx, span := tracing.StartSpanFromContext(ctx, "GetUserByEmail")
-	defer span.End()
-	run := transaction.RunnerFromCtx(ctx, repo.readDb)
-
-	var res entities.User
-	err := run.Model(&entities.User{}).Where("email = ? AND deleted_at IS NULL", email).Take(&res).Error
-	if err != nil {
-		return res, errHandler.InitErrorBuilder(ctx).ValidateError(err)
-	}
 	return res, nil
 }
