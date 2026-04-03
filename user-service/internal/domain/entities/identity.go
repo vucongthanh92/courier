@@ -17,6 +17,7 @@ type Identity struct {
 	RefreshTokenEnc []byte         `gorm:"column:refresh_token_enc;type:bytea" json:"-"`
 	ExpiresAt       *time.Time     `gorm:"column:expires_at;type:timestamptz" json:"expires_at"`
 	CreatedAt       time.Time      `gorm:"column:created_at;type:timestamptz;autoCreateTime" json:"created_at"`
+	DeletedAt       *time.Time     `gorm:"column:deleted_at;type:timestamptz" json:"deleted_at,omitempty"`
 }
 
 func (Identity) TableName() string {

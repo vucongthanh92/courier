@@ -23,9 +23,9 @@ type UserCommandRepoI interface {
 // service interface
 type AuthServiceI interface {
 	Signup(ctx context.Context, req models.SignupRequest) (*entities.User, *errHandler.ErrorBuilder)
-	Login(ctx context.Context, req models.LoginRequest) (*models.LoginResponse, *errHandler.ErrorBuilder)
+	Login(ctx context.Context, req models.LoginRequest) (*models.JwtTokenResponse, *errHandler.ErrorBuilder)
 	VerifyEmail(ctx context.Context, req models.VerifyEmailRequest) (*models.VerifyEmailResponse, *errHandler.ErrorBuilder)
 	ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder)
-	RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (*models.RefreshTokenResponse, *errHandler.ErrorBuilder)
+	RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (*models.RenewTokenResponse, *errHandler.ErrorBuilder)
 	Logout(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder
 }

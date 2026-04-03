@@ -16,7 +16,7 @@ type IdentityCommandRepoI interface {
 	InserIdentity(ctx context.Context, entity *entities.Identity) *errHandler.ErrorBuilder
 }
 
-type IdentityServiceI interface {
-	OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
-	OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (*models.OAuthLoginResponse, *errHandler.ErrorBuilder)
+type IdentityUseCaseI interface {
+	OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (*models.JwtTokenResponse, *errHandler.ErrorBuilder)
+	OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (*models.JwtTokenResponse, *errHandler.ErrorBuilder)
 }

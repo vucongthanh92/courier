@@ -23,7 +23,7 @@ func InitAuditLogUsecase(
 }
 
 // CreateAuditLog implements interfaces.AuditLogServiceI
-func (s *AuditLogUseCaseImpl) CreateAuditLog(ctx context.Context, req models.AuditLogRequest) *errHandler.ErrorBuilder {
+func (s *AuditLogUseCaseImpl) CreateAuditLog(ctx context.Context, req models.AuditLogRequest) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "CreateAuditLog")
 	defer span.End()
@@ -38,10 +38,8 @@ func (s *AuditLogUseCaseImpl) CreateAuditLog(ctx context.Context, req models.Aud
 	}
 
 	// Insert audit log
-	_, txnErr := s.auditLogWriteRepo.InsertAuditLog(ctx, auditLog)
-	if txnErr != nil {
-		return txnErr
+	_, logErr := s.auditLogWriteRepo.InsertAuditLog(ctx, auditLog)
+	if logErr != nil {
+		errHandler.InitErrorBuilder(ctx).SetLogError(logErr.LogError).ExposeLogError()
 	}
-
-	return nil
 }

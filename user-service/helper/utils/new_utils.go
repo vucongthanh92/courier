@@ -20,7 +20,6 @@ import (
 	utils "github.com/vucongthanh92/go-base-utils/http/request"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
-	"golang.org/x/crypto/bcrypt"
 )
 
 func SafeGo(f func()) {
@@ -34,17 +33,6 @@ func HandlePanic() {
 	if r := recover(); r != nil {
 		logger.Error("Recovered from panic: ", zap.Any("panic", r), zap.String("stack", string(debug.Stack())))
 	}
-}
-
-// HashPwdByBcrypt hashes the password using bcrypt algorithm.
-func HashPwdByBcrypt(pwd string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(pwd), 12)
-	return string(hash), err
-}
-
-// CheckPwdByBcrypt compares the hashed password with its possible plaintext equivalent.
-func CheckPwdByBcrypt(hash, pwd string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(pwd))
 }
 
 // HashPwdBySha256 hashes the password using

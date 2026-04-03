@@ -36,6 +36,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 	identity2 "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	outbox2 "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
+	"github.com/vucongthanh92/courier/user-service/internal/usecase/token"
 	"github.com/vucongthanh92/courier/user-service/internal/worker"
 	"github.com/vucongthanh92/courier/user-service/redis"
 	"github.com/vucongthanh92/go-base-utils/logger"
@@ -57,20 +58,21 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	authCredentialQueryRepoI := authcredential.InitAuthCredentialQueryRepository(readDb)
 	emailVerificationCommandRepoI := emailverification.InitEmailVerificationCmdRepository(writeDb)
 	emailVerificationQueryRepoI := emailverification.InitEmailVerificationQueryRepository(readDb)
+	refreshTokenQueryRepoI := refreshtoken.InitRefreshTokenQueryRepository(readDb)
 	jwkQueryRepoI := jwk.InitJWKQueryRepository(readDb)
 	logger := provideLogger(appCfg)
 	jwtSignerI := provideJWTSigner(jwkQueryRepoI, logger)
 	refreshTokenCommandRepoI := refreshtoken.InitRefreshTokenCmdRepository(writeDb)
-	refreshTokenQueryRepoI := refreshtoken.InitRefreshTokenQueryRepository(readDb)
 	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
-	authServiceI := auth.InitAuthUsecase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, jwtSignerI, refreshTokenCommandRepoI, refreshTokenQueryRepoI, tokenDenylistI)
+	tokenUseCaseI := token.InitTokenUseCase(managerTxn, auditLogServiceI, jwtSignerI, refreshTokenCommandRepoI, tokenDenylistI)
+	authServiceI := auth.InitAuthUseCase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, refreshTokenQueryRepoI, tokenUseCaseI)
 	authHandler := v1.InitAuthHandler(authServiceI)
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
 	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
 	googleProviderClient := provideGoogleClient(appCfg)
 	githubProviderClient := provideGitHubClient(appCfg)
-	identityServiceI := identity2.InitIdentityService(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, identityCommandRepoI, identityQueryRepoI, googleProviderClient, githubProviderClient, jwtSignerI, authCredentialCommandRepoI, authCredentialQueryRepoI, refreshTokenCommandRepoI)
-	identityHandler := v1.InitIdentityHandler(identityServiceI)
+	identityUseCaseI := identity2.InitIdentityUseCase(managerTxn, auditLogServiceI, userQueryRepoI, userCommandRepoI, identityCommandRepoI, identityQueryRepoI, googleProviderClient, githubProviderClient, authCredentialCommandRepoI, authCredentialQueryRepoI, tokenUseCaseI)
+	identityHandler := v1.InitIdentityHandler(identityUseCaseI)
 	server := http.NewServer(appCfg, authHandler, identityHandler, jwkQueryRepoI, tokenDenylistI)
 	grpcServer := grpc.NewServer(appCfg)
 	cronJobServiceI := cronjob.NewCronJobService(refreshTokenCommandRepoI)
@@ -93,7 +95,7 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth.InitAuthUsecase, identity2.InitIdentityService, outbox2.InitOutboxUsecase)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth.InitAuthUseCase, identity2.InitIdentityUseCase, outbox2.InitOutboxUsecase, token.InitTokenUseCase)
 
 var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, provideEmailConfig,
 	provideLogger,

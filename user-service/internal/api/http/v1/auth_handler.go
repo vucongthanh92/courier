@@ -165,7 +165,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Router /api/v1/auth/token/refresh [patch]
 // @Security BearerAuth
 // @Param params body models.RefreshTokenRequest true "RefreshTokenRequest"
-// @Success 200 {object} models.RefreshTokenResponse
+// @Success 200 {object} models.RenewTokenResponse
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	// Validate request body

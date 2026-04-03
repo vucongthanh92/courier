@@ -236,36 +236,6 @@ const docTemplate = `{
                     }
                 }
             }
-        },
-        "/api/v1/identities": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Identity"
-                ],
-                "summary": "search products with filter and return pagination",
-                "parameters": [
-                    {
-                        "description": "CreateIdentityParams",
-                        "name": "params",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/models.CreateIdentityParams"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK"
-                    }
-                }
-            }
         }
     },
     "definitions": {
@@ -306,9 +276,6 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "models.CreateIdentityParams": {
-            "type": "object"
         },
         "models.LogoutResponse": {
             "type": "object",

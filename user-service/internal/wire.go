@@ -20,6 +20,7 @@ import (
 	authUc "github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
 	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	outboxUc "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
+	tokenUc "github.com/vucongthanh92/courier/user-service/internal/usecase/token"
 
 	// internal repositories
 	auditLogRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
@@ -75,9 +76,10 @@ var handlerSet = wire.NewSet(
 var serviceSet = wire.NewSet(
 	cronjob.NewCronJobService,
 	auditLogUc.InitAuditLogUsecase,
-	authUc.InitAuthUsecase,
-	identityUc.InitIdentityService,
+	authUc.InitAuthUseCase,
+	identityUc.InitIdentityUseCase,
 	outboxUc.InitOutboxUsecase,
+	tokenUc.InitTokenUseCase,
 )
 
 var repoSet = wire.NewSet(

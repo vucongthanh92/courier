@@ -24,8 +24,6 @@ definitions:
       updated_at:
         type: string
     type: object
-  models.CreateIdentityParams:
-    type: object
   models.LogoutResponse:
     properties:
       message:
@@ -264,23 +262,4 @@ paths:
       summary: resend verification email
       tags:
       - Auth
-  /api/v1/identities:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: CreateIdentityParams
-        in: body
-        name: params
-        required: true
-        schema:
-          $ref: '#/definitions/models.CreateIdentityParams'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-      summary: search products with filter and return pagination
-      tags:
-      - Identity
 swagger: "2.0"
