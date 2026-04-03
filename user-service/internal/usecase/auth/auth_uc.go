@@ -27,11 +27,9 @@ type AuthUseCaseImpl struct {
 	userWriteRepo              interfaces.UserCommandRepoI
 	authCredWriteRepo          interfaces.AuthCredentialCommandRepoI
 	authCredReadRepo           interfaces.AuthCredentialQueryRepoI
-	refreshTokenWriteRepo      interfaces.RefreshTokenCommandRepoI
 	refreshTokenReadRepo       interfaces.RefreshTokenQueryRepoI
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI
 	emailVerificationReadRepo  interfaces.EmailVerificationQueryRepoI
-	tokenDeny                  interfaces.TokenDenylistI
 	tokenService               interfaces.TokenUseCaseI
 }
 
@@ -45,9 +43,7 @@ func InitAuthUseCase(
 	authCredReadRepo interfaces.AuthCredentialQueryRepoI,
 	emailVerificationWriteRepo interfaces.EmailVerificationCommandRepoI,
 	emailVerificationReadRepo interfaces.EmailVerificationQueryRepoI,
-	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI,
 	refreshTokenReadRepo interfaces.RefreshTokenQueryRepoI,
-	tokenDeny interfaces.TokenDenylistI,
 	tokenService interfaces.TokenUseCaseI,
 ) interfaces.AuthServiceI {
 	return &AuthUseCaseImpl{
@@ -60,9 +56,7 @@ func InitAuthUseCase(
 		authCredReadRepo:           authCredReadRepo,
 		emailVerificationWriteRepo: emailVerificationWriteRepo,
 		emailVerificationReadRepo:  emailVerificationReadRepo,
-		refreshTokenWriteRepo:      refreshTokenWriteRepo,
 		refreshTokenReadRepo:       refreshTokenReadRepo,
-		tokenDeny:                  tokenDeny,
 		tokenService:               tokenService,
 	}
 }
@@ -92,7 +86,7 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 	}
 
 	if existed {
-		commonErr := errHandler.InitErrorBuilder(ctx).
+		return nil, errHandler.InitErrorBuilder(ctx).
 			SetLogError(nil).
 			SetStatus(400).
 			SetError(models.ErrorDTO{
@@ -100,7 +94,6 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 				Message: constants.UserAlreadyExistsMessage,
 				Field:   "email or phone_number",
 			})
-		return nil, commonErr
 	}
 
 	// step 3. init transaction to create user with
@@ -128,7 +121,11 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 		}
 
 		// create outbox event for sending verification email
-		payload, _ := json.Marshal(map[string]string{"email": emailVerifyEntity.Email, "token": emailVerifyEntity.TokenHash})
+		payload, _ := json.Marshal(map[string]string{
+			"email": emailVerifyEntity.Email,
+			"token": emailVerifyEntity.TokenHash,
+		})
+
 		outboxReq := models.CreateOutboxRequest{
 			AggregateType: "user_signup",
 			AggregateID:   strconv.FormatUint(userEntity.ID, 10),
@@ -154,7 +151,7 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 	s.auditLogService.CreateAuditLog(ctx,
 		models.AuditLogRequest{
 			CreatorID: userEntity.ID,
-			Action:    "user_signup",
+			Action:    constants.AuditLogActionSignup,
 			IP:        utils.GetClientIP(ctx),
 			UserAgent: utils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
@@ -163,7 +160,7 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 		})
 
 	// return response
-	return nil, nil
+	return &userEntity, nil
 }
 
 // VerifyEmail implements interfaces.UserServiceI
@@ -305,19 +302,10 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	}
 
 	// support bcrypt, sha256 fallback
-	if cred.PasswordAlgo == "bcrypt" {
-		if err := utils.CheckPwdByBcrypt(cred.PasswordHash, req.Password); err != nil {
-			return nil, errHandler.InitErrorBuilder(ctx).
-				SetStatus(http.StatusUnauthorized).
-				SetError(models.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
-		}
-	} else {
-		expected := utils.HashPwdBySha256(user.Email, req.Password)
-		if expected != cred.PasswordHash {
-			return nil, errHandler.InitErrorBuilder(ctx).
-				SetStatus(http.StatusUnauthorized).
-				SetError(models.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
-		}
+	if err := cred.ComparePwdHashWithAlgo(ctx, req.Password); err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
 	}
 
 	// Return response with issued tokens and whether password setup is needed
@@ -332,7 +320,7 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	s.auditLogService.CreateAuditLog(ctx,
 		models.AuditLogRequest{
 			CreatorID: user.ID,
-			Action:    "user_login",
+			Action:    constants.AuditLogActionLogin,
 			IP:        utils.GetClientIP(ctx),
 			UserAgent: utils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
@@ -411,7 +399,7 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 	s.auditLogService.CreateAuditLog(ctx,
 		models.AuditLogRequest{
 			CreatorID: req.UserID,
-			Action:    "refresh_token",
+			Action:    constants.AuditLogActionRefresh,
 			IP:        utils.GetClientIP(ctx),
 			UserAgent: utils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
@@ -432,33 +420,18 @@ func (s *AuthUseCaseImpl) Logout(ctx context.Context, claims jwt.MapClaims) *err
 	ctx, span := tracing.StartSpanFromContext(ctx, "Logout")
 	defer span.End()
 
-	// Since this is a protected route, we should have user context and token claims in context,
-	// we will get the token jti from claims and block it in token denylist, so even if the token is not expired, it will be rejected in next request
-	jti := claims["jti"].(string)
-	exp := int64(claims["exp"].(float64))
-	userID := utils.ParseUserID(claims["sub"])
-
-	// calculate TTL for the token, and block it in token denylist with the same TTL,
-	// so it will be automatically removed from denylist when expired
-	ttl := time.Until(time.Unix(exp, 0))
-	if ttl > 0 {
-		if err := s.tokenDeny.Block(ctx, jti, ttl); err != nil {
-			return errHandler.InitErrorBuilder(ctx).SetLogError(err).SetStatus(500)
-		}
-	}
-
-	// revoke all refresh tokens of the user to force logout from all devices,
-	// we can optimize this by only revoking the current refresh token if we have jti stored in refresh token table
-	errCommon := s.refreshTokenWriteRepo.RevokeByUser(ctx, userID, time.Now())
-	if errCommon != nil {
-		return errCommon
+	// get jti and exp from token claims,
+	// then block the token in token denylist with expiry same as token expiry,
+	commonErr := s.tokenService.RevokeJwtToken(ctx, claims)
+	if commonErr != nil {
+		return commonErr
 	}
 
 	// insert audit log for user signup action
 	s.auditLogService.CreateAuditLog(ctx,
 		models.AuditLogRequest{
-			CreatorID: userID,
-			Action:    "user_logout",
+			CreatorID: utils.ParseUserID(claims["sub"]),
+			Action:    constants.AuditLogActionLogout,
 			IP:        utils.GetClientIP(ctx),
 			UserAgent: utils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{

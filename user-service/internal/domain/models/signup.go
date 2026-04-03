@@ -30,14 +30,7 @@ func (r *SignupRequest) MappingToEmailVerifyEntity(entity *entities.EmailVerific
 
 func (r *SignupRequest) MappingToAuthCredEntity(entity *entities.AuthCredential) {
 	entity.PasswordAlgo = "bcrypt"
-
-	hash, err := utils.HashPwdByBcrypt(r.Password)
-	if err != nil {
-		hash = utils.HashPwdBySha256(r.Email, r.Password)
-		entity.PasswordAlgo = "sha256"
-	}
-
-	entity.PasswordHash = hash
 	entity.MFAEnabled = false
 	entity.PasswordVersion = 1
+	entity.GeneratePwdHashWithAlgo(r.Password)
 }

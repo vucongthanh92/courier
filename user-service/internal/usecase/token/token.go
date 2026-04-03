@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
@@ -15,23 +16,26 @@ import (
 )
 
 type TokenUseCaseImpl struct {
-	txn                   *transaction.ManagerTxn
-	auditLogService       interfaces.AuditLogServiceI
-	JwtSigner             interfaces.JWTSignerI
-	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI
+	txn              *transaction.ManagerTxn
+	auditLogService  interfaces.AuditLogServiceI
+	JwtSigner        interfaces.JWTSignerI
+	rfTokenWriteRepo interfaces.RefreshTokenCommandRepoI
+	tokenDeny        interfaces.TokenDenylistI
 }
 
 func InitTokenUseCase(
 	txn *transaction.ManagerTxn,
 	auditLogService interfaces.AuditLogServiceI,
 	JwtSigner interfaces.JWTSignerI,
-	refreshTokenWriteRepo interfaces.RefreshTokenCommandRepoI,
+	rfTokenWriteRepo interfaces.RefreshTokenCommandRepoI,
+	tokenDeny interfaces.TokenDenylistI,
 ) interfaces.TokenUseCaseI {
 	return &TokenUseCaseImpl{
-		txn:                   txn,
-		auditLogService:       auditLogService,
-		JwtSigner:             JwtSigner,
-		refreshTokenWriteRepo: refreshTokenWriteRepo,
+		txn:              txn,
+		auditLogService:  auditLogService,
+		JwtSigner:        JwtSigner,
+		rfTokenWriteRepo: rfTokenWriteRepo,
+		tokenDeny:        tokenDeny,
 	}
 }
 
@@ -65,7 +69,7 @@ func (s *TokenUseCaseImpl) GenerateJwtToken(ctx context.Context, userEntity *ent
 		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
 	}
 
-	if err := s.refreshTokenWriteRepo.UpsertByUserAgent(ctx, &rt); err != nil {
+	if err := s.rfTokenWriteRepo.UpsertByUserAgent(ctx, &rt); err != nil {
 		return nil, err
 	}
 
@@ -102,4 +106,34 @@ func (s *TokenUseCaseImpl) RenewJwtToken(ctx context.Context, userEntity *entiti
 		ExpiresIn:   int64(accessTTL.Seconds()),
 		TokenType:   "Bearer",
 	}, nil
+}
+
+// RevokeJwtToken implements interfaces.TokenUseCaseI
+func (s *TokenUseCaseImpl) RevokeJwtToken(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder {
+
+	// tracing for logout usecase, we want to trace the whole flow of logout process, from checking user context,
+	ctx, span := tracing.StartSpanFromContext(ctx, "Logout")
+	defer span.End()
+
+	jti := claims["jti"].(string)
+	exp := int64(claims["exp"].(float64))
+	userID := utils.ParseUserID(claims["sub"])
+
+	// calculate TTL for the token, and block it in token denylist with the same TTL,
+	// so it will be automatically removed from denylist when expired
+	ttl := time.Until(time.Unix(exp, 0))
+	if ttl > 0 {
+		if err := s.tokenDeny.Block(ctx, jti, ttl); err != nil {
+			return errHandler.InitErrorBuilder(ctx).SetLogError(err).SetStatus(500)
+		}
+	}
+
+	// revoke all refresh tokens of the user to force logout from all devices,
+	// we can optimize this by only revoking the current refresh token if we have jti stored in refresh token table
+	errCommon := s.rfTokenWriteRepo.RevokeByUser(ctx, userID, time.Now())
+	if errCommon != nil {
+		return errCommon
+	}
+
+	return nil
 }
