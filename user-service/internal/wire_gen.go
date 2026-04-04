@@ -137,11 +137,19 @@ func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) inter
 
 // provideGoogleClient initializes the Google OAuth client with credentials from config.
 func provideGoogleClient(cfg *config.AppConfig) interfaces.GoogleProviderClient {
-	return oauth.NewGoogleClient(cfg.OAuth.Google.ClientID)
+	return oauth.NewGoogleClient(
+		cfg.OAuth.Google.ClientID,
+		cfg.OAuth.Google.ClientID,
+		cfg.OAuth.Google.ClientSecret,
+		cfg.OAuth.Google.RedirectURI,
+	)
 }
 
 // provideGitHubClient initializes the GitHub OAuth client with API base URL from config.
 func provideGitHubClient(cfg *config.AppConfig) interfaces.GithubProviderClient {
-	api2 := cfg.OAuth.Github.APIBase
-	return oauth.NewGitHubClient(api2, cfg.OAuth.Github.ClientID, cfg.OAuth.Github.ClientSecret)
+	return oauth.NewGitHubClient(
+		cfg.OAuth.Github.APIBase,
+		cfg.OAuth.Github.ClientID,
+		cfg.OAuth.Github.ClientSecret,
+	)
 }

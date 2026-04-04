@@ -99,8 +99,11 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 	// If identity exists, we can get the user ID from it.
 	// If not, we will create a new user and identity record in the transaction below.
 	var getUserReq = models.GetUserByIdOrEmailRequest{
-		Email:  utils.StrPtr(profile.Email),
-		UserID: utils.Uint64Ptr(identity.UserID),
+		Email: utils.StrPtr(profile.Email),
+	}
+
+	if identity != nil {
+		getUserReq.UserID = utils.Uint64Ptr(identity.UserID)
 	}
 
 	userEntity, logErr = s.userReadRepo.GetUserByIdOrEmail(ctx, getUserReq)
@@ -194,22 +197,53 @@ func (s *IdentityUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAut
 	ctx, span := tracing.StartSpanFromContext(ctx, "OAuthCallback")
 	defer span.End()
 
-	// For security reasons, we should only support code exchange for providers that require it (like GitHub).
-	if req.Provider != "github" {
-		return nil, errHandler.InitErrorBuilder(ctx).
-			SetStatus(http.StatusBadRequest).
-			SetError(models.ErrorDTO{
-				Code:    "unsupported_provider",
-				Message: "Callback not supported for provider",
-			})
-	}
+	var (
+		accessToken string
+		err         error
+	)
 
-	// Exchange the authorization code for an access token
-	accessToken, err := s.githubClient.(interfaces.GithubCodeExchanger).ExchangeCode(ctx, req.Code, req.RedirectURI)
-	if err != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).
-			SetStatus(http.StatusUnauthorized).
-			SetError(models.ErrorDTO{Code: "oauth_code_exchange_failed", Message: err.Error()})
+	// First, we need to exchange the authorization code for an access token (or ID token) from the provider.
+	switch req.Provider {
+
+	// For Google, we can exchange the code for an ID token directly,
+	// which contains the user's profile info and is signed by Google.
+	case constants.GoogleProvider:
+		{
+			accessToken, err = s.googleClient.ExchangeCode(ctx, req.Code, "")
+			if err != nil {
+				return nil, errHandler.InitErrorBuilder(ctx).
+					SetStatus(http.StatusUnauthorized).
+					SetError(models.ErrorDTO{
+						Code:    "google_oauth_code_exchange_failed",
+						Message: err.Error(),
+					})
+			}
+		}
+
+	// For GitHub, we need to exchange the code for an access token first,
+	// then we will verify the token and get the user's profile in the OAuthLogin logic.
+	case constants.GithubProvider:
+		{
+			// Exchange the authorization code for an access token
+			accessToken, err = s.githubClient.(interfaces.GithubCodeExchanger).ExchangeCode(ctx, req.Code, req.RedirectURI)
+			if err != nil {
+				return nil, errHandler.InitErrorBuilder(ctx).
+					SetStatus(http.StatusUnauthorized).
+					SetError(models.ErrorDTO{
+						Code:    "github_oauth_code_exchange_failed",
+						Message: err.Error(),
+					})
+			}
+		}
+	default:
+		{
+			return nil, errHandler.InitErrorBuilder(ctx).
+				SetStatus(http.StatusBadRequest).
+				SetError(models.ErrorDTO{
+					Code:    "unsupported_provider",
+					Message: "Callback not supported for provider",
+				})
+		}
 	}
 
 	// With the access token, we can now call the same logic as OAuthLogin to verify the token,

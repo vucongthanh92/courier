@@ -17,3 +17,5 @@ config/local/config.yaml
 
 # Test coverage
 coverage.out
+
+.env.local

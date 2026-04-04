@@ -252,7 +252,9 @@ type LokiConfig struct {
 // including client IDs and secrets for Google and GitHub.
 type OAuthConfig struct {
 	Google struct {
-		ClientID string `mapstructure:"client_id"`
+		ClientID     string `mapstructure:"client_id"`
+		ClientSecret string `mapstructure:"client_secret"`
+		RedirectURI  string `mapstructure:"redirect_uri"`
 	} `mapstructure:"google"`
 	Github struct {
 		ClientID     string `mapstructure:"client_id"`

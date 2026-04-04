@@ -2,17 +2,32 @@ package oauth
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 	"google.golang.org/api/idtoken"
 )
 
 type GoogleClient struct {
-	audience string
+	httpClient   *http.Client
+	audience     string
+	clientID     string
+	clientSecret string
+	redirectURI  string
 }
 
-func NewGoogleClient(aud string) *GoogleClient {
-	return &GoogleClient{audience: aud}
+func NewGoogleClient(audience, clientID, clientSecret, redirectURI string) *GoogleClient {
+	return &GoogleClient{
+		httpClient:   http.DefaultClient,
+		audience:     audience,
+		clientID:     clientID,
+		clientSecret: clientSecret,
+		redirectURI:  redirectURI,
+	}
 }
 
 // Verify validates the Google ID token and extracts the user's profile information.
@@ -41,4 +56,42 @@ func (c *GoogleClient) Verify(ctx context.Context, token string) (models.Provide
 		Name:          name,
 		AvatarURL:     pic,
 	}, nil
+}
+
+// ExchangeCode: Exchanges the authorization code for an ID token by making a POST request to Google's token endpoint.
+func (c *GoogleClient) ExchangeCode(ctx context.Context, code, codeVerifier string) (string, error) {
+
+	form := url.Values{}
+	form.Set("client_id", c.clientID)
+	form.Set("client_secret", c.clientSecret)
+	form.Set("code", code)
+	form.Set("grant_type", "authorization_code")
+	form.Set("redirect_uri", c.redirectURI)
+
+	if codeVerifier != "" {
+		form.Set("code_verifier", codeVerifier)
+	}
+
+	req, _ := http.NewRequestWithContext(ctx, "POST", "https://oauth2.googleapis.com/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var out struct {
+		IDToken string `json:"id_token"`
+		Error   string `json:"error"`
+		Desc    string `json:"error_description"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return "", err
+	}
+	if resp.StatusCode != http.StatusOK || out.IDToken == "" {
+		return "", errors.New("exchange failed: " + out.Error + " " + out.Desc)
+	}
+	return out.IDToken, nil
 }
