@@ -33,3 +33,28 @@ run-local:
 
 run-user:
 	go run -gcflags="-m" main.go start --config=./config/local/config.yaml 2>&1 | tee -a ../logs/user-service-$$(date +%Y-%m-%d).log
+
+
+
+# Tên environment trên GitHub
+ENV_NAME ?= local
+# Repo (owner/repo). Nếu chạy ngay trong repo đã clone, có thể đặt sẵn.
+REPO ?= https://github.com/vucongthanh92/courier
+# Danh sách variables cần kéo (chỉ variables, không phải secrets)
+GH_VARS := OAUTH_GITHUB_CLIENT_ID OAUTH_GITHUB_CLIENT_SECRET OAUTH_GOOGLE_CLIENT_ID OAUTH_GOOGLE_CLIENT_SECRET
+
+get-env:
+	@test -n "$(REPO)" || (echo "REPO is required (owner/repo)"; exit 1)
+	@echo "# generated from GitHub env=$(ENV_NAME) at $$(date)" > .env.local
+	@for v in $(GH_VARS); do \
+		val=$$(gh variable get $$v --env $(ENV_NAME) --repo $(REPO) 2>/dev/null); \
+		if [ -z "$$val" ]; then \
+			echo "# $$v (not found or empty)" >> .env.local; \
+		else \
+			echo "$$v=$$val" >> .env.local; \
+		fi; \
+	done
+	@echo "Wrote .env.local (variables only; secrets must be filled manually)."
+
+load-env: .env.local
+	@set -a; source .env.local; set +a
