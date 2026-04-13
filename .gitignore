@@ -19,3 +19,4 @@ config/local/config.yaml
 coverage.out
 
 .env.local
+*/config/local/config.yaml
