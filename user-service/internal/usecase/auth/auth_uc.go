@@ -77,7 +77,8 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 
 	req.MappingToUserEntity(&userEntity)
 	req.MappingToEmailVerifyEntity(&emailVerifyEntity)
-	req.MappingToAuthCredEntity(&authCredEntity)
+
+	authCredEntity.MappingToAuthCredEntity("bcrypt", req.Password, 1)
 
 	// step 2. check email and phone number exist with user existing
 	existed, commonErr := s.userReadRepo.CheckExistingEmailOrPhone(ctx, req.Email, req.PhoneNumber)

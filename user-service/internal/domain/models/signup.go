@@ -27,10 +27,3 @@ func (r *SignupRequest) MappingToEmailVerifyEntity(entity *entities.EmailVerific
 	entity.TokenHash = utils.RandString(7)
 	entity.ExpiresAt = time.Now().Add(24 * time.Hour)
 }
-
-func (r *SignupRequest) MappingToAuthCredEntity(entity *entities.AuthCredential) {
-	entity.PasswordAlgo = "bcrypt"
-	entity.MFAEnabled = false
-	entity.PasswordVersion = 1
-	entity.GeneratePwdHashWithAlgo(r.Password)
-}

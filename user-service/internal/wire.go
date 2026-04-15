@@ -18,6 +18,7 @@ import (
 	// internal usecases
 	auditLogUc "github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
 	authUc "github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
+	credentialUc "github.com/vucongthanh92/courier/user-service/internal/usecase/credential"
 	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	outboxUc "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
 	tokenUc "github.com/vucongthanh92/courier/user-service/internal/usecase/token"
@@ -72,6 +73,7 @@ var apiSet = wire.NewSet(
 var handlerSet = wire.NewSet(
 	v1.InitIdentityHandler,
 	v1.InitAuthHandler,
+	v1.InitCredentialHandler,
 )
 
 var serviceSet = wire.NewSet(
@@ -81,6 +83,7 @@ var serviceSet = wire.NewSet(
 	identityUc.InitIdentityUseCase,
 	outboxUc.InitOutboxUsecase,
 	tokenUc.InitTokenUseCase,
+	credentialUc.InitCredentialUseCase,
 )
 
 var repoSet = wire.NewSet(

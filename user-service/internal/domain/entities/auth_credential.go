@@ -27,24 +27,16 @@ func (AuthCredential) TableName() string {
 func (a *AuthCredential) ComparePwdHashWithAlgo(ctx context.Context, comparePwd string) error {
 	switch a.PasswordAlgo {
 	case "sha256":
-		{
-			return errors.New("unsupported password hashing algorithm")
-		}
+		return errors.New("unsupported password hashing algorithm")
 	case "bcrypt":
-		{
-			err := bcrypt.CompareHashAndPassword([]byte(a.PasswordHash), []byte(comparePwd))
-			if err != nil {
-				return err
-			}
+		err := bcrypt.CompareHashAndPassword([]byte(a.PasswordHash), []byte(comparePwd))
+		if err != nil {
+			return err
 		}
 	case "scrypt":
-		{
-			return errors.New("unsupported password hashing algorithm")
-		}
+		return errors.New("unsupported password hashing algorithm")
 	default:
-		{
-			return errors.New("unsupported password hashing algorithm")
-		}
+		return errors.New("unsupported password hashing algorithm")
 	}
 
 	return nil
@@ -55,26 +47,26 @@ func (a *AuthCredential) ComparePwdHashWithAlgo(ctx context.Context, comparePwd 
 func (a *AuthCredential) GeneratePwdHashWithAlgo(pwd string) error {
 	switch a.PasswordAlgo {
 	case "sha256":
-		{
-			return errors.New("unsupported password hashing algorithm")
-		}
+		return errors.New("unsupported password hashing algorithm")
 	case "bcrypt":
-		{
-			hash, err := bcrypt.GenerateFromPassword([]byte(pwd), 12)
-			if err != nil {
-				return err
-			}
-			a.PasswordHash = string(hash)
+		hash, err := bcrypt.GenerateFromPassword([]byte(pwd), 12)
+		if err != nil {
+			return err
 		}
+		a.PasswordHash = string(hash)
 	case "scrypt":
-		{
-			return errors.New("unsupported password hashing algorithm")
-		}
+		return errors.New("unsupported password hashing algorithm")
 	default:
-		{
-			return errors.New("unsupported password hashing algorithm")
-		}
+		return errors.New("unsupported password hashing algorithm")
 	}
 
 	return nil
+}
+
+// MappingToAuthCredEntity maps the password and password algorithm to the AuthCredential entity
+func (a *AuthCredential) MappingToAuthCredEntity(algo string, pwd string, version int16) {
+	a.PasswordAlgo = algo
+	a.MFAEnabled = false
+	a.PasswordVersion = version
+	a.GeneratePwdHashWithAlgo(pwd)
 }

@@ -15,26 +15,29 @@ import (
 )
 
 type Server struct {
-	cfg             *config.AppConfig
-	authHandler     *v1.AuthHandler
-	identityHandler *v1.IdentityHandler
-	jwkRepo         interfaces.JWKQueryRepoI
-	tokenDeny       interfaces.TokenDenylistI
+	cfg               *config.AppConfig
+	authHandler       *v1.AuthHandler
+	identityHandler   *v1.IdentityHandler
+	credentialHandler *v1.CredentialHandler
+	jwkRepo           interfaces.JWKQueryRepoI
+	tokenDeny         interfaces.TokenDenylistI
 }
 
 func NewServer(
 	cfg *config.AppConfig,
 	authHandler *v1.AuthHandler,
 	identityHandler *v1.IdentityHandler,
+	credentialHandler *v1.CredentialHandler,
 	jwkRepo interfaces.JWKQueryRepoI,
 	tokenDeny interfaces.TokenDenylistI,
 ) *Server {
 	return &Server{
-		cfg:             cfg,
-		authHandler:     authHandler,
-		identityHandler: identityHandler,
-		jwkRepo:         jwkRepo,
-		tokenDeny:       tokenDeny,
+		cfg:               cfg,
+		authHandler:       authHandler,
+		identityHandler:   identityHandler,
+		credentialHandler: credentialHandler,
+		jwkRepo:           jwkRepo,
+		tokenDeny:         tokenDeny,
 	}
 }
 
@@ -70,6 +73,7 @@ func (s *Server) Run() {
 	v1.MapRoutes(
 		router,
 		s.authHandler,
+		s.credentialHandler,
 		s.identityHandler,
 		authMW,
 	)
