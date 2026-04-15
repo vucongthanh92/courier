@@ -36,11 +36,11 @@ run-user:
 
 
 
-# Tên environment trên GitHub
+# Helper target to pull environment variables from GitHub and write to .env.local (variables only; secrets must be filled manually).
 ENV_NAME ?= local
-# Repo (owner/repo). Nếu chạy ngay trong repo đã clone, có thể đặt sẵn.
+# Repo (owner/repo). Example: vucongthanh92/courier
 REPO ?= https://github.com/vucongthanh92/courier
-# Danh sách variables cần kéo (chỉ variables, không phải secrets)
+# List of GitHub variables to pull (add more as needed)
 GH_VARS := OAUTH_GITHUB_CLIENT_ID OAUTH_GITHUB_CLIENT_SECRET OAUTH_GOOGLE_CLIENT_ID OAUTH_GOOGLE_CLIENT_SECRET
 
 get-env:
@@ -55,6 +55,9 @@ get-env:
 		fi; \
 	done
 	@echo "Wrote .env.local (variables only; secrets must be filled manually)."
+
+# Usage: make get-env && source .env.local
+# make get-env && source .env.local
 
 load-env: .env.local
 	@set -a; source .env.local; set +a

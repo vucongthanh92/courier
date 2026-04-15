@@ -9,6 +9,7 @@ import (
 func MapRoutes(
 	router *gin.Engine,
 	authHandler *AuthHandler,
+	credentialHandler *CredentialHandler,
 	identityHandler *IdentityHandler,
 	authMiddleWare gin.HandlerFunc,
 ) {
@@ -32,6 +33,7 @@ func MapRoutes(
 	v1.Use(authMiddleWare)
 	{
 		v1.POST("/user/logout", authHandler.Logout)
+		v1.POST("/user/pwd/generate", credentialHandler.GeneratePassword)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

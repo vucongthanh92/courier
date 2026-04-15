@@ -25,8 +25,9 @@ const (
 )
 
 const (
-	AuditLogActionLogin   = "user_login"
-	AuditLogActionLogout  = "user_logout"
-	AuditLogActionSignup  = "user_signup"
-	AuditLogActionRefresh = "refresh_token"
+	AuditLogActionLogin       = "user_login"
+	AuditLogActionLogout      = "user_logout"
+	AuditLogActionSignup      = "user_signup"
+	AuditLogActionRefresh     = "refresh_token"
+	AuditLogActionSetPassword = "user_set_password"
 )
