@@ -17,7 +17,7 @@ import (
 
 	// internal usecases
 	auditLogUc "github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
-	authUc "github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
+	authUc "github.com/vucongthanh92/courier/user-service/internal/usecase/authen"
 	credentialUc "github.com/vucongthanh92/courier/user-service/internal/usecase/credential"
 	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	outboxUc "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"

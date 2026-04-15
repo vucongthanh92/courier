@@ -32,7 +32,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
-	"github.com/vucongthanh92/courier/user-service/internal/usecase/auth"
+	"github.com/vucongthanh92/courier/user-service/internal/usecase/authen"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/credential"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
 	identity2 "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
@@ -66,7 +66,7 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	refreshTokenCommandRepoI := refreshtoken.InitRefreshTokenCmdRepository(writeDb)
 	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
 	tokenUseCaseI := token.InitTokenUseCase(managerTxn, auditLogServiceI, jwtSignerI, refreshTokenCommandRepoI, tokenDenylistI)
-	authServiceI := auth.InitAuthUseCase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, refreshTokenQueryRepoI, tokenUseCaseI)
+	authServiceI := authen.InitAuthUseCase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, refreshTokenQueryRepoI, tokenUseCaseI)
 	authHandler := v1.InitAuthHandler(authServiceI)
 	identityCommandRepoI := identity.InitIdentityCmdRepository(writeDb)
 	identityQueryRepoI := identity.InitIdentityQueryRepository(readDb)
@@ -98,7 +98,7 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler, v1.InitCredentialHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, auth.InitAuthUseCase, identity2.InitIdentityUseCase, outbox2.InitOutboxUsecase, token.InitTokenUseCase, credential.InitCredentialUseCase)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, authen.InitAuthUseCase, identity2.InitIdentityUseCase, outbox2.InitOutboxUsecase, token.InitTokenUseCase, credential.InitCredentialUseCase)
 
 var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, provideEmailConfig,
 	provideLogger,
