@@ -1,0 +1,53 @@
+serviceName: chat_service
+development: true
+database:
+  readDb:
+    connectionString: postgresql://admin:gobase123@127.0.0.1:5433/go_base_db?sslmode=disable
+    dbType: postgres
+    migrationFilePath: migrations
+    maxIdleConns: 100
+    maxOpenConns: 200
+    connMaxLifetime: 5
+  writeDb:
+    connectionString: postgresql://admin:gobase123@127.0.0.1:5433/go_base_db?sslmode=disable
+    dbType: postgres
+    migrationFilePath: migrations
+    maxIdleConns: 100
+    maxOpenConns: 200
+    connMaxLifetime: 5
+http:
+  port: :5002
+  development: true
+  shutdownTimeout: 15
+  resources: []
+  allowOrigins: [ "http://localhost:8080" ]
+grpc:
+  port: :6002
+  development: true
+  maxConnectionIdle: 5
+  timeout: 15
+  maxConnectionAge: 5
+  time: 10
+logger:
+  level: debug
+  devMode: false
+  encoder: json
+tracing:
+  enable: false
+  serviceName: chat_service
+  hostPort: "localhost:4317"
+  logSpans: false
+redis:
+  addrs: ["localhost:6380"]
+  password: ""
+  db: 0
+  poolSize: 100
+heathcheck:
+  interval: 10
+  port: :7002
+  goroutineThreshold: 1000
+metrics:
+  prometheusPath: /metrics
+  prometheusPort: :8002
+cronjob:
+  disable: true
