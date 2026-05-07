@@ -24,23 +24,36 @@ definitions:
       updated_at:
         type: string
     type: object
-  models.LogoutResponse:
+  httpcommon.SuccessResponse-string:
     properties:
+      data:
+        type: string
+      errors:
+        items:
+          $ref: '#/definitions/models.ErrorDTO'
+        type: array
+      success:
+        type: boolean
+    type: object
+  models.ErrorDTO:
+    properties:
+      code:
+        type: string
+      field:
+        type: string
       message:
         type: string
     type: object
-  models.OAuthLoginRequest:
+  models.GeneratePasswordRequest:
     properties:
-      redirect_uri:
-        description: for future PKCE/exchange
+      password:
         type: string
-      token:
-        description: Google id_token or GitHub access_token
-        type: string
+      user_id:
+        type: integer
     required:
-    - token
+    - password
     type: object
-  models.OAuthLoginResponse:
+  models.JwtTokenResponse:
     properties:
       access_token:
         type: string
@@ -55,6 +68,33 @@ definitions:
       token_type:
         type: string
     type: object
+  models.LogoutResponse:
+    properties:
+      message:
+        type: string
+    type: object
+  models.OAuthCallbackRequest:
+    properties:
+      code:
+        type: string
+      redirect_uri:
+        type: string
+      state:
+        type: string
+    required:
+    - code
+    type: object
+  models.OAuthLoginRequest:
+    properties:
+      redirect_uri:
+        description: for future PKCE/exchange
+        type: string
+      token:
+        description: Google id_token or GitHub access_token
+        type: string
+    required:
+    - token
+    type: object
   models.RefreshTokenRequest:
     properties:
       refresh_token:
@@ -65,16 +105,12 @@ definitions:
     - refresh_token
     - user_id
     type: object
-  models.RefreshTokenResponse:
+  models.RenewTokenResponse:
     properties:
       access_token:
         type: string
       expires_in:
         type: integer
-      refresh_expires_in:
-        type: integer
-      refresh_token:
-        type: string
       token_type:
         type: string
     type: object
@@ -142,7 +178,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.OAuthLoginResponse'
+            $ref: '#/definitions/models.JwtTokenResponse'
       summary: OAuth login/signup via provider
       tags:
       - Auth
@@ -167,7 +203,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.OAuthLoginResponse'
+            $ref: '#/definitions/models.OAuthCallbackRequest'
       summary: OAuth callback (GitHub code flow)
       tags:
       - Auth
@@ -217,7 +253,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.RefreshTokenResponse'
+            $ref: '#/definitions/models.RenewTokenResponse'
       security:
       - BearerAuth: []
   /api/v1/auth/verify-email:
@@ -262,4 +298,25 @@ paths:
       summary: resend verification email
       tags:
       - Auth
+  /api/v1/user/pwd/generate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: GeneratePasswordRequest
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.GeneratePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-string'
+      summary: Generate password for user
+      tags:
+      - Credential
 swagger: "2.0"

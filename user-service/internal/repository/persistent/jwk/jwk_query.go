@@ -27,7 +27,7 @@ func (r *jwkQueryRepo) GetActiveKey(ctx context.Context) (entities.JWKKey, *errH
 	run := transaction.RunnerFromCtx(ctx, r.readDb)
 
 	var res entities.JWKKey
-	err := run.Model(&entities.JWKKey{}).Where("status = true").Order("created_at DESC").Take(&res).Error
+	err := run.Model(&entities.JWKKey{}).Where("active = true").Order("created_at DESC").Take(&res).Error
 	if err != nil {
 		return res, errHandler.InitErrorBuilder(ctx).ValidateError(err)
 	}

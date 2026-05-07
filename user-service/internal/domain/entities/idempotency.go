@@ -11,4 +11,4 @@ type Idempotency struct {
 	ExpiresAt  time.Time `gorm:"type:timestamptz;index"`
 }
 
-func (Idempotency) TableName() string { return "idempotency" }
+func (Idempotency) TableName() string { return `"cron-service".idempotency` }

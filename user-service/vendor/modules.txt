@@ -352,9 +352,6 @@ github.com/jackc/puddle/v2/internal/genstack
 # github.com/jasonlvhit/gocron v0.0.1
 ## explicit; go 1.13
 github.com/jasonlvhit/gocron
-# github.com/jinzhu/copier v0.4.0
-## explicit; go 1.13
-github.com/jinzhu/copier
 # github.com/jinzhu/inflection v1.0.0
 ## explicit
 github.com/jinzhu/inflection

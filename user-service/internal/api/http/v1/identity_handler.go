@@ -28,7 +28,7 @@ func InitIdentityHandler(
 // @Param provider path string true "github"
 // @Param code query string true "code from GitHub"
 // @Param state query string false "csrf state"
-// @Success 200 {object} models.OAuthLoginResponse
+// @Success 200 {object} models.OAuthCallbackRequest
 // @Router /api/v1/auth/3rd/{provider}/callback [get]
 func (h *IdentityHandler) OAuthCallback(c *gin.Context) {
 
@@ -75,7 +75,7 @@ func (h *IdentityHandler) OAuthCallback(c *gin.Context) {
 // @Summary OAuth login/signup via provider
 // @Param provider path string true "google or github"
 // @Param params body models.OAuthLoginRequest true "OAuth token"
-// @Success 200 {object} models.OAuthLoginResponse
+// @Success 200 {object} models.JwtTokenResponse
 // @Router /api/v1/auth/3rd/{provider} [post]
 func (h *IdentityHandler) OAuthLogin(c *gin.Context) {
 

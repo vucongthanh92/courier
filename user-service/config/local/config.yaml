@@ -2,14 +2,14 @@ serviceName: user_service
 development: true
 database:
   readDb:
-    connectionString: postgresql://admin:gobase123@127.0.0.1:5433/go_base_db?sslmode=disable
+    connectionString: postgresql://dev:dev@127.0.0.1:5432/dev_db?sslmode=disable
     dbType: postgres
     migrationFilePath: migrations
     maxIdleConns: 100
     maxOpenConns: 200
     connMaxLifetime: 5
   writeDb:
-    connectionString: postgresql://admin:gobase123@127.0.0.1:5433/go_base_db?sslmode=disable
+    connectionString: postgresql://dev:dev@127.0.0.1:5432/dev_db?sslmode=disable
     dbType: postgres
     migrationFilePath: migrations
     maxIdleConns: 100
@@ -56,7 +56,7 @@ kafka:
       numPartitions: 10
       replicationFactor: 1
 redis:
-  addrs: ["localhost:6380"]
+  addrs: ["localhost:6379"]
   password: ""
   db: 0
   poolSize: 300

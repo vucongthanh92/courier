@@ -1,0 +1,5 @@
+-- up
+CREATE EXTENSION IF NOT EXISTS citext;
+
+CREATE SCHEMA IF NOT EXISTS "user-service";
+CREATE SCHEMA IF NOT EXISTS "cron-service";

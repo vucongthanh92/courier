@@ -32,7 +32,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.OAuthLoginResponse"
+                            "$ref": "#/definitions/models.JwtTokenResponse"
                         }
                     }
                 }
@@ -70,7 +70,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.OAuthLoginResponse"
+                            "$ref": "#/definitions/models.OAuthCallbackRequest"
                         }
                     }
                 }
@@ -153,7 +153,7 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.RefreshTokenResponse"
+                            "$ref": "#/definitions/models.RenewTokenResponse"
                         }
                     }
                 }
@@ -224,6 +224,39 @@
                     }
                 }
             }
+        },
+        "/api/v1/user/pwd/generate": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Credential"
+                ],
+                "summary": "Generate password for user",
+                "parameters": [
+                    {
+                        "description": "GeneratePasswordRequest",
+                        "name": "params",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.GeneratePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -265,31 +298,52 @@
                 }
             }
         },
-        "models.LogoutResponse": {
+        "httpcommon.SuccessResponse-string": {
             "type": "object",
             "properties": {
+                "data": {
+                    "type": "string"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ErrorDTO"
+                    }
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.ErrorDTO": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "field": {
+                    "type": "string"
+                },
                 "message": {
                     "type": "string"
                 }
             }
         },
-        "models.OAuthLoginRequest": {
+        "models.GeneratePasswordRequest": {
             "type": "object",
             "required": [
-                "token"
+                "password"
             ],
             "properties": {
-                "redirect_uri": {
-                    "description": "for future PKCE/exchange",
+                "password": {
                     "type": "string"
                 },
-                "token": {
-                    "description": "Google id_token or GitHub access_token",
-                    "type": "string"
+                "user_id": {
+                    "type": "integer"
                 }
             }
         },
-        "models.OAuthLoginResponse": {
+        "models.JwtTokenResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -312,6 +366,47 @@
                 }
             }
         },
+        "models.LogoutResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.OAuthCallbackRequest": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "redirect_uri": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.OAuthLoginRequest": {
+            "type": "object",
+            "required": [
+                "token"
+            ],
+            "properties": {
+                "redirect_uri": {
+                    "description": "for future PKCE/exchange",
+                    "type": "string"
+                },
+                "token": {
+                    "description": "Google id_token or GitHub access_token",
+                    "type": "string"
+                }
+            }
+        },
         "models.RefreshTokenRequest": {
             "type": "object",
             "required": [
@@ -327,7 +422,7 @@
                 }
             }
         },
-        "models.RefreshTokenResponse": {
+        "models.RenewTokenResponse": {
             "type": "object",
             "properties": {
                 "access_token": {
@@ -335,12 +430,6 @@
                 },
                 "expires_in": {
                     "type": "integer"
-                },
-                "refresh_expires_in": {
-                    "type": "integer"
-                },
-                "refresh_token": {
-                    "type": "string"
                 },
                 "token_type": {
                     "type": "string"
