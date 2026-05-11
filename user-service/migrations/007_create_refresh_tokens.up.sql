@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS "user-service".refresh_tokens (
     parent_id       BIGINT,
     replaced_by_id  BIGINT,
     user_agent      TEXT NOT NULL DEFAULT 'unknown',
-    ip              INET,
+    ip              VARCHAR(100),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at      TIMESTAMPTZ NOT NULL,
     revoked_at      TIMESTAMPTZ,

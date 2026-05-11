@@ -314,8 +314,7 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	if commonErr != nil {
 		return nil, commonErr
 	}
-
-	jwtToken.CheckPasswordSetup(cred.PasswordVersion, cred.PasswordAlgo)
+	jwtToken.CheckPasswordSetup(cred.PasswordVersion, utils.StrValue(cred.PasswordAlgo))
 
 	// insert audit log for user signup action
 	s.auditLogService.CreateAuditLog(ctx,

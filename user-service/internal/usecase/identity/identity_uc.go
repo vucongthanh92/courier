@@ -130,7 +130,7 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 			authCred := entities.AuthCredential{
 				UserID:          userEntity.ID,
 				PasswordHash:    "",
-				PasswordAlgo:    "",
+				PasswordAlgo:    nil,
 				MFAEnabled:      false,
 				PasswordVersion: 0,
 			}
@@ -172,7 +172,7 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 	if commonErr != nil {
 		return nil, commonErr
 	}
-	jwtToken.CheckPasswordSetup(cred.PasswordVersion, cred.PasswordAlgo)
+	jwtToken.CheckPasswordSetup(cred.PasswordVersion, utils.StrValue(cred.PasswordAlgo))
 
 	// Log the successful OAuth login with audit log (after transaction to ensure we have user ID)
 	s.auditLogService.CreateAuditLog(ctx,

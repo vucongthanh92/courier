@@ -144,6 +144,13 @@ func StringPtr(s string) *string {
 	return &s
 }
 
+func StrValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
 // SetHeaderByKey sets the header from the gin context to a new context with the specified key.
 func SetHeaderByKey(c *gin.Context, key string) context.Context {
 	return utils.SetHeaderToContext(c, key)

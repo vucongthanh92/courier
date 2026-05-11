@@ -55,9 +55,3 @@ get-env:
 		fi; \
 	done
 	@echo "Wrote .env.local (variables only; secrets must be filled manually)."
-
-# Usage: make get-env && source .env.local
-# make get-env && source .env.local
-
-load-env: .env.local
-	@set -a; source .env.local; set +a

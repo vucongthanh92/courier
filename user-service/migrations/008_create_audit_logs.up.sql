@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS "user-service".audit_logs (
     id          BIGSERIAL PRIMARY KEY CHECK (id > 0),
     user_id     BIGINT,
     action      VARCHAR(50),
-    ip          INET,
+    ip          VARCHAR(100),
     user_agent  TEXT,
     metadata    JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
