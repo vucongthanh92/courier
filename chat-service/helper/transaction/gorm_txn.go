@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	"github.com/vucongthanh92/courier/chat-service/database"
+	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	"gorm.io/gorm"
 )
 

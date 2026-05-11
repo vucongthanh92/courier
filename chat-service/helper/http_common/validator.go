@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
-	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
+	"github.com/vucongthanh92/courier/chat-service/helper/utils"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 )
 
 type Validator struct {

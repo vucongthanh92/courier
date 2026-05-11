@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
-	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 	"gorm.io/gorm"
 )
 

@@ -8,7 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
+	"github.com/vucongthanh92/courier/chat-service/helper/utils"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
 )
@@ -61,7 +62,11 @@ func GetParamObjectID(c *gin.Context) (int64, error) {
 	}
 
 	// get user id
-	return int64(data["_id"].(float64)), nil
+	sub, ok := data["sub"]
+	if !ok {
+		return 0, errors.New("missing sub")
+	}
+	return int64(utils.ParseUserID(sub)), nil
 }
 
 func parseJwt(jwtToken string) (jwt.MapClaims, error) {

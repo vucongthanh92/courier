@@ -2,9 +2,9 @@ package errorhandler
 
 import (
 	"github.com/gin-gonic/gin"
-	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
-	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	httpcommon "github.com/vucongthanh92/courier/chat-service/helper/http_common"
+	"github.com/vucongthanh92/courier/chat-service/helper/utils"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
 )
