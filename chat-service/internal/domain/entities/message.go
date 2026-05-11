@@ -20,7 +20,3 @@ type Message struct {
 func (Message) TableName() string {
 	return `"chat-service".messages`
 }
-
-func (m Message) IsText() bool {
-	return m.Type == MessageTypeText
-}

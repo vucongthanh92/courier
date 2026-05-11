@@ -2,56 +2,33 @@ package utils
 
 import (
 	"errors"
-	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/sony/sonyflake"
 )
 
 var (
-	sf   *sonyflake.Sonyflake
-	once sync.Once
+	idEpoch   int64 = time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC).UnixMilli()
+	idCounter uint64
 )
 
 type SnowflakeConfig struct {
-	MachineID      uint16                     // 0..1023 sonyflake
-	CustomEpoch    time.Time                  // ex: time.Date(2020,1,1,0,0,0,0,time.UTC)
-	CheckMachineID func(uint16) (bool, error) // optional
+	MachineID      uint16
+	CustomEpoch    time.Time
+	CheckMachineID func(uint16) (bool, error)
 }
 
-// InitSnowflake initializes the Sonyflake ID generator with the provided configuration.
 func InitSnowflake(cfg SnowflakeConfig) {
-	once.Do(func() {
-		st := sonyflake.Settings{
-			StartTime: cfg.CustomEpoch,
-			MachineID: func() (uint16, error) {
-				if cfg.CheckMachineID != nil {
-					_, err := cfg.CheckMachineID(cfg.MachineID)
-					if err != nil {
-						return 0, err
-					}
-				}
-				return cfg.MachineID, nil
-			},
-		}
-
-		sf = sonyflake.NewSonyflake(st)
-		if sf == nil {
-			panic("sonyflake not created")
-		}
-	})
+	if cfg.CustomEpoch.IsZero() {
+		return
+	}
+	idEpoch = cfg.CustomEpoch.UnixMilli()
 }
 
-// NewSnowflakeID generates a new unique ID using Sonyflake. It returns an error if the generator is not initialized or if ID generation fails.
 func NewSnowflakeID() (uint64, error) {
-	if sf == nil {
-		return 0, errors.New("idgen not initialized")
+	now := time.Now().UnixMilli()
+	if now < idEpoch {
+		return 0, errors.New("invalid snowflake epoch")
 	}
-
-	id, err := sf.NextID()
-	if err != nil {
-		return 0, err
-	}
-
-	return id, nil
+	seq := atomic.AddUint64(&idCounter, 1) & 0xFFF
+	return uint64(now-idEpoch)<<12 | seq, nil
 }

@@ -20,11 +20,3 @@ type ConversationMember struct {
 func (ConversationMember) TableName() string {
 	return `"chat-service".conversation_members`
 }
-
-func (m ConversationMember) IsActive() bool {
-	return m.Status == ConversationMemberStatusActive
-}
-
-func (m ConversationMember) IsOwner() bool {
-	return m.Role == ConversationMemberRoleOwner
-}

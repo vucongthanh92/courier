@@ -19,11 +19,3 @@ type Conversation struct {
 func (Conversation) TableName() string {
 	return `"chat-service".conversations`
 }
-
-func (c Conversation) IsDirect() bool {
-	return c.Type == ConversationTypeDirect
-}
-
-func (c Conversation) IsGroup() bool {
-	return c.Type == ConversationTypeGroup
-}
