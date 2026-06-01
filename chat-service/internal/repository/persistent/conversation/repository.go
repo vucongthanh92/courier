@@ -13,19 +13,19 @@ import (
 	"gorm.io/gorm"
 )
 
-type repository struct {
+type conversationQueryRepository struct {
 	readDB  *gorm.DB
 	writeDB *gorm.DB
 }
 
 func InitConversationRepository(readDb *database.GormReadDb, writeDb *database.GormWriteDb) interfaces.ConversationRepositoryI {
-	return &repository{
+	return &conversationQueryRepository{
 		readDB:  *readDb,
 		writeDB: *writeDb,
 	}
 }
 
-func (r *repository) GetDirectConversationByKey(ctx context.Context, directKey string) (*entities.Conversation, *errHandler.ErrorBuilder) {
+func (r *conversationQueryRepository) GetDirectConversationByKey(ctx context.Context, directKey string) (*entities.Conversation, *errHandler.ErrorBuilder) {
 	run := transaction.RunnerFromCtx(ctx, r.readDB)
 	var res entities.Conversation
 	err := run.Model(&entities.Conversation{}).
@@ -40,7 +40,7 @@ func (r *repository) GetDirectConversationByKey(ctx context.Context, directKey s
 	return &res, nil
 }
 
-func (r *repository) GetConversationByID(ctx context.Context, id uint64) (*entities.Conversation, *errHandler.ErrorBuilder) {
+func (r *conversationQueryRepository) GetConversationByID(ctx context.Context, id uint64) (*entities.Conversation, *errHandler.ErrorBuilder) {
 	run := transaction.RunnerFromCtx(ctx, r.readDB)
 	var res entities.Conversation
 	err := run.Model(&entities.Conversation{}).
@@ -52,7 +52,7 @@ func (r *repository) GetConversationByID(ctx context.Context, id uint64) (*entit
 	return &res, nil
 }
 
-func (r *repository) CreateConversation(ctx context.Context, entity *entities.Conversation) *errHandler.ErrorBuilder {
+func (r *conversationQueryRepository) CreateConversation(ctx context.Context, entity *entities.Conversation) *errHandler.ErrorBuilder {
 	run := transaction.RunnerFromCtx(ctx, r.writeDB)
 	if err := run.Model(&entities.Conversation{}).Create(entity).Error; err != nil {
 		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
@@ -60,7 +60,7 @@ func (r *repository) CreateConversation(ctx context.Context, entity *entities.Co
 	return nil
 }
 
-func (r *repository) ListInbox(ctx context.Context, userID uint64) ([]models.InboxConversationResponse, *errHandler.ErrorBuilder) {
+func (r *conversationQueryRepository) ListInbox(ctx context.Context, userID uint64) ([]models.InboxConversationResponse, *errHandler.ErrorBuilder) {
 	run := transaction.RunnerFromCtx(ctx, r.readDB)
 
 	type row struct {

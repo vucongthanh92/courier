@@ -8,17 +8,43 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/config"
 	"github.com/vucongthanh92/courier/chat-service/database"
 	"github.com/vucongthanh92/courier/chat-service/internal/api"
-	chatcron "github.com/vucongthanh92/courier/chat-service/internal/api/cron"
-	chatgrpc "github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
-	chathttp "github.com/vucongthanh92/courier/chat-service/internal/api/http"
+	"github.com/vucongthanh92/courier/chat-service/internal/api/cron"
+	grpc "github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
+	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/redis"
+
+	conversationRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
+	memberRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
+
+	conversationUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
+
+	v1 "github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
+
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 )
 
-var containerSet = wire.NewSet(
+var container = wire.NewSet(
 	api.NewApiContainer,
-	chathttp.NewServer,
-	chatgrpc.NewServer,
-	chatcron.NewServer,
+)
+
+var apiSet = wire.NewSet(
+	cron.NewServer,
+	grpc.NewServer,
+	http.NewServer,
+)
+
+var handlerSet = wire.NewSet(
+	v1.InitConversationHandler,
+)
+
+var serviceSet = wire.NewSet(
+	conversationUc.InitConversationUsecase,
+)
+
+var repoSet = wire.NewSet(
+	memberRepo.InitMemberRepository,
+	conversationRepo.InitConversationRepository,
+	wire.Bind(new(interfaces.ConversationQueryRepoI), new(interfaces.ConversationRepositoryI)),
 )
 
 func InitializeContainer(
@@ -27,11 +53,6 @@ func InitializeContainer(
 	writeDb *database.GormWriteDb,
 	redisClient redis.Client,
 ) *api.ApiContainer {
-	_ = appCfg
-	_ = readDb
-	_ = writeDb
-	_ = redisClient
-
-	wire.Build(containerSet)
+	wire.Build(repoSet, serviceSet, handlerSet, apiSet, container)
 	return &api.ApiContainer{}
 }

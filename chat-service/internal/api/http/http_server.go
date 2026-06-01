@@ -2,15 +2,20 @@ package http
 
 import (
 	"github.com/vucongthanh92/courier/chat-service/config"
+	v1 "github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
 	httpserver "github.com/vucongthanh92/go-base-utils/http/server"
 )
 
 type Server struct {
-	cfg *config.AppConfig
+	cfg                 *config.AppConfig
+	conversationHandler *v1.ConversationHandler
 }
 
-func NewServer(cfg *config.AppConfig) *Server {
-	return &Server{cfg: cfg}
+func NewServer(cfg *config.AppConfig, conversationHandler *v1.ConversationHandler) *Server {
+	return &Server{
+		cfg:                 cfg,
+		conversationHandler: conversationHandler,
+	}
 }
 
 func (s *Server) Run() {
@@ -23,7 +28,7 @@ func (s *Server) Run() {
 	}
 
 	httpServer, router := httpserver.NewServer(*serverConfig)
-	_ = router
+	v1.MapRoutes(router, s.conversationHandler)
 
 	httpServer.Run()
 }
