@@ -107,6 +107,8 @@ var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository
 	provideGitHubClient,
 )
 
+// ================= extra functions for implement interface =================
+// newPgxPool initializes a pgx pool with connection string from config.
 func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
 	pool, err := pgxpool.New(context.Background(), cfg.Database.WriteDbCfg.ConnectionString)
 	if err != nil {
