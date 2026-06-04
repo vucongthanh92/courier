@@ -117,14 +117,6 @@ var repoSet = wire.NewSet(
 	provideGitHubClient,
 )
 
-func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
-	pool, err := pgxpool.New(context.Background(), cfg.Database.WriteDbCfg.ConnectionString)
-	if err != nil {
-		logger.Fatal("cannot init pgxpool", zap.Error(err))
-	}
-	return pool
-}
-
 func InitializeContainer(
 	appCfg *config.AppConfig,
 	readDb *database.GormReadDb,
@@ -133,6 +125,16 @@ func InitializeContainer(
 ) *api.ApiContainer {
 	wire.Build(repoSet, serviceSet, handlerSet, workerSet, apiSet, container)
 	return &api.ApiContainer{}
+}
+
+// ================= extra functions for implement interface =================
+// newPgxPool initializes a pgx pool with connection string from config.
+func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
+	pool, err := pgxpool.New(context.Background(), cfg.Database.WriteDbCfg.ConnectionString)
+	if err != nil {
+		logger.Fatal("cannot init pgxpool", zap.Error(err))
+	}
+	return pool
 }
 
 // provideEmailConfig returns the nested email config for DI.
