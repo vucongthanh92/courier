@@ -12,24 +12,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type repository struct {
-	readDB  *gorm.DB
-	writeDB *gorm.DB
+type repoQueryMessage struct {
+	readDB *gorm.DB
 }
 
-func InitMessageRepository(readDb *database.GormReadDb, writeDb *database.GormWriteDb) interfaces.MessageRepositoryI {
-	return &repository{readDB: *readDb, writeDB: *writeDb}
-}
-
-func (r *repository) CreateMessage(ctx context.Context, entity *entities.Message) *errHandler.ErrorBuilder {
-	run := transaction.RunnerFromCtx(ctx, r.writeDB)
-	if err := run.Model(&entities.Message{}).Create(entity).Error; err != nil {
-		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
+func InitMessageQueryRepo(readDb *database.GormReadDb, writeDb *database.GormWriteDb) interfaces.MessageQueryRepoI {
+	return &repoQueryMessage{
+		readDB: *readDb,
 	}
-	return nil
 }
 
-func (r *repository) GetMessageByClientMessageID(ctx context.Context, conversationID uint64, clientMessageID string) (*entities.Message, *errHandler.ErrorBuilder) {
+func (r *repoQueryMessage) GetMessageByClientMessageID(ctx context.Context, conversationID uint64, clientMessageID string) (*entities.Message, *errHandler.ErrorBuilder) {
 	run := transaction.RunnerFromCtx(ctx, r.readDB)
 	var res entities.Message
 	err := run.Model(&entities.Message{}).
@@ -44,7 +37,7 @@ func (r *repository) GetMessageByClientMessageID(ctx context.Context, conversati
 	return &res, nil
 }
 
-func (r *repository) ListMessages(ctx context.Context, conversationID uint64, req models.ListMessagesRequest) ([]entities.Message, *errHandler.ErrorBuilder) {
+func (r *repoQueryMessage) ListMessages(ctx context.Context, conversationID uint64, req models.ListMessagesRequest) ([]entities.Message, *errHandler.ErrorBuilder) {
 	run := transaction.RunnerFromCtx(ctx, r.readDB)
 	query := run.Model(&entities.Message{}).
 		Where("conversation_id = ? AND deleted_at IS NULL", conversationID).
@@ -63,7 +56,7 @@ func (r *repository) ListMessages(ctx context.Context, conversationID uint64, re
 	return res, nil
 }
 
-func (r *repository) GetMessageByID(ctx context.Context, id uint64) (*entities.Message, *errHandler.ErrorBuilder) {
+func (r *repoQueryMessage) GetMessageByID(ctx context.Context, id uint64) (*entities.Message, *errHandler.ErrorBuilder) {
 	run := transaction.RunnerFromCtx(ctx, r.readDB)
 	var res entities.Message
 	err := run.Model(&entities.Message{}).
