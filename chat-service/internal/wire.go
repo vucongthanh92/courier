@@ -19,8 +19,6 @@ import (
 	conversationUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
 
 	v1 "github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
-
-	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 )
 
 var container = wire.NewSet(
@@ -42,9 +40,10 @@ var serviceSet = wire.NewSet(
 )
 
 var repoSet = wire.NewSet(
-	memberRepo.InitMemberRepository,
-	conversationRepo.InitConversationRepository,
-	wire.Bind(new(interfaces.ConversationQueryRepoI), new(interfaces.ConversationRepositoryI)),
+	memberRepo.InitMemberCommandRepo,
+	memberRepo.InitMemberQueryRepo,
+	conversationRepo.InitConversationCommandRepo,
+	conversationRepo.InitConversationQueryRepo,
 )
 
 func InitializeContainer(

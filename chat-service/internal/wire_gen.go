@@ -15,7 +15,6 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
-	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
 	conversation2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
@@ -25,8 +24,8 @@ import (
 // Injectors from wire.go:
 
 func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, writeDb *database.GormWriteDb, redisClient redis.Client) *api.ApiContainer {
-	conversationRepositoryI := conversation.InitConversationRepository(readDb, writeDb)
-	conversationServiceI := conversation2.InitConversationUsecase(conversationRepositoryI)
+	conversationQueryRepoI := conversation.InitConversationQueryRepo(readDb, writeDb)
+	conversationServiceI := conversation2.InitConversationUsecase(conversationQueryRepoI)
 	conversationHandler := v1.InitConversationHandler(conversationServiceI)
 	server := http.NewServer(appCfg, conversationHandler)
 	grpcServer := grpc.NewServer(appCfg)
@@ -45,4 +44,4 @@ var handlerSet = wire.NewSet(v1.InitConversationHandler)
 
 var serviceSet = wire.NewSet(conversation2.InitConversationUsecase)
 
-var repoSet = wire.NewSet(member.InitMemberRepository, conversation.InitConversationRepository, wire.Bind(new(interfaces.ConversationQueryRepoI), new(interfaces.ConversationRepositoryI)))
+var repoSet = wire.NewSet(member.InitMemberCommandRepo, member.InitMemberQueryRepo, conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo)
