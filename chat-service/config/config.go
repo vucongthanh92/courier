@@ -12,6 +12,7 @@ type AppConfig struct {
 	Heathcheck  *HeathcheckConfig `mapstructure:"heathcheck"`
 	Metrics     *MetricsConfig    `mapstructure:"metrics"`
 	CronJob     *CronJob          `mapstructure:"cronjob"`
+	Loki        *LokiConfig       `mapstructure:"loki"`
 }
 
 type LoggerConfig struct {
@@ -88,4 +89,16 @@ type MetricsConfig struct {
 
 type CronJob struct {
 	Disable bool `mapstructure:"disable"`
+}
+
+// LokiConfig holds the configuration for Loki logging, including URL, environment, service name, and batching settings.
+type LokiConfig struct {
+	URL       string `mapstructure:"url"`
+	Env       string `mapstructure:"env"`
+	Service   string `mapstructure:"service"`
+	BatchSize int    `mapstructure:"batchSize"`
+	FlushMs   int    `mapstructure:"flushMs"`
+	MaxQueue  int    `mapstructure:"maxQueue"`
+	Retry     int    `mapstructure:"retry"`
+	TimeoutMs int    `mapstructure:"timeoutMs"`
 }

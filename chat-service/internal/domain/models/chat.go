@@ -27,16 +27,16 @@ type ListMessagesRequest struct {
 }
 
 type ConversationResponse struct {
-	ID            uint64              `json:"id"`
-	Type          string              `json:"type"`
-	DirectKey     *string             `json:"direct_key,omitempty"`
-	Name          *string             `json:"name,omitempty"`
-	CreatedBy     uint64              `json:"created_by"`
-	LastMessageID *uint64             `json:"last_message_id,omitempty"`
-	LastMessageAt *time.Time          `json:"last_message_at,omitempty"`
-	Metadata      map[string]any      `json:"metadata"`
-	CreatedAt     time.Time           `json:"created_at"`
-	UpdatedAt     time.Time           `json:"updated_at"`
+	ID            uint64                       `json:"id"`
+	Type          string                       `json:"type"`
+	DirectKey     *string                      `json:"direct_key,omitempty"`
+	Name          *string                      `json:"name,omitempty"`
+	CreatedBy     uint64                       `json:"created_by"`
+	LastMessageID *uint64                      `json:"last_message_id,omitempty"`
+	LastMessageAt *time.Time                   `json:"last_message_at,omitempty"`
+	Metadata      map[string]any               `json:"metadata"`
+	CreatedAt     time.Time                    `json:"created_at"`
+	UpdatedAt     time.Time                    `json:"updated_at"`
 	Members       []ConversationMemberResponse `json:"members,omitempty"`
 }
 
@@ -69,8 +69,8 @@ type MessageResponse struct {
 }
 
 type InboxConversationResponse struct {
-	Conversation ConversationResponse  `json:"conversation"`
-	LastMessage  *MessageResponse      `json:"last_message,omitempty"`
+	Conversation ConversationResponse       `json:"conversation"`
+	LastMessage  *MessageResponse           `json:"last_message,omitempty"`
 	Member       ConversationMemberResponse `json:"member"`
-	UnreadCount  int64                 `json:"unread_count"`
+	UnreadCount  int64                      `json:"unread_count"`
 }

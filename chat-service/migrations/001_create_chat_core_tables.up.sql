@@ -9,7 +9,7 @@ BEGIN
         WHERE t.typname = 'conversation_type_enum'
           AND n.nspname = 'chat-service'
     ) THEN
-        CREATE TYPE "chat-service".conversation_type_enum AS ENUM ('direct', 'group');
+        CREATE TYPE "chat-service".conversation_type_enum AS ENUM ('direct', 'group','notify');
     END IF;
 
     IF NOT EXISTS (
