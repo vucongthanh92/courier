@@ -1,6 +1,8 @@
 package entities
 
-import "time"
+import (
+	"time"
+)
 
 type Conversation struct {
 	ID            uint64         `gorm:"column:id;primaryKey;type:bigint;check:id>0" json:"id"`

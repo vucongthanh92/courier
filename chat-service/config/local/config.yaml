@@ -2,14 +2,14 @@ serviceName: chat_service
 development: true
 database:
   readDb:
-    connectionString: postgresql://admin:gobase123@127.0.0.1:5433/go_base_db?sslmode=disable
+    connectionString: postgresql://dev:dev@127.0.0.1:5432/dev_db?sslmode=disable
     dbType: postgres
     migrationFilePath: migrations
     maxIdleConns: 100
     maxOpenConns: 200
     connMaxLifetime: 5
   writeDb:
-    connectionString: postgresql://admin:gobase123@127.0.0.1:5433/go_base_db?sslmode=disable
+    connectionString: postgresql://dev:dev@127.0.0.1:5432/dev_db?sslmode=disable
     dbType: postgres
     migrationFilePath: migrations
     maxIdleConns: 100
@@ -38,7 +38,7 @@ tracing:
   hostPort: "localhost:4317"
   logSpans: false
 redis:
-  addrs: ["localhost:6380"]
+  addrs: ["localhost:6379"]
   password: ""
   db: 0
   poolSize: 100
@@ -51,3 +51,12 @@ metrics:
   prometheusPort: :8002
 cronjob:
   disable: true
+loki:
+  url: http://localhost:3100/loki/api/v1/push
+  env: local
+  service: chat-service
+  batchSize: 20
+  flushMs: 1000
+  maxQueue: 1000
+  retry: 3
+  timeoutMs: 2000

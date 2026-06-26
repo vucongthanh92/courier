@@ -15,6 +15,7 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
+	v1 "github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
 	conversation2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"

@@ -9,12 +9,14 @@ import (
 func MapRoutes(
 	router *gin.Engine,
 	conversationHandler *ConversationHandler,
+	authMiddleWare gin.HandlerFunc,
 ) {
 
-	// Public routes
-	conversation := router.Group("/api/v1/conversations")
+	// Protected routes
+	v1 := router.Group("/api/v1")
+	v1.Use(authMiddleWare)
 	{
-		conversation.POST("/", conversationHandler.CreateConversation)
+		v1.POST("/conversation/create", conversationHandler.CreateConversation)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
