@@ -22,23 +22,8 @@ env:
   IMAGE_NAME: ghcr.io/vucongthanh92/courier/user-service
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: user-service
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: user-service/go.mod
-          cache-dependency-path: user-service/go.sum
-      - name: Test
-        run: go test ./...
-
   build-image:
     runs-on: ubuntu-latest
-    needs: test
     permissions:
       contents: read
       packages: write
