@@ -18,7 +18,7 @@ WORKDIR /app
 COPY --from=build /app/user-service /app/user-service
 COPY --from=build /app/config /app/config
 COPY --from=build /app/docs /app/docs
-COPY --from=build /app/internal/resources /app/internal/resources
+COPY --from=build /app/pkg /app/pkg
 
 EXPOSE 5000 5001
 
