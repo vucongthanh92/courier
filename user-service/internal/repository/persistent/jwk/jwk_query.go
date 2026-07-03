@@ -34,3 +34,20 @@ func (r *jwkQueryRepo) GetActiveKey(ctx context.Context) (entities.JWKKey, *errH
 
 	return res, nil
 }
+
+// GetKeyByKid implements interfaces.JWKQueryRepoI.
+func (r *jwkQueryRepo) GetKeyByKid(ctx context.Context, kid string) (entities.JWKKey, *errHandler.ErrorBuilder) {
+	ctx, span := tracing.StartSpanFromContext(ctx, "GetJWKKeyByKid")
+	defer span.End()
+	run := transaction.RunnerFromCtx(ctx, r.readDb)
+
+	var res entities.JWKKey
+	err := run.Model(&entities.JWKKey{}).
+		Where("kid = ?", kid).
+		Take(&res).Error
+	if err != nil {
+		return res, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
+
+	return res, nil
+}

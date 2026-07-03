@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package jwk.v1;
+
+option go_package = "github.com/vucongthanh92/courier/user-service/pkg/grpc/gen;jwkpb";
+
+service JWKService {
+  rpc GetPublicKey(GetPublicKeyRequest) returns (GetPublicKeyResponse);
+}
+
+message GetPublicKeyRequest {
+  string kid = 1;
+}
+
+message GetPublicKeyResponse {
+  string kid = 1;
+  string public_pem = 2;
+  string alg = 3;
+}
