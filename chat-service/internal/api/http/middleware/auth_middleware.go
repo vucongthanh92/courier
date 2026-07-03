@@ -11,11 +11,13 @@ import (
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
+	jwkclient "github.com/vucongthanh92/courier/chat-service/internal/repository/external/jwkclient"
+	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 )
 
 // JWTMiddleware verifies JWT (RS256), checks denylist, and injects claims as "authClaims".
-// pubKeys is a map kid -> public key; if only one key, kid may be empty.
-func JWTMiddleware(deny interfaces.TokenDenylistI, pubKeys map[string]interface{}) gin.HandlerFunc {
+// keyResolver fetches public key by kid using cache-first strategy.
+func JWTMiddleware(deny interfaces.TokenDenylistI, keyResolver func(context.Context, string) (interface{}, *errHandler.ErrorBuilder)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := extractBearer(c.GetHeader("Authorization"))
 		if tokenStr == "" {
@@ -28,16 +30,11 @@ func JWTMiddleware(deny interfaces.TokenDenylistI, pubKeys map[string]interface{
 				return nil, jwt.ErrSignatureInvalid
 			}
 			kid, _ := t.Header["kid"].(string)
-			if k, ok := pubKeys[kid]; ok {
-				return k, nil
+			key, resErr := keyResolver(c.Request.Context(), kid)
+			if resErr != nil || key == nil {
+				return nil, jwt.ErrSignatureInvalid
 			}
-			// fallback: only one key without kid
-			if len(pubKeys) == 1 {
-				for _, k := range pubKeys {
-					return k, nil
-				}
-			}
-			return nil, jwt.ErrSignatureInvalid
+			return key, nil
 		})
 		if err != nil || !token.Valid {
 			unauthorized(c, "invalid_token", "Token is invalid")
@@ -88,27 +85,33 @@ func unauthorized(c *gin.Context, code, msg string) {
 	c.Abort()
 }
 
-// LoadPubKeys fetches active JWK and returns map[kid]publicKey for middleware use.
-func LoadPubKeys(ctx context.Context, jwkRepo interfaces.JWKQueryRepoI) (map[string]interface{}, *errHandler.ErrorBuilder) {
-	jwk, err := jwkRepo.GetActiveKey(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	pub, errJWT := jwt.ParseRSAPublicKeyFromPEM([]byte(jwk.PublicPEM))
+func decodePublicKeyPEM(publicPEM string) (interface{}, *errHandler.ErrorBuilder) {
+	pub, errJWT := jwt.ParseRSAPublicKeyFromPEM([]byte(publicPEM))
 	if errJWT != nil {
 		return nil, errHandler.InitErrorBuilder(nil).
 			SetStatus(http.StatusInternalServerError).
 			SetError(models.ErrorDTO{Code: "invalid_public_key", Message: "Invalid public key"})
 	}
+	return pub, nil
+}
 
-	m := make(map[string]interface{})
-
-	if jwk.Kid != "" {
-		m[jwk.Kid] = pub
-	} else {
-		m[""] = pub
+func ResolvePublicKey(ctx context.Context, cache cacheRepo.JWKCacheRepo, client jwkclient.Client, kid string) (interface{}, *errHandler.ErrorBuilder) {
+	if kid != "" && cache != nil {
+		if cached, err := cache.GetByKid(ctx, kid); err == nil && cached != nil && cached.PublicPEM != "" {
+			return decodePublicKeyPEM(cached.PublicPEM)
+		}
 	}
 
-	return m, nil
+	respKid, respPublicPEM, respAlg, errBuilder := client.GetPublicKey(ctx, kid)
+	if errBuilder != nil {
+		return nil, errBuilder
+	}
+	pub, errBuilder := decodePublicKeyPEM(respPublicPEM)
+	if errBuilder != nil {
+		return nil, errBuilder
+	}
+	if cache != nil && respKid != "" {
+		_ = cache.SetByKid(ctx, cacheRepo.JWKCacheEntry{Kid: respKid, PublicPEM: respPublicPEM, Alg: respAlg}, 15*time.Minute)
+	}
+	return pub, nil
 }

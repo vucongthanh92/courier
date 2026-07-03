@@ -19,7 +19,7 @@ http:
   port: :5001
   development: true
   shutdownTimeout: 15
-  resources: ["resources/en.json",	"resources/fr.json",	"resources/vi.json"]
+  resources: ["pkg/lang/en.json",	"pkg/lang/fr.json",	"pkg/lang/vi.json"]
   allowOrigins: [ "http://localhost:8080" ]
 grpc:
   port: :6001

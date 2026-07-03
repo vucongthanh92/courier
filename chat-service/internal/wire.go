@@ -14,6 +14,8 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/redis"
 
 	conversationRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
+	jwkclient "github.com/vucongthanh92/courier/chat-service/internal/repository/external/jwkclient"
+	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 	memberRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
 
 	conversationUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
@@ -44,6 +46,8 @@ var repoSet = wire.NewSet(
 	memberRepo.InitMemberQueryRepo,
 	conversationRepo.InitConversationCommandRepo,
 	conversationRepo.InitConversationQueryRepo,
+	cacheRepo.InitJWKCacheRepo,
+	cacheRepo.InitRedisDenylist,
 )
 
 func InitializeContainer(
@@ -54,4 +58,12 @@ func InitializeContainer(
 ) *api.ApiContainer {
 	wire.Build(repoSet, serviceSet, handlerSet, apiSet, container)
 	return &api.ApiContainer{}
+}
+
+func provideJWKClient(cfg *config.AppConfig) jwkclient.Client {
+	client, err := jwkclient.New(cfg.Client.UserService)
+	if err != nil {
+		panic(err)
+	}
+	return client
 }

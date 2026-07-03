@@ -15,6 +15,10 @@ type JWKQueryRepoI interface {
 	GetActiveKey(ctx context.Context) (JWKKey, *errHandler.ErrorBuilder)
 }
 
+type JWKPublicKeyProviderI interface {
+	GetPublicKey(ctx context.Context, kid string) (kidOut string, publicPEM string, alg string, err *errHandler.ErrorBuilder)
+}
+
 type User struct {
 	ID            uint64     `gorm:"column:id;primaryKey;type:bigint;check:id>0" json:"id"`
 	Email         string     `gorm:"column:email;type:citext;uniqueIndex" json:"email"`
