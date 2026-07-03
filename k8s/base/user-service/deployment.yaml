@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          image: ghcr.io/vucongthanh92/courier/user-service:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/app/user-service"]
+          args: ["start", "--config=/app/config/dev/config.yaml"]
+          envFrom:
+            - configMapRef:
+                name: user-service-config
+          ports:
+            - name: http
+              containerPort: 5000
+            - name: grpc
+              containerPort: 5001
+          readinessProbe:
+            tcpSocket:
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5000
+            initialDelaySeconds: 20
+            periodSeconds: 20

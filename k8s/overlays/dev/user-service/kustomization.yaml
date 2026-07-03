@@ -1,0 +1,8 @@
+namespace: courier-dev
+
+resources:
+  - ../../../base/user-service
+
+images:
+  - name: ghcr.io/vucongthanh92/courier/user-service
+    newTag: dev

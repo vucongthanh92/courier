@@ -1,29 +1,27 @@
-FROM golang:1.19-alpine AS build
+FROM golang:1.26-alpine AS build
 
-# git is required to fetch go dependencies
-RUN apk add --no-cache ca-certificates git
+RUN apk add --no-cache ca-certificates git tzdata
 
-# Set the working directory outside $GOPATH to enable the support for modules.
 WORKDIR /app
 
-COPY go.mod .
-COPY go.sum .
-RUN go install github.com/swaggo/swag/cmd/swag@v1.8.7
-RUN GOPATH=/Users/$USER/go
-RUN export PATH=$GOPATH/bin:$PATH
+COPY go.mod go.sum ./
+RUN go mod download
 
 COPY . .
 
-RUN swag init --parseDependency --parseInternal
-RUN go build -o cw-order-service .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o user-service .
 
-FROM alpine:3.16
+FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
-COPY --from=build /app/docs ./docs
-COPY --from=build /app/cw-order-service .
-COPY --from=build /app/config ./config
-COPY --from=build /app/internal/resources ./internal/resources
+
+COPY --from=build /app/user-service /app/user-service
+COPY --from=build /app/config /app/config
+COPY --from=build /app/docs /app/docs
+COPY --from=build /app/internal/resources /app/internal/resources
 
 EXPOSE 5000 5001
-CMD ./cw-order-service start
+
+USER nonroot:nonroot
+ENTRYPOINT ["/app/user-service"]
+CMD ["start"]

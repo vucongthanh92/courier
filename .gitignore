@@ -19,3 +19,4 @@ user-service/config/local/config.yaml
 coverage.out
 
 .env.local
+.gocache/
