@@ -23,8 +23,8 @@ build-image:
 	docker build . -t courier/user-service
 
 proto-gen:
-	protoc --go_out=pkg/grpc --go_opt=paths=source_relative \
-        --go-grpc_out=pkg/grpc --go-grpc_opt=paths=source_relative,require_unimplemented_servers=false \
+	protoc --go_out=pkg/grpc/gen --go_opt=paths=source_relative \
+        --go-grpc_out=pkg/grpc/gen --go-grpc_opt=paths=source_relative,require_unimplemented_servers=false \
         -I pkg/grpc/proto \
         pkg/grpc/proto/*.proto
 

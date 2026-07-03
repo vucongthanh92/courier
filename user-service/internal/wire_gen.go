@@ -8,6 +8,7 @@ package internal
 
 import (
 	"context"
+
 	"github.com/google/wire"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vucongthanh92/courier/user-service/config"
@@ -17,21 +18,21 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/api/cron"
 	"github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/user-service/internal/api/http"
-	"github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
+	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
+	emailsender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	redis2 "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
+	auditlog "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
+	authcredential "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/auth_credential"
+	emailverification "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/email_verification"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/identity"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/jwk"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
-	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
+	refreshtoken "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
-	"github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
+	auditlog_uc "github.com/vucongthanh92/courier/user-service/internal/usecase/audit_log"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/authen"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/credential"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/cronjob"
@@ -65,6 +66,7 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	jwtSignerI := provideJWTSigner(jwkQueryRepoI, logger)
 	refreshTokenCommandRepoI := refreshtoken.InitRefreshTokenCmdRepository(writeDb)
 	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
+	jwkCacheRepoI := redis2.InitJWKCacheRepo(redisClient)
 	tokenUseCaseI := token.InitTokenUseCase(managerTxn, auditLogServiceI, jwtSignerI, refreshTokenCommandRepoI, tokenDenylistI)
 	authServiceI := authen.InitAuthUseCase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, refreshTokenQueryRepoI, tokenUseCaseI)
 	authHandler := v1.InitAuthHandler(authServiceI)
@@ -76,8 +78,8 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	identityHandler := v1.InitIdentityHandler(identityUseCaseI)
 	authCredentialServiceI := credential.InitCredentialUseCase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, refreshTokenQueryRepoI, tokenUseCaseI)
 	credentialHandler := v1.InitCredentialHandler(authCredentialServiceI)
-	server := http.NewServer(appCfg, authHandler, identityHandler, credentialHandler, jwkQueryRepoI, tokenDenylistI)
-	grpcServer := grpc.NewServer(appCfg)
+	server := http.NewServer(appCfg, authHandler, identityHandler, credentialHandler, jwkQueryRepoI, tokenDenylistI, jwkCacheRepoI)
+	grpcServer := grpc.NewServer(appCfg, jwkQueryRepoI, jwkCacheRepoI)
 	cronJobServiceI := cronjob.NewCronJobService(refreshTokenCommandRepoI)
 	cronServer := cron.NewServer(appCfg, cronJobServiceI)
 	pool := newPgxPool(appCfg)
@@ -100,7 +102,7 @@ var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler, v1.Init
 
 var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, authen.InitAuthUseCase, identity2.InitIdentityUseCase, outbox2.InitOutboxUsecase, token.InitTokenUseCase, credential.InitCredentialUseCase)
 
-var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, provideEmailConfig,
+var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, redis2.InitJWKCacheRepo, provideEmailConfig,
 	provideLogger,
 	provideJWTSigner,
 	provideGoogleClient,

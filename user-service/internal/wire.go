@@ -108,6 +108,7 @@ var repoSet = wire.NewSet(
 	// external repo
 	emailSender.InitSMTPSender,
 	redisRepo.InitRedisDenylist,
+	redisRepo.InitJWKCacheRepo,
 
 	// shared dependencies
 	provideEmailConfig,

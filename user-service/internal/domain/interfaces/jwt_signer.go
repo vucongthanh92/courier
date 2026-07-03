@@ -14,4 +14,5 @@ type JWTSignerI interface {
 
 type JWKQueryRepoI interface {
 	GetActiveKey(ctx context.Context) (entities.JWKKey, *errHandler.ErrorBuilder)
+	GetKeyByKid(ctx context.Context, kid string) (entities.JWKKey, *errHandler.ErrorBuilder)
 }

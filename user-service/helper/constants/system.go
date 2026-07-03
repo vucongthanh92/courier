@@ -24,9 +24,16 @@ const (
 	Kafka              = "kafka"
 )
 
+// OAuth2 provider constants
 const (
 	GithubProvider       = "github"
 	GithubAccessTokenURL = "https://github.com/login/oauth/access_token"
 
 	GoogleProvider = "google"
+)
+
+// JWK cache key prefix
+const (
+	JwkCacheKeyPrefix = "auth:jwk:kid:"
+	DenylistKeyPrefix = "deny:jti:"
 )
