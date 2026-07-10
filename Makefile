@@ -16,10 +16,15 @@ kind-load-user-service:
 
 kind-apply-argocd:
 	kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
-	kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+	kubectl apply --server-side --force-conflicts -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 kind-apply-user-service:
 	kubectl create namespace courier-dev --dry-run=client -o yaml | kubectl apply -f -
 	kubectl apply -f argocd/applications/user-service-dev.yaml
 
 dev-user-up: kind-load-user-service kind-apply-argocd kind-apply-user-service
+
+## user: admin
+## pwd: J3q-dYVlXGBsR7KV
+start-argocd:
+	kubectl port-forward svc/argocd-server -n argocd 8080:443
