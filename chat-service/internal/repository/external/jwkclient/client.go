@@ -6,7 +6,7 @@ import (
 	"time"
 
 	errorhandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
-	jwkpb "github.com/vucongthanh92/courier/shared/grpc/jwk/gen"
+	jwkpb "github.com/vucongthanh92/courier/shared/grpc/user-service/jwk/gen"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
