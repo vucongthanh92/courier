@@ -28,6 +28,8 @@ grpc:
   timeout: 15
   maxConnectionAge: 5
   time: 10
+client:
+  userService: "localhost:6001"
 logger:
   level: debug
   devMode: false

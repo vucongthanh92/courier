@@ -15,10 +15,9 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
-	v1 "github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
-	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
+	"github.com/vucongthanh92/courier/chat-service/internal/repository/external/jwkclient"
+	redis2 "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
-	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
 	conversation2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
 	"github.com/vucongthanh92/courier/chat-service/redis"
 )
@@ -29,10 +28,10 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	conversationQueryRepoI := conversation.InitConversationQueryRepo(readDb, writeDb)
 	conversationServiceI := conversation2.InitConversationUsecase(conversationQueryRepoI)
 	conversationHandler := v1.InitConversationHandler(conversationServiceI)
-	jwkCacheRepoI := cacheRepo.InitJWKCacheRepo(redisClient)
-	tokenDenylistI := cacheRepo.InitRedisDenylist(redisClient)
-	jwkClientI := provideJWKClient(appCfg)
-	server := http.NewServer(appCfg, conversationHandler, jwkCacheRepoI, jwkClientI, tokenDenylistI)
+	jwkCacheRepo := redis2.InitJWKCacheRepo(redisClient)
+	client := provideJWKClient(appCfg)
+	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
+	server := http.NewServer(appCfg, conversationHandler, jwkCacheRepo, client, tokenDenylistI)
 	grpcServer := grpc.NewServer(appCfg)
 	cronServer := cron.NewServer(appCfg)
 	apiContainer := api.NewApiContainer(server, grpcServer, cronServer)
@@ -49,4 +48,16 @@ var handlerSet = wire.NewSet(v1.InitConversationHandler)
 
 var serviceSet = wire.NewSet(conversation2.InitConversationUsecase)
 
-var repoSet = wire.NewSet(member.InitMemberCommandRepo, member.InitMemberQueryRepo, conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo)
+var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist)
+
+var providerSet = wire.NewSet(
+	provideJWKClient,
+)
+
+func provideJWKClient(cfg *config.AppConfig) jwkclient.Client {
+	client, err := jwkclient.New(cfg.Client.UserService)
+	if err != nil {
+		panic(err)
+	}
+	return client
+}

@@ -6,6 +6,7 @@ type AppConfig struct {
 	Logger      *LoggerConfig     `mapstructure:"logger"`
 	Http        *HttpConfig       `mapstructure:"http"`
 	GRPC        *GrpcConfig       `mapstructure:"grpc"`
+	Client      *ClientConfig     `mapstructure:"client"`
 	Database    *DatabaseConfig   `mapstructure:"database"`
 	Tracing     *TracingConfig    `mapstructure:"tracing"`
 	Redis       *RedisConfig      `mapstructure:"redis"`
@@ -36,6 +37,11 @@ type GrpcConfig struct {
 	Timeout           int    `mapstructure:"timeout"`
 	MaxConnectionAge  int    `mapstructure:"maxConnectionAge"`
 	Time              int    `mapstructure:"time"`
+}
+
+type ClientConfig struct {
+	UserService   string `mapstructure:"userService"`
+	CommonService string `mapstructure:"commonService"`
 }
 
 type DatabaseConfig struct {

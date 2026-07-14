@@ -13,10 +13,9 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/redis"
 
-	conversationRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
 	jwkclient "github.com/vucongthanh92/courier/chat-service/internal/repository/external/jwkclient"
 	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
-	memberRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
+	conversationRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
 
 	conversationUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
 
@@ -42,12 +41,14 @@ var serviceSet = wire.NewSet(
 )
 
 var repoSet = wire.NewSet(
-	memberRepo.InitMemberCommandRepo,
-	memberRepo.InitMemberQueryRepo,
 	conversationRepo.InitConversationCommandRepo,
 	conversationRepo.InitConversationQueryRepo,
 	cacheRepo.InitJWKCacheRepo,
 	cacheRepo.InitRedisDenylist,
+)
+
+var providerSet = wire.NewSet(
+	provideJWKClient,
 )
 
 func InitializeContainer(
@@ -56,7 +57,7 @@ func InitializeContainer(
 	writeDb *database.GormWriteDb,
 	redisClient redis.Client,
 ) *api.ApiContainer {
-	wire.Build(repoSet, serviceSet, handlerSet, apiSet, container)
+	wire.Build(repoSet, serviceSet, handlerSet, apiSet, providerSet, container)
 	return &api.ApiContainer{}
 }
 
