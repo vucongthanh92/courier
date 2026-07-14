@@ -19,6 +19,8 @@ require (
 	gorm.io/gorm v1.30.0
 )
 
+require github.com/vucongthanh92/courier/shared v0.0.0
+
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
@@ -167,3 +169,5 @@ require (
 	gorm.io/driver/sqlite v1.5.7 // indirect
 	gorm.io/driver/sqlserver v1.6.0 // indirect
 )
+
+replace github.com/vucongthanh92/courier/shared => ../shared

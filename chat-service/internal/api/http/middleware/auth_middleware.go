@@ -65,6 +65,7 @@ func JWTMiddleware(deny interfaces.TokenDenylistI, keyResolver func(context.Cont
 	}
 }
 
+// extractBearer extracts the token from "Authorization: Bearer
 func extractBearer(h string) string {
 	parts := strings.SplitN(h, " ", 2)
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
@@ -73,6 +74,7 @@ func extractBearer(h string) string {
 	return strings.TrimSpace(parts[1])
 }
 
+// unauthorized responds with 401 Unauthorized and a JSON error message.
 func unauthorized(c *gin.Context, code, msg string) {
 	resErr := errHandler.InitErrorBuilder(c).
 		SetStatus(http.StatusUnauthorized).
@@ -85,6 +87,7 @@ func unauthorized(c *gin.Context, code, msg string) {
 	c.Abort()
 }
 
+// decodePublicKeyPEM decodes a PEM-encoded RSA public key.
 func decodePublicKeyPEM(publicPEM string) (interface{}, *errHandler.ErrorBuilder) {
 	pub, errJWT := jwt.ParseRSAPublicKeyFromPEM([]byte(publicPEM))
 	if errJWT != nil {
@@ -95,6 +98,7 @@ func decodePublicKeyPEM(publicPEM string) (interface{}, *errHandler.ErrorBuilder
 	return pub, nil
 }
 
+// ResolvePublicKey fetches the public key by kid, first checking the cache, then falling back to the JWK client.
 func ResolvePublicKey(ctx context.Context, cache cacheRepo.JWKCacheRepo, client jwkclient.Client, kid string) (interface{}, *errHandler.ErrorBuilder) {
 	if kid != "" && cache != nil {
 		if cached, err := cache.GetByKid(ctx, kid); err == nil && cached != nil && cached.PublicPEM != "" {

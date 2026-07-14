@@ -11,8 +11,6 @@ import (
 	jwkclient "github.com/vucongthanh92/courier/chat-service/internal/repository/external/jwkclient"
 	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 	httpserver "github.com/vucongthanh92/go-base-utils/http/server"
-	"github.com/vucongthanh92/go-base-utils/logger"
-	"go.uber.org/zap"
 )
 
 type Server struct {
@@ -49,9 +47,7 @@ func (s *Server) Run() {
 
 	httpServer, router := httpserver.NewServer(*serverConfig)
 
-	if _, err := middleware.ResolvePublicKey(context.Background(), s.jwkCache, s.jwkClient, ""); err != nil {
-		logger.Fatal("load public key failed", zap.Error(err.LogError))
-	}
+	// Set up JWT middleware with denylist and public key resolver
 	authMW := middleware.JWTMiddleware(s.tokenDeny, func(ctx context.Context, kid string) (interface{}, *errHandler.ErrorBuilder) {
 		return middleware.ResolvePublicKey(ctx, s.jwkCache, s.jwkClient, kid)
 	})

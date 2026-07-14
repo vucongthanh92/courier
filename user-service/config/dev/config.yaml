@@ -30,7 +30,6 @@ grpc:
   time: 10
 client:
   userService: "localhost:5002"
-  driverService: "localhost:5005"
   commonService: "localhost:5008"
 logger:
   level: debug
