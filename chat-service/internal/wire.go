@@ -13,8 +13,9 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/redis"
 
-	jwkclient "github.com/vucongthanh92/courier/chat-service/internal/repository/external/jwkclient"
 	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
+	user_grpc "github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
+
 	conversationRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
 
 	conversationUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
@@ -48,7 +49,7 @@ var repoSet = wire.NewSet(
 )
 
 var providerSet = wire.NewSet(
-	provideJWKClient,
+	user_grpc.NewGrpcClient,
 )
 
 func InitializeContainer(
@@ -61,10 +62,10 @@ func InitializeContainer(
 	return &api.ApiContainer{}
 }
 
-func provideJWKClient(cfg *config.AppConfig) jwkclient.Client {
-	client, err := jwkclient.New(cfg.Client.UserService)
-	if err != nil {
-		panic(err)
-	}
-	return client
-}
+// func provideUserGrpcClient(cfg *config.AppConfig) user_grpc.Client {
+// 	client, err := user_grpc.NewClient(cfg.Client.UserService)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// 	return client
+// }
