@@ -3,9 +3,10 @@ package constants
 import "time"
 
 const (
-	Time_Cache_5_minutes = 5 * time.Minute
-	Time_Cache_1_day     = 24 * time.Hour
-	Time_Cache_5_seconds = 5 * time.Second
+	Time_Cache_5_minutes  = 5 * time.Minute
+	Time_Cache_1_day      = 24 * time.Hour
+	Time_Cache_5_seconds  = 5 * time.Second
+	Time_Cache_15_minutes = 15 * time.Minute
 )
 
 const (

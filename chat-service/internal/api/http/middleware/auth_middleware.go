@@ -8,11 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
-	jwkclient "github.com/vucongthanh92/courier/chat-service/internal/repository/external/jwkclient"
 	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
+	user_grpc "github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
 )
 
 // JWTMiddleware verifies JWT (RS256), checks denylist, and injects claims as "authClaims".
@@ -91,7 +92,7 @@ func unauthorized(c *gin.Context, code, msg string) {
 func decodePublicKeyPEM(publicPEM string) (interface{}, *errHandler.ErrorBuilder) {
 	pub, errJWT := jwt.ParseRSAPublicKeyFromPEM([]byte(publicPEM))
 	if errJWT != nil {
-		return nil, errHandler.InitErrorBuilder(nil).
+		return nil, errHandler.InitErrorBuilder(context.Background()).
 			SetStatus(http.StatusInternalServerError).
 			SetError(models.ErrorDTO{Code: "invalid_public_key", Message: "Invalid public key"})
 	}
@@ -99,7 +100,7 @@ func decodePublicKeyPEM(publicPEM string) (interface{}, *errHandler.ErrorBuilder
 }
 
 // ResolvePublicKey fetches the public key by kid, first checking the cache, then falling back to the JWK client.
-func ResolvePublicKey(ctx context.Context, cache cacheRepo.JWKCacheRepo, client jwkclient.Client, kid string) (interface{}, *errHandler.ErrorBuilder) {
+func ResolvePublicKey(ctx context.Context, cache cacheRepo.JWKCacheRepo, client user_grpc.UserGrpcClient, kid string) (any, *errHandler.ErrorBuilder) {
 	if kid != "" && cache != nil {
 		if cached, err := cache.GetByKid(ctx, kid); err == nil && cached != nil && cached.PublicPEM != "" {
 			return decodePublicKeyPEM(cached.PublicPEM)
@@ -110,12 +111,14 @@ func ResolvePublicKey(ctx context.Context, cache cacheRepo.JWKCacheRepo, client 
 	if errBuilder != nil {
 		return nil, errBuilder
 	}
+
 	pub, errBuilder := decodePublicKeyPEM(respPublicPEM)
 	if errBuilder != nil {
 		return nil, errBuilder
 	}
+
 	if cache != nil && respKid != "" {
-		_ = cache.SetByKid(ctx, cacheRepo.JWKCacheEntry{Kid: respKid, PublicPEM: respPublicPEM, Alg: respAlg}, 15*time.Minute)
+		_ = cache.SetByKid(ctx, cacheRepo.JWKCacheEntry{Kid: respKid, PublicPEM: respPublicPEM, Alg: respAlg}, constants.Time_Cache_15_minutes)
 	}
 	return pub, nil
 }
