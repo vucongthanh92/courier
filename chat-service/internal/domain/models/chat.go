@@ -26,20 +26,6 @@ type ListMessagesRequest struct {
 	BeforeMessageID *uint64 `form:"before_message_id"`
 }
 
-type ConversationResponse struct {
-	ID            uint64                       `json:"id"`
-	Type          string                       `json:"type"`
-	DirectKey     *string                      `json:"direct_key,omitempty"`
-	Name          *string                      `json:"name,omitempty"`
-	CreatedBy     uint64                       `json:"created_by"`
-	LastMessageID *uint64                      `json:"last_message_id,omitempty"`
-	LastMessageAt *time.Time                   `json:"last_message_at,omitempty"`
-	Metadata      map[string]any               `json:"metadata"`
-	CreatedAt     time.Time                    `json:"created_at"`
-	UpdatedAt     time.Time                    `json:"updated_at"`
-	Members       []ConversationMemberResponse `json:"members,omitempty"`
-}
-
 type ConversationMemberResponse struct {
 	ID                uint64     `json:"id"`
 	ConversationID    uint64     `json:"conversation_id"`
@@ -66,11 +52,4 @@ type MessageResponse struct {
 	UpdatedAt        time.Time      `json:"updated_at"`
 	EditedAt         *time.Time     `json:"edited_at,omitempty"`
 	DeletedAt        *time.Time     `json:"deleted_at,omitempty"`
-}
-
-type InboxConversationResponse struct {
-	Conversation ConversationResponse       `json:"conversation"`
-	LastMessage  *MessageResponse           `json:"last_message,omitempty"`
-	Member       ConversationMemberResponse `json:"member"`
-	UnreadCount  int64                      `json:"unread_count"`
 }

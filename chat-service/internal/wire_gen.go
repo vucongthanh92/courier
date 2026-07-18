@@ -10,6 +10,7 @@ import (
 	"github.com/google/wire"
 	"github.com/vucongthanh92/courier/chat-service/config"
 	"github.com/vucongthanh92/courier/chat-service/database"
+	"github.com/vucongthanh92/courier/chat-service/helper/transaction"
 	"github.com/vucongthanh92/courier/chat-service/internal/api"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/cron"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
@@ -18,6 +19,7 @@ import (
 	redis2 "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
+	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
 	conversation2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
 	"github.com/vucongthanh92/courier/chat-service/redis"
 )
@@ -26,7 +28,11 @@ import (
 
 func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, writeDb *database.GormWriteDb, redisClient redis.Client) *api.ApiContainer {
 	conversationQueryRepoI := conversation.InitConversationQueryRepo(readDb, writeDb)
-	conversationServiceI := conversation2.InitConversationUsecase(conversationQueryRepoI)
+	conversationCommandRepoI := conversation.InitConversationCommandRepo(readDb, writeDb)
+	memberCmdRepoI := member.InitMemberCommandRepo(readDb, writeDb)
+	memberQueryRepoI := member.InitMemberQueryRepo(readDb, writeDb)
+	managerTxn := transaction.InitManagerTxn(writeDb)
+	conversationServiceI := conversation2.InitConversationUsecase(conversationQueryRepoI, conversationCommandRepoI, memberCmdRepoI, memberQueryRepoI, managerTxn)
 	conversationHandler := v1.InitConversationHandler(conversationServiceI)
 	jwkCacheRepo := redis2.InitJWKCacheRepo(redisClient)
 	userGrpcClient := user_grpc.NewGrpcClient(appCfg)
@@ -48,6 +54,6 @@ var handlerSet = wire.NewSet(v1.InitConversationHandler)
 
 var serviceSet = wire.NewSet(conversation2.InitConversationUsecase)
 
-var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist)
+var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist)
 
-var providerSet = wire.NewSet(user_grpc.NewGrpcClient)
+var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn)
