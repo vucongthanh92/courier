@@ -7,6 +7,7 @@ import (
 	"github.com/google/wire"
 	"github.com/vucongthanh92/courier/chat-service/config"
 	"github.com/vucongthanh92/courier/chat-service/database"
+	"github.com/vucongthanh92/courier/chat-service/helper/transaction"
 	"github.com/vucongthanh92/courier/chat-service/internal/api"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/cron"
 	grpc "github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
@@ -17,6 +18,7 @@ import (
 	user_grpc "github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
 
 	conversationRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
+	memberRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
 
 	conversationUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
 
@@ -44,12 +46,15 @@ var serviceSet = wire.NewSet(
 var repoSet = wire.NewSet(
 	conversationRepo.InitConversationCommandRepo,
 	conversationRepo.InitConversationQueryRepo,
+	memberRepo.InitMemberCommandRepo,
+	memberRepo.InitMemberQueryRepo,
 	cacheRepo.InitJWKCacheRepo,
 	cacheRepo.InitRedisDenylist,
 )
 
 var providerSet = wire.NewSet(
 	user_grpc.NewGrpcClient,
+	transaction.InitManagerTxn,
 )
 
 func InitializeContainer(

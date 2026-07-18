@@ -2,6 +2,8 @@ package entities
 
 import (
 	"time"
+
+	"github.com/vucongthanh92/courier/chat-service/helper/utils"
 )
 
 type Conversation struct {
@@ -20,4 +22,19 @@ type Conversation struct {
 
 func (Conversation) TableName() string {
 	return `"chat-service".conversations`
+}
+
+// InitConversationEntity initializes a Conversation entity with the provided parameters,
+// generating a unique ID and setting default values for other fields.
+func (s *Conversation) InitConversationEntity(converType string, directKey *string, converName string, creatorID uint64) {
+	s.ID, _ = utils.NewSnowflakeID()
+	s.Type = converType
+	s.DirectKey = directKey
+	s.CreatedBy = creatorID
+	s.Metadata = map[string]any{}
+
+	if converName == "" {
+		converName = utils.RandString(10)
+	}
+	s.Name = &converName
 }

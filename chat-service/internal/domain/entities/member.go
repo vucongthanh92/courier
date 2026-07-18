@@ -1,6 +1,10 @@
 package entities
 
-import "time"
+import (
+	"time"
+
+	"github.com/vucongthanh92/courier/chat-service/helper/utils"
+)
 
 type ConversationMember struct {
 	ID                uint64     `gorm:"column:id;primaryKey;type:bigint;check:id>0" json:"id"`
@@ -19,4 +23,18 @@ type ConversationMember struct {
 
 func (ConversationMember) TableName() string {
 	return `"chat-service".conversation_members`
+}
+
+// func InitMember constructs a slice of ConversationMember entities based on the provided conversation ID, creator ID, and member IDs.
+func (s *ConversationMember) InitMemberEntity(conversationID, creatorID, memberID uint64) {
+	role := "member"
+	if memberID == creatorID {
+		role = "owner"
+	}
+
+	s.ID, _ = utils.NewSnowflakeID()
+	s.ConversationID = conversationID
+	s.UserID = memberID
+	s.Role = role
+	s.Status = "active"
 }

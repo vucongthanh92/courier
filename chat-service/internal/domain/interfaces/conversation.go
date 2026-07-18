@@ -5,10 +5,11 @@ import (
 
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/entities"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 )
 
 type ConversationServiceI interface {
-	CreateConversation(ctx context.Context)
+	CreateConversation(ctx context.Context, req *models.CreateConversationRequest) (*models.CreateConversationResponse, *errHandler.ErrorBuilder)
 }
 
 type ConversationQueryRepoI interface {
