@@ -1,0 +1,11 @@
+./auth.go
+./client.go
+./client_opts.go
+./errors.go
+./kubernetes_auth.go
+./kubernetes_auth_opts.go
+./kv_v1.go
+./ssh.go
+./transit.go
+./userpass_auth.go
+./utils.go

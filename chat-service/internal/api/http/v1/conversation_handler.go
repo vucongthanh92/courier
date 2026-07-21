@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/vucongthanh92/courier/chat-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	httpcommon "github.com/vucongthanh92/courier/chat-service/helper/http_common"
@@ -55,8 +56,18 @@ func (h *ConversationHandler) CreateConversation(c *gin.Context) {
 
 	// Extract the authenticated user's ID from the context and set it as the creator ID in the request
 	if v, ok := c.Get("authClaims"); ok {
-		if claims, ok := v.(map[string]any); ok {
+		if claims, isExist := v.(jwt.MapClaims); isExist {
 			req.CreatorID = utils.ParseUserID(claims["sub"])
+		} else {
+			resErr := errHandler.InitErrorBuilder(c).
+				SetLogError(errors.New(constants.InvalidValue)).
+				SetStatus(http.StatusBadRequest).
+				SetError(models.ErrorDTO{
+					Code:    "invalid_auth_claims",
+					Message: "Invalid auth claims in context",
+				})
+			resErr.ExposeHttpError(c)
+			return
 		}
 	}
 

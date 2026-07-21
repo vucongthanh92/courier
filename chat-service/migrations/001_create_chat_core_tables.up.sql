@@ -56,19 +56,7 @@ CREATE TABLE IF NOT EXISTS "chat-service".conversations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ NULL,
     CONSTRAINT fk_conversations_created_by
-        FOREIGN KEY (created_by) REFERENCES "user-service".users(id),
-    CONSTRAINT chk_conversations_name_by_type
-        CHECK (
-            (type = 'group' AND COALESCE(LENGTH(BTRIM(name)), 0) > 0)
-            OR
-            (type = 'direct' AND name IS NULL)
-        ),
-    CONSTRAINT chk_conversations_direct_key_by_type
-        CHECK (
-            (type = 'direct' AND COALESCE(LENGTH(BTRIM(direct_key)), 0) > 0)
-            OR
-            (type = 'group' AND direct_key IS NULL)
-        )
+        FOREIGN KEY (created_by) REFERENCES "user-service".users(id)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_direct_key_unique

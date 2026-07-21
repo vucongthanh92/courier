@@ -7,16 +7,17 @@
 package jwkpb
 
 import (
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
-
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
+	// Verify that this generated code is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(20 - protoimpl.MinVersion)
+	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
@@ -138,7 +139,7 @@ const file_jwk_proto_rawDesc = "" +
 	"\x03alg\x18\x03 \x01(\tR\x03alg2W\n" +
 	"\n" +
 	"JWKService\x12I\n" +
-	"\fGetPublicKey\x12\x1b.jwk.v1.GetPublicKeyRequest\x1a\x1c.jwk.v1.GetPublicKeyResponseBBZ@github.com/vucongthanh92/courier/shared/grpc/jwk/gen;jwkpbb\x06proto3"
+	"\fGetPublicKey\x12\x1b.jwk.v1.GetPublicKeyRequest\x1a\x1c.jwk.v1.GetPublicKeyResponseBIZGgithub.com/vucongthanh92/courier/shared/grpc/user-service/jwk/gen;jwkpbb\x06proto3"
 
 var (
 	file_jwk_proto_rawDescOnce sync.Once

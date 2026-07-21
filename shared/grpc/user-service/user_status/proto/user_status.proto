@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package userstatus.v1;
+
+option go_package = "github.com/vucongthanh92/courier/shared/grpc/user-service/user_status/gen;userstatuspb";
+
+service UserStatusService {
+  rpc CheckUsersStatus(CheckUsersStatusRequest) returns (CheckUsersStatusResponse);
+}
+
+message CheckUsersStatusRequest {
+  repeated uint64 user_ids = 1;
+}
+
+message UserStatusItem {
+  uint64 user_id = 1;
+  string status = 2;
+}
+
+message CheckUsersStatusResponse {
+  repeated UserStatusItem items = 1;
+  repeated uint64 invalid_user_ids = 2;
+  bool all_verified = 3;
+}
