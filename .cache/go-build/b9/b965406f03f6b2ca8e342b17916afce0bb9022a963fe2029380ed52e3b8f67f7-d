@@ -1,7 +1,0 @@
-./async.go
-./checks.go
-./doc.go
-./handler.go
-./metrics_handler.go
-./timeout.go
-./types.go

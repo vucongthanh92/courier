@@ -1,4 +1,0 @@
-./migration.go
-./migration_down.go
-./migration_up.go
-./utils.go

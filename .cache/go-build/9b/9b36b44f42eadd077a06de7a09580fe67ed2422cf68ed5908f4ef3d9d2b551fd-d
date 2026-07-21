@@ -1,5 +1,0 @@
-./create.go
-./error_translator.go
-./migrator.go
-./sqlserver.go
-./update.go

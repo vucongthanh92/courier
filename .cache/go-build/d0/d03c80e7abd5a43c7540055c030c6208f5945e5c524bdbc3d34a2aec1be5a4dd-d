@@ -1,4 +1,0 @@
-./auth_handler.go
-./credential_handler.go
-./identity_handler.go
-./routes.go

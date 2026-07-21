@@ -1,4 +1,0 @@
-./gen.go
-./grpc_broker.pb.go
-./grpc_controller.pb.go
-./grpc_stdio.pb.go

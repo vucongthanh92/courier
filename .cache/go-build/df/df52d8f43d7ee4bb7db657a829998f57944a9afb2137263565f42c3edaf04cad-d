@@ -1,7 +1,0 @@
-./arrayencoder.go
-./conv.go
-./fieldextractor.go
-./global.go
-./option.go
-./otelzap.go
-./version.go
