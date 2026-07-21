@@ -28,7 +28,7 @@ func NewGrpcUsecase(
 	jwkCache cacheRepo.JWKCacheRepo,
 	userRepo interfaces.UserQueryRepoI,
 ) *GrpcUsecase {
-		return &GrpcUsecase{
+	return &GrpcUsecase{
 		jwkRepo:  jwkRepo,
 		jwkCache: jwkCache,
 		userRepo: userRepo,
