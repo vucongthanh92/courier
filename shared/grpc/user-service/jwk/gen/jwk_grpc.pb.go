@@ -8,18 +8,23 @@ package jwkpb
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
 )
 
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.64.0 or later.
 const _ = grpc.SupportPackageIsVersion9
 
 const (
 	JWKService_GetPublicKey_FullMethodName = "/jwk.v1.JWKService/GetPublicKey"
 )
 
+// JWKServiceClient is the client API for JWKService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type JWKServiceClient interface {
 	GetPublicKey(ctx context.Context, in *GetPublicKeyRequest, opts ...grpc.CallOption) (*GetPublicKeyResponse, error)
 }
@@ -42,10 +47,18 @@ func (c *jWKServiceClient) GetPublicKey(ctx context.Context, in *GetPublicKeyReq
 	return out, nil
 }
 
+// JWKServiceServer is the server API for JWKService service.
+// All implementations should embed UnimplementedJWKServiceServer
+// for forward compatibility.
 type JWKServiceServer interface {
 	GetPublicKey(context.Context, *GetPublicKeyRequest) (*GetPublicKeyResponse, error)
 }
 
+// UnimplementedJWKServiceServer should be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
 type UnimplementedJWKServiceServer struct{}
 
 func (UnimplementedJWKServiceServer) GetPublicKey(context.Context, *GetPublicKeyRequest) (*GetPublicKeyResponse, error) {
@@ -53,11 +66,18 @@ func (UnimplementedJWKServiceServer) GetPublicKey(context.Context, *GetPublicKey
 }
 func (UnimplementedJWKServiceServer) testEmbeddedByValue() {}
 
+// UnsafeJWKServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to JWKServiceServer will
+// result in compilation errors.
 type UnsafeJWKServiceServer interface {
 	mustEmbedUnimplementedJWKServiceServer()
 }
 
 func RegisterJWKServiceServer(s grpc.ServiceRegistrar, srv JWKServiceServer) {
+	// If the following call panics, it indicates UnimplementedJWKServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
@@ -82,6 +102,9 @@ func _JWKService_GetPublicKey_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+// JWKService_ServiceDesc is the grpc.ServiceDesc for JWKService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
 var JWKService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "jwk.v1.JWKService",
 	HandlerType: (*JWKServiceServer)(nil),

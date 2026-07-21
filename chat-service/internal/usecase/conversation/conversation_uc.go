@@ -2,7 +2,7 @@ package conversation
 
 import (
 	"context"
-	"strings"
+	"fmt"
 
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/chat-service/helper/transaction"
@@ -10,7 +10,7 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
-	"github.com/vucongthanh92/go-base-utils/tracing"
+	userGrpc "github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
 )
 
 type ConversationUseCaseImpl struct {
@@ -18,6 +18,7 @@ type ConversationUseCaseImpl struct {
 	conversationCmdRepo  interfaces.ConversationCommandRepoI
 	memberCmdRepo        interfaces.MemberCmdRepoI
 	memberQueryRepo      interfaces.MemberQueryRepoI
+	userGrpcClient       userGrpc.UserGrpcClient
 	txn                  *transaction.ManagerTxn
 }
 
@@ -26,6 +27,7 @@ func InitConversationUsecase(
 	conversationCmdRepo interfaces.ConversationCommandRepoI,
 	memberCmdRepo interfaces.MemberCmdRepoI,
 	memberQueryRepo interfaces.MemberQueryRepoI,
+	userGrpcClient userGrpc.UserGrpcClient,
 	txn *transaction.ManagerTxn,
 ) interfaces.ConversationServiceI {
 	return &ConversationUseCaseImpl{
@@ -33,6 +35,7 @@ func InitConversationUsecase(
 		conversationCmdRepo:  conversationCmdRepo,
 		memberCmdRepo:        memberCmdRepo,
 		memberQueryRepo:      memberQueryRepo,
+		userGrpcClient:       userGrpcClient,
 		txn:                  txn,
 	}
 }
@@ -43,8 +46,8 @@ func InitConversationUsecase(
 func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *models.CreateConversationRequest) (
 	*models.CreateConversationResponse, *errHandler.ErrorBuilder) {
 
-	ctx, span := tracing.StartSpanFromContext(ctx, "CreateConversation")
-	defer span.End()
+	// ctx, span := tracing.StartSpanFromContext(ctx, "CreateConversation")
+	// defer span.End()
 
 	// Normalize and validate member IDs
 	sortedMemberIDs, err := utils.NormalizeMemberIDs(req.MemberUserIDs)
@@ -56,30 +59,21 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 			})
 	}
 
-	if req.Type == "direct" && len(sortedMemberIDs) != 2 {
-		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
-			Code:    "invalid_direct_members",
-			Message: "direct conversation must have exactly 2 members",
-		})
-	}
-	if req.Type == "group" && len(sortedMemberIDs) < 2 {
-		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
-			Code:    "invalid_group_members",
-			Message: "group conversation must have at least 2 members",
-		})
-	}
-	if req.Type == "group" && (req.Name == nil || strings.TrimSpace(*req.Name) == "") {
-		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
-			Code:    "invalid_group_name",
-			Message: "group conversation name is required",
-		})
-	}
-
-	creatorID := req.CreatorID
-	if creatorID == 0 {
+	// Ensure the creator ID is provided and valid
+	if req.CreatorID == 0 {
 		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(401).SetError(models.ErrorDTO{
 			Code:    "unauthorized",
 			Message: "missing authenticated user",
+		})
+	}
+	creatorID := req.CreatorID
+
+	// Validate the conversation type and member count based on the request
+	err = req.ValidateConversationType(sortedMemberIDs)
+	if err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
+			Code:    "invalid_conversation_type",
+			Message: err.Error(),
 		})
 	}
 
@@ -88,6 +82,16 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
 			Code:    "invalid_members",
 			Message: "conversation creator must be included in member_user_ids",
+		})
+	}
+
+	if invalidIDs, allVerified, grpcErr := s.userGrpcClient.CheckUsersStatus(ctx, sortedMemberIDs); grpcErr != nil {
+		return nil, grpcErr
+	} else if !allVerified {
+		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
+			Code:    "invalid_user_status",
+			Message: fmt.Sprintf("one or more users are not verified: %v", invalidIDs),
+			Field:   "member_user_ids",
 		})
 	}
 
@@ -102,46 +106,46 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 
 	var (
 		resp               models.CreateConversationResponse
-		conversationEntity *entities.Conversation
-		memberEntities     []entities.ConversationMember
+		conversationEntity = entities.Conversation{}
 	)
-
-	// Initialize member entities for the conversation,
-	// setting the appropriate role for each member based on whether they are the creator or not.
-	for _, memberID := range sortedMemberIDs {
-		var memberEntity entities.ConversationMember
-		memberEntity.InitMemberEntity(0, creatorID, memberID)
-		memberEntities = append(memberEntities, memberEntity)
-	}
 
 	// Initialize the conversation entity with the provided type, direct key, name, and creator ID.
 	conversationEntity.InitConversationEntity(req.Type, &directKey, *req.Name, creatorID)
 
+	// Check if a direct conversation with the same key already exists to prevent duplicates
+	isExisted, txnErr := s.conversationReadRepo.GetDirectConversationByKey(ctx, directKey)
+	if txnErr != nil {
+		return nil, txnErr
+	}
+
+	if isExisted != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
+			Code:    "conversation_exists",
+			Message: "conversation already exists",
+		})
+	}
+
 	// Execute the conversation creation logic within a transaction to ensure atomicity
 	if err := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
 
-		// Check if a direct conversation with the same key already exists to prevent duplicates
-		isExisted, txnErr := s.conversationReadRepo.GetDirectConversationByKey(txCtx, directKey)
-		if txnErr != nil {
-			return txnErr
-		}
-
-		if isExisted != nil {
-			return errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
-				Code:    "conversation_exists",
-				Message: "conversation already exists",
-			})
-		}
-
 		// Create the conversation and its members in the database within the transaction
-		if txnErr = s.conversationCmdRepo.CreateConversation(txCtx, conversationEntity); txnErr != nil {
+		if txnErr := s.conversationCmdRepo.CreateConversation(txCtx, &conversationEntity); txnErr != nil {
 			return txnErr
 		}
 
-		// Update the conversation ID for each member entity to associate them with the newly created conversation
+		memberEntities := make([]entities.ConversationMember, 0, len(sortedMemberIDs))
+		// Build member entities after the conversation ID is available so FK checks pass.
+		for _, memberID := range sortedMemberIDs {
+			var memberEntity entities.ConversationMember
+			memberEntity.InitMemberEntity(conversationEntity.ID, creatorID, memberID)
+			memberEntities = append(memberEntities, memberEntity)
+		}
+
 		if txnErr := s.memberCmdRepo.CreateMembers(txCtx, memberEntities); txnErr != nil {
 			return txnErr
 		}
+
+		resp.FromEntity(&conversationEntity, memberEntities)
 
 		return nil
 
@@ -149,7 +153,5 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(500).SetLogError(err)
 	}
 
-	// Construct and return the response payload with the newly created conversation and its members.
-	resp.FromEntity(conversationEntity, memberEntities)
 	return &resp, nil
 }

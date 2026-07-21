@@ -12,6 +12,7 @@ const (
 	InvalidValue       = "InvalidValue"
 	InvalidLength      = "InvalidLength"
 	InvalidEmailFormat = "InvalidEmailFormat"
+	UserStatusVerified = "verified"
 )
 
 const (

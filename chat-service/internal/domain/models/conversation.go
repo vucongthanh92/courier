@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"time"
 
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/entities"
@@ -12,6 +13,19 @@ type CreateConversationRequest struct {
 	Name          *string  `json:"name,omitempty"`
 	MemberUserIDs []uint64 `json:"member_user_ids" binding:"required,min=2"`
 	CreatorID     uint64
+}
+
+func (c *CreateConversationRequest) ValidateConversationType(sortedMemberIDs []uint64) error {
+
+	switch {
+	case len(sortedMemberIDs) < 1:
+		return errors.New("direct conversation must have exactly 2 members")
+	case c.Type == "direct" && len(sortedMemberIDs) > 2:
+		c.Type = "group" // Automatically convert to group if more than 2 members are provided
+	case c.Type == "group" && len(sortedMemberIDs) <= 2:
+		c.Type = "direct" // Automatically convert to direct if only 2 members are provided
+	}
+	return nil
 }
 
 // CreateConversationResponse represents the response payload after successfully creating a new conversation.

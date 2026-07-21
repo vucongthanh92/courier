@@ -68,6 +68,30 @@ func (repo *userQueryRepository) GetUserByIdOrEmail(ctx context.Context, req mod
 	return &user, nil
 }
 
+// GetUsersByIDs returns users for the provided IDs, excluding soft-deleted rows.
+func (repo *userQueryRepository) GetUsersByIDs(ctx context.Context, userIDs []uint64) (
+	res []entities.User, errRes *errHandler.ErrorBuilder) {
+
+	ctx, span := tracing.StartSpanFromContext(ctx, "GetUsersByIDs")
+	defer span.End()
+
+	if len(userIDs) == 0 {
+		return []entities.User{}, nil
+	}
+
+	runner := transaction.RunnerFromCtx(ctx, repo.readDb)
+	err := runner.Model(&entities.User{}).
+		Select("id, status").
+		Where("deleted_at is null").
+		Where("id IN ?", userIDs).
+		Find(&res).Error
+	if err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
+
+	return res, nil
+}
+
 // CheckExistingEmailOrPhone implements interfaces.UserQueryRepoI
 // This method checks if a user with the given email or phone number already exists in the database.
 // It returns a boolean indicating existence and an error builder if any error occurs during the check.

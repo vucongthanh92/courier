@@ -12,6 +12,7 @@ import (
 // repository interface
 type UserQueryRepoI interface {
 	GetUserByIdOrEmail(ctx context.Context, req models.GetUserByIdOrEmailRequest) (res *entities.User, errRes *errHandler.ErrorBuilder)
+	GetUsersByIDs(ctx context.Context, userIDs []uint64) (res []entities.User, errRes *errHandler.ErrorBuilder)
 	CheckExistingEmailOrPhone(ctx context.Context, email string, phoneNumber string) (res bool, errRes *errHandler.ErrorBuilder)
 }
 
