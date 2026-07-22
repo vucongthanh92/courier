@@ -28,6 +28,13 @@
 - Commit messages: short, present-tense summaries with optional scope prefix (`api: add signup validation`); keep under 72 chars.
 - PRs should include: passing `make test`; regenerated Swagger if endpoints change; migrations when schemas change; concise description linking issues (`Fixes #123`); notes on config/env impacts; screenshots only when user-facing docs or flows change.
 
+## Collaboration Workflow
+- Follow `docs/collaboration-workflow.md` for feature planning, GitHub issue creation, implementation checkpoints, and issue closure.
+- Before implementation work, read `docs/service-map.md` and the topic-specific docs that match the task, such as `docs/grpc-contracts.md`, `docs/dev-commands.md`, `docs/troubleshooting.md`, or `docs/codegraph.md`.
+- Discuss and agree on the implementation approach before creating or editing code when the user asks to plan first.
+- After the approach is agreed, create or update a GitHub issue that captures the requirement, context, proposed solution, implementation steps, and validation plan.
+- Implement in focused steps, verify each meaningful step, and keep the issue updated when the user confirms the goal is complete.
+
 ## Security & Configuration Tips
 - Never commit secrets; load credentials via env vars referenced by `config/<env>/config.yaml` or compose files.
 - Document new external dependencies and defaults in config; validate inbound data at handler boundaries.
