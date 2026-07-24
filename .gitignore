@@ -20,3 +20,4 @@ coverage.out
 
 .env.local
 .gocache/
+.cache/
