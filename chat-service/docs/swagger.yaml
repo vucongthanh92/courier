@@ -1,0 +1,241 @@
+basePath: /
+definitions:
+  entities.ConversationMember:
+    properties:
+      conversation_id:
+        type: integer
+      created_at:
+        type: string
+      id:
+        type: integer
+      joined_at:
+        type: string
+      last_read_at:
+        type: string
+      last_read_message_id:
+        type: integer
+      left_at:
+        type: string
+      muted_until:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  httpcommon.SuccessResponse-any:
+    properties:
+      data: {}
+      errors:
+        items:
+          $ref: '#/definitions/models.ErrorDTO'
+        type: array
+      success:
+        type: boolean
+    type: object
+  httpcommon.SuccessResponse-models_MessageResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.MessageResponse'
+      errors:
+        items:
+          $ref: '#/definitions/models.ErrorDTO'
+        type: array
+      success:
+        type: boolean
+    type: object
+  models.CreateConversationRequest:
+    properties:
+      creatorID:
+        type: integer
+      member_user_ids:
+        items:
+          type: integer
+        minItems: 2
+        type: array
+      name:
+        type: string
+      type:
+        enum:
+        - direct
+        - group
+        type: string
+    required:
+    - member_user_ids
+    - type
+    type: object
+  models.CreateConversationResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      direct_key:
+        type: string
+      id:
+        type: integer
+      last_message_at:
+        type: string
+      last_message_id:
+        type: integer
+      members:
+        items:
+          $ref: '#/definitions/entities.ConversationMember'
+        type: array
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.ErrorDTO:
+    properties:
+      code:
+        type: string
+      field:
+        type: string
+      message:
+        type: string
+    type: object
+  models.MessageResponse:
+    properties:
+      body:
+        type: string
+      client_message_id:
+        type: string
+      conversation_id:
+        type: integer
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      edited_at:
+        type: string
+      id:
+        type: integer
+      metadata:
+        additionalProperties: {}
+        type: object
+      reply_to_message_id:
+        type: integer
+      sender_id:
+        type: integer
+      type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.SendMessageRequest:
+    properties:
+      body:
+        type: string
+      client_message_id:
+        type: string
+      metadata:
+        additionalProperties: {}
+        type: object
+      reply_to_message_id:
+        type: integer
+      type:
+        type: string
+    required:
+    - body
+    - type
+    type: object
+info:
+  contact: {}
+  description: Conversation and messaging APIs for Courier.
+  title: Courier Chat Service API
+  version: "1.0"
+paths:
+  /api/v1/conversation/create:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: CreateConversationRequest
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateConversationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CreateConversationResponse'
+      summary: create new conversation
+      tags:
+      - Conversation
+  /api/v1/conversations/{id}/messages/create:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: SendMessageRequest
+        in: body
+        name: params
+        required: true
+        schema:
+          $ref: '#/definitions/models.SendMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-models_MessageResponse'
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-models_MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+      security:
+      - BearerAuth: []
+      summary: create a text message in a conversation
+      tags:
+      - Message
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

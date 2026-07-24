@@ -40,6 +40,9 @@ func (r *repoQueryMember) GetConversationMember(ctx context.Context, conversatio
 		Where("conversation_id = ? AND user_id = ?", conversationID, userID).
 		Take(&res).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return &res, nil

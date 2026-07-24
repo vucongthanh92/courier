@@ -42,8 +42,19 @@ tracing:
 redis:
   addrs: ["localhost:6379"]
   password: ""
-  db: 0
+  db: 1
   poolSize: 100
+messageRateLimit:
+  enabled: true
+  burst:
+    limit: 5
+    windowSeconds: 2
+  conversation:
+    limit: 30
+    windowSeconds: 60
+  user:
+    limit: 100
+    windowSeconds: 60
 heathcheck:
   interval: 10
   port: :7002

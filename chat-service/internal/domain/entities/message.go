@@ -1,6 +1,10 @@
 package entities
 
-import "time"
+import (
+	"time"
+
+	"github.com/vucongthanh92/courier/chat-service/helper/utils"
+)
 
 type Message struct {
 	ID               uint64         `gorm:"column:id;primaryKey;type:bigint;check:id>0" json:"id"`
@@ -19,4 +23,24 @@ type Message struct {
 
 func (Message) TableName() string {
 	return `"chat-service".messages`
+}
+
+func (m *Message) InitMessageEntity(conversationID, senderID uint64, messageType, body string, clientMessageID *string, replyToMessageID *uint64, metadata map[string]any) error {
+	newMessageID, err := utils.NewSnowflakeID()
+	if err != nil {
+		return err
+	}
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+	m.ID = newMessageID
+	m.ConversationID = conversationID
+	m.SenderID = senderID
+	m.Type = messageType
+	m.Body = body
+	m.ClientMessageID = clientMessageID
+	m.ReplyToMessageID = replyToMessageID
+	m.Metadata = metadata
+
+	return nil
 }

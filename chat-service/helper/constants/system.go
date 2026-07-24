@@ -53,3 +53,10 @@ const (
 	MessageTypeText   = "text"
 	MessageTypeSystem = "system"
 )
+
+// Constants for message validation
+const (
+	MaxTextMessageRunes = 4000
+	MaxMetadataBytes    = 16 * 1024
+	MaxClientMessageID  = 64
+)

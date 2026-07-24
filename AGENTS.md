@@ -34,6 +34,7 @@
 - Discuss and agree on the implementation approach before creating or editing code when the user asks to plan first.
 - After the approach is agreed, create or update a GitHub issue that captures the requirement, context, proposed solution, implementation steps, and validation plan.
 - Implement in focused steps, verify each meaningful step, and keep the issue updated when the user confirms the goal is complete.
+- Append an explicit AI attribution signature to every GitHub issue body or issue/PR comment created or materially edited by an AI agent. Use wording such as `— Nội dung được viết/cập nhật bởi AI (OpenAI Codex).` and identify a different AI agent when known.
 
 ## Security & Configuration Tips
 - Never commit secrets; load credentials via env vars referenced by `config/<env>/config.yaml` or compose files.

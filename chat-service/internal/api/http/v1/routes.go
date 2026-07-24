@@ -9,7 +9,9 @@ import (
 func MapRoutes(
 	router *gin.Engine,
 	conversationHandler *ConversationHandler,
+	messageHandler *MessageHandler,
 	authMiddleWare gin.HandlerFunc,
+	messageRateLimitMiddleware gin.HandlerFunc,
 ) {
 
 	// Protected routes
@@ -17,6 +19,7 @@ func MapRoutes(
 	v1.Use(authMiddleWare)
 	{
 		v1.POST("/conversation/create", conversationHandler.CreateConversation)
+		v1.POST("/conversations/:id/messages/create", messageRateLimitMiddleware, messageHandler.CreateMessage)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
