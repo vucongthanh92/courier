@@ -43,6 +43,9 @@ func (r *repoQueryConversation) GetConversationByID(ctx context.Context, id uint
 		Where("id = ? AND deleted_at IS NULL", id).
 		Take(&res).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return &res, nil

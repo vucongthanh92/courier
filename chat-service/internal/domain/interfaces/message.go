@@ -9,6 +9,7 @@ import (
 )
 
 type MessageServiceI interface {
+	CreateMessage(ctx context.Context, req *models.SendMessageRequest) (*entities.Message, bool, *errHandler.ErrorBuilder)
 }
 
 type MessageQueryRepoI interface {

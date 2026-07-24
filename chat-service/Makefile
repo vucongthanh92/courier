@@ -7,6 +7,9 @@ install:
 wire:
 	wire ./internal
 
+swagger:
+	swag init --parseDependency --parseInternal
+
 test:
 	go test -v ./...
 

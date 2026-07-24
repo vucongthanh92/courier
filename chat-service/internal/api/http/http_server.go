@@ -16,6 +16,8 @@ import (
 type Server struct {
 	cfg                 *config.AppConfig
 	conversationHandler *v1.ConversationHandler
+	messageHandler      *v1.MessageHandler
+	messageRateLimiter  interfaces.MessageRateLimiterI
 	jwkCache            cacheRepo.JWKCacheRepo
 	userGrpc            user_grpc.UserGrpcClient
 	tokenDeny           interfaces.TokenDenylistI
@@ -24,12 +26,16 @@ type Server struct {
 func NewServer(
 	cfg *config.AppConfig,
 	conversationHandler *v1.ConversationHandler,
+	messageHandler *v1.MessageHandler,
+	messageRateLimiter interfaces.MessageRateLimiterI,
 	jwkCache cacheRepo.JWKCacheRepo,
 	userGrpc user_grpc.UserGrpcClient,
 	tokenDeny interfaces.TokenDenylistI) *Server {
 	return &Server{
 		cfg:                 cfg,
 		conversationHandler: conversationHandler,
+		messageHandler:      messageHandler,
+		messageRateLimiter:  messageRateLimiter,
 		jwkCache:            jwkCache,
 		userGrpc:            userGrpc,
 		tokenDeny:           tokenDeny,
@@ -56,7 +62,9 @@ func (s *Server) Run() {
 	v1.MapRoutes(
 		router,
 		s.conversationHandler,
+		s.messageHandler,
 		authMW,
+		middleware.MessageRateLimitMiddleware(s.messageRateLimiter),
 	)
 
 	httpServer.Run()

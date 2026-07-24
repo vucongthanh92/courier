@@ -19,8 +19,10 @@ import (
 
 	conversationRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
 	memberRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
+	messageRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/message"
 
 	conversationUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
+	messageUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/message"
 
 	v1 "github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
 )
@@ -37,10 +39,12 @@ var apiSet = wire.NewSet(
 
 var handlerSet = wire.NewSet(
 	v1.InitConversationHandler,
+	v1.InitMessageHandler,
 )
 
 var serviceSet = wire.NewSet(
 	conversationUc.InitConversationUsecase,
+	messageUc.InitMessageUsecase,
 )
 
 var repoSet = wire.NewSet(
@@ -48,8 +52,11 @@ var repoSet = wire.NewSet(
 	conversationRepo.InitConversationQueryRepo,
 	memberRepo.InitMemberCommandRepo,
 	memberRepo.InitMemberQueryRepo,
+	messageRepo.InitMessageCmdRepo,
+	messageRepo.InitMessageQueryRepo,
 	cacheRepo.InitJWKCacheRepo,
 	cacheRepo.InitRedisDenylist,
+	cacheRepo.InitMessageRateLimiter,
 )
 
 var providerSet = wire.NewSet(

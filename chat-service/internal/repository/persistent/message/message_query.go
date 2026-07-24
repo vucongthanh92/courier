@@ -13,17 +13,21 @@ import (
 )
 
 type repoQueryMessage struct {
-	readDB *gorm.DB
+	readDB  *gorm.DB
+	writeDB *gorm.DB
 }
 
 func InitMessageQueryRepo(readDb *database.GormReadDb, writeDb *database.GormWriteDb) interfaces.MessageQueryRepoI {
 	return &repoQueryMessage{
-		readDB: *readDb,
+		readDB:  *readDb,
+		writeDB: *writeDb,
 	}
 }
 
 func (r *repoQueryMessage) GetMessageByClientMessageID(ctx context.Context, conversationID uint64, clientMessageID string) (*entities.Message, *errHandler.ErrorBuilder) {
-	run := transaction.RunnerFromCtx(ctx, r.readDB)
+	// Idempotency checks need read-after-write consistency, especially when a
+	// concurrent insert wins the unique-key race.
+	run := transaction.RunnerFromCtx(ctx, r.writeDB)
 	var res entities.Message
 	err := run.Model(&entities.Message{}).
 		Where("conversation_id = ? AND client_message_id = ?", conversationID, clientMessageID).
@@ -60,9 +64,12 @@ func (r *repoQueryMessage) GetMessageByID(ctx context.Context, id uint64) (*enti
 	run := transaction.RunnerFromCtx(ctx, r.readDB)
 	var res entities.Message
 	err := run.Model(&entities.Message{}).
-		Where("id = ?", id).
+		Where("id = ? AND deleted_at IS NULL", id).
 		Take(&res).Error
 	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
 		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return &res, nil
