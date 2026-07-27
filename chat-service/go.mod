@@ -21,6 +21,7 @@ require (
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/swaggo/swag v1.8.12
 	github.com/vucongthanh92/courier/shared v0.0.0
 	go.opentelemetry.io/otel/trace v1.43.0
 	google.golang.org/grpc v1.82.0
@@ -133,7 +134,6 @@ require (
 	github.com/spf13/cobra v1.9.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	github.com/swaggo/swag v1.8.12 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	github.com/ulule/limiter/v3 v3.11.2 // indirect

@@ -39,7 +39,8 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	conversationHandler := v1.InitConversationHandler(conversationServiceI)
 	messageQueryRepoI := message.InitMessageQueryRepo(readDb, writeDb)
 	messageCmdRepoI := message.InitMessageCmdRepo(readDb, writeDb)
-	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI)
+	messageListCacheI := redis2.InitMessageListCache(redisClient)
+	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI)
 	messageHandler := v1.InitMessageHandler(messageServiceI)
 	messageRateLimiterI := redis2.InitMessageRateLimiter(redisClient, appCfg)
 	jwkCacheRepo := redis2.InitJWKCacheRepo(redisClient)
@@ -61,6 +62,6 @@ var handlerSet = wire.NewSet(v1.InitConversationHandler, v1.InitMessageHandler)
 
 var serviceSet = wire.NewSet(conversation2.InitConversationUsecase, message2.InitMessageUsecase)
 
-var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter)
+var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache)
 
 var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn)

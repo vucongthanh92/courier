@@ -111,3 +111,73 @@ func (h *MessageHandler) CreateMessage(c *gin.Context) {
 
 	c.JSON(status, httpcommon.NewSuccessResponse(*response))
 }
+
+// ListMessages godoc
+// @Tags Message
+// @Summary list messages in a conversation
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "Conversation ID"
+// @Param limit query int false "Limit, default 20 and max 100"
+// @Param before_message_id query int false "Fetch messages older than this message ID"
+// @Router /api/v1/conversations/{id}/messages [get]
+// @Success 200 {object} httpcommon.SuccessResponse[models.ListMessagesResponse]
+// @Failure 400 {object} httpcommon.SuccessResponse[any]
+// @Failure 401 {object} httpcommon.SuccessResponse[any]
+// @Failure 403 {object} httpcommon.SuccessResponse[any]
+// @Failure 404 {object} httpcommon.SuccessResponse[any]
+func (h *MessageHandler) ListMessages(c *gin.Context) {
+
+	// Parse and validate the conversation ID from the URL parameter
+	conversationID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil || conversationID == 0 {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{
+				Code:    "invalid_conversation_id",
+				Message: "conversation id must be a positive integer",
+			}).ExposeHttpError(c)
+		return
+	}
+
+	// Parse and validate the query parameters for listing messages
+	var req models.ListMessagesRequest
+	if err := httpcommon.GetQueryParamsHTTP(c, &req); err != nil {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{
+				Code:    constants.INVALID_FORMAT,
+				Message: "Invalid Request",
+			}).ExposeHttpError(c)
+		return
+	}
+
+	// Validate the request parameters using the ValidateRequest function
+	claimsValue, ok := c.Get("authClaims")
+	claims, claimsOK := claimsValue.(jwt.MapClaims)
+	if !ok || !claimsOK {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{
+				Code:    "unauthorized",
+				Message: "missing authenticated user",
+			}).ExposeHttpError(c)
+		return
+	}
+
+	// Set the conversation ID and requester ID in the request
+	req.ConversationID = conversationID
+	req.RequesterID = utils.ParseUserID(claims["sub"])
+	ctx := utils.SetHeaderByKey(c, "headers")
+	response, serviceErr := h.messageService.ListMessages(ctx, &req)
+	if serviceErr != nil {
+		serviceErr.ExposeHttpError(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(*response))
+}

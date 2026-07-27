@@ -7,6 +7,7 @@ const (
 	Time_Cache_1_day      = 24 * time.Hour
 	Time_Cache_5_seconds  = 5 * time.Second
 	Time_Cache_15_minutes = 15 * time.Minute
+	Time_Cache_30_seconds = 30 * time.Second
 )
 
 const (

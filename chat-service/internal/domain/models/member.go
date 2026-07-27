@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/entities"
 )
 
 type ConversationMemberResponse struct {
@@ -15,4 +17,17 @@ type ConversationMemberResponse struct {
 	LastReadMessageID *uint64    `json:"last_read_message_id,omitempty"`
 	LastReadAt        *time.Time `json:"last_read_at,omitempty"`
 	MutedUntil        *time.Time `json:"muted_until,omitempty"`
+}
+
+func (m *ConversationMemberResponse) MappeDTO(entity entities.ConversationMember) {
+	m.ID = entity.ID
+	m.ConversationID = entity.ConversationID
+	m.UserID = entity.UserID
+	m.Role = entity.Role
+	m.Status = entity.Status
+	m.JoinedAt = entity.JoinedAt
+	m.LeftAt = entity.LeftAt
+	m.LastReadMessageID = entity.LastReadMessageID
+	m.LastReadAt = entity.LastReadAt
+	m.MutedUntil = entity.MutedUntil
 }

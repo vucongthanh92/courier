@@ -2,12 +2,15 @@ package models
 
 import (
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/vucongthanh92/courier/chat-service/helper/constants"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/entities"
 )
 
 // SendMessageRequest represents the request payload for sending a message in a conversation.
+// It includes the message type, body, optional client message ID, optional reply-to message ID, and optional metadata.
 type SendMessageRequest struct {
 	Type             string         `json:"type" binding:"required"`
 	Body             string         `json:"body" binding:"required"`
@@ -45,8 +48,83 @@ func (req *SendMessageRequest) ValidateRequest() (messageCode, messageErr string
 	return "", ""
 }
 
+// MessageResponse represents a message returned by chat APIs.
+// It includes the message ID, conversation ID, sender ID, type, body, optional reply-to message ID, optional client message ID, metadata, and timestamps for creation, update, and edit.
+type MessageResponse struct {
+	ID               uint64         `json:"id"`
+	ConversationID   uint64         `json:"conversation_id"`
+	SenderID         uint64         `json:"sender_id"`
+	Type             string         `json:"type"`
+	Body             string         `json:"body"`
+	ReplyToMessageID *uint64        `json:"reply_to_message_id,omitempty"`
+	ClientMessageID  *string        `json:"client_message_id,omitempty"`
+	Metadata         map[string]any `json:"metadata"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	EditedAt         *time.Time     `json:"edited_at,omitempty"`
+}
+
+func (m *MessageResponse) MappeDTO(message *entities.Message) {
+	metadata := message.Metadata
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+
+	m.ID = message.ID
+	m.ConversationID = message.ConversationID
+	m.SenderID = message.SenderID
+	m.Type = message.Type
+	m.Body = message.Body
+	m.ReplyToMessageID = message.ReplyToMessageID
+	m.ClientMessageID = message.ClientMessageID
+	m.Metadata = metadata
+	m.CreatedAt = message.CreatedAt
+	m.UpdatedAt = message.UpdatedAt
+	m.EditedAt = message.EditedAt
+}
+
 // ListMessagesRequest represents the request parameters for listing messages in a conversation.
 type ListMessagesRequest struct {
 	Limit           int     `form:"limit"`
 	BeforeMessageID *uint64 `form:"before_message_id"`
+	RequesterID     uint64  `form:"-"`
+	ConversationID  uint64  `form:"-"`
+}
+
+func (req *ListMessagesRequest) ValidateRequest() (messageCode, messageErr string) {
+	switch {
+	case req.RequesterID == 0:
+		return "unauthorized", "missing authenticated user"
+	case req.ConversationID == 0:
+		return "invalid_conversation_id", "conversation id must be a positive integer"
+	case req.Limit < 0:
+		return "invalid_limit", "limit must be a positive integer"
+	}
+	if req.Limit == 0 {
+		req.Limit = 20
+	}
+	if req.Limit > 100 {
+		req.Limit = 100
+	}
+	return "", ""
+}
+
+// ListMessagesResponse represents the response for listing messages in a conversation.
+type ListMessagesResponse struct {
+	ConversationID uint64                       `json:"conversation_id"`
+	Messages       []MessageResponse            `json:"messages"`
+	Members        []ConversationMemberResponse `json:"members"`
+	Pagination     MessagePaginationResponse    `json:"pagination"`
+}
+
+// MessagePaginationResponse represents the pagination information for listing messages in a conversation.
+type MessagePaginationResponse struct {
+	Limit               int     `json:"limit"`
+	NextBeforeMessageID *uint64 `json:"next_before_message_id,omitempty"`
+	HasMore             bool    `json:"has_more"`
+}
+
+type CachedMessageListPage struct {
+	Messages   []MessageResponse         `json:"messages"`
+	Pagination MessagePaginationResponse `json:"pagination"`
 }
