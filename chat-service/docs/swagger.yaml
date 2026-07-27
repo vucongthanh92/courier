@@ -37,6 +37,17 @@ definitions:
       success:
         type: boolean
     type: object
+  httpcommon.SuccessResponse-models_ListMessagesResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.ListMessagesResponse'
+      errors:
+        items:
+          $ref: '#/definitions/models.ErrorDTO'
+        type: array
+      success:
+        type: boolean
+    type: object
   httpcommon.SuccessResponse-models_MessageResponse:
     properties:
       data:
@@ -47,6 +58,29 @@ definitions:
         type: array
       success:
         type: boolean
+    type: object
+  models.ConversationMemberResponse:
+    properties:
+      conversation_id:
+        type: integer
+      id:
+        type: integer
+      joined_at:
+        type: string
+      last_read_at:
+        type: string
+      last_read_message_id:
+        type: integer
+      left_at:
+        type: string
+      muted_until:
+        type: string
+      role:
+        type: string
+      status:
+        type: string
+      user_id:
+        type: integer
     type: object
   models.CreateConversationRequest:
     properties:
@@ -105,6 +139,30 @@ definitions:
       message:
         type: string
     type: object
+  models.ListMessagesResponse:
+    properties:
+      conversation_id:
+        type: integer
+      members:
+        items:
+          $ref: '#/definitions/models.ConversationMemberResponse'
+        type: array
+      messages:
+        items:
+          $ref: '#/definitions/models.MessageResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/models.MessagePaginationResponse'
+    type: object
+  models.MessagePaginationResponse:
+    properties:
+      has_more:
+        type: boolean
+      limit:
+        type: integer
+      next_before_message_id:
+        type: integer
+    type: object
   models.MessageResponse:
     properties:
       body:
@@ -114,8 +172,6 @@ definitions:
       conversation_id:
         type: integer
       created_at:
-        type: string
-      deleted_at:
         type: string
       edited_at:
         type: string
@@ -177,6 +233,52 @@ paths:
       summary: create new conversation
       tags:
       - Conversation
+  /api/v1/conversations/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Limit, default 20 and max 100
+        in: query
+        name: limit
+        type: integer
+      - description: Fetch messages older than this message ID
+        in: query
+        name: before_message_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-models_ListMessagesResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+      security:
+      - BearerAuth: []
+      summary: list messages in a conversation
+      tags:
+      - Message
   /api/v1/conversations/{id}/messages/create:
     post:
       consumes:

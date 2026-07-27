@@ -1,6 +1,8 @@
 package errorhandler
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	httpcommon "github.com/vucongthanh92/courier/chat-service/helper/http_common"
 	"github.com/vucongthanh92/courier/chat-service/helper/utils"
@@ -44,4 +46,15 @@ func (b *ErrorBuilder) ExposeLogError() {
 	}
 
 	logger.Error("ErrorBuilder", fields...)
+}
+
+// IsUniqueViolation checks if the error is a unique constraint violation in the database.
+// It looks for specific SQL state codes or error messages that indicate a unique violation.
+func (b *ErrorBuilder) IsUniqueViolation() bool {
+	if b.LogError == nil {
+		return false
+	}
+	message := strings.ToLower(b.LogError.Error())
+	return strings.Contains(message, "sqlstate 23505") ||
+		strings.Contains(message, "duplicate key")
 }

@@ -9,7 +9,8 @@ import (
 )
 
 type MessageServiceI interface {
-	CreateMessage(ctx context.Context, req *models.SendMessageRequest) (*entities.Message, bool, *errHandler.ErrorBuilder)
+	CreateMessage(ctx context.Context, req *models.SendMessageRequest) (*models.MessageResponse, bool, *errHandler.ErrorBuilder)
+	ListMessages(ctx context.Context, req *models.ListMessagesRequest) (*models.ListMessagesResponse, *errHandler.ErrorBuilder)
 }
 
 type MessageQueryRepoI interface {
