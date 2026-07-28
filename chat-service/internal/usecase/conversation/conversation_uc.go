@@ -3,6 +3,8 @@ package conversation
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"time"
 
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/chat-service/helper/transaction"
@@ -154,4 +156,57 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 	}
 
 	return &resp, nil
+}
+
+// func ListConversations
+func (s *ConversationUseCaseImpl) ListConversations(ctx context.Context, req *models.ListConversationsRequest) (
+	*models.ListConversationsResponse, *errHandler.ErrorBuilder) {
+
+	if messageCode, messageErr := req.ValidateRequest(); messageCode != "" {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{
+				Code:    messageCode,
+				Message: messageErr,
+			})
+	}
+
+	limit := req.Limit
+	queryReq := *req
+	queryReq.Limit = limit + 1
+	conversations, queryErr := s.conversationReadRepo.ListConversationsByMember(ctx, &queryReq)
+	if queryErr != nil {
+		return nil, queryErr
+	}
+
+	hasMore := len(conversations) > limit
+	if hasMore {
+		conversations = conversations[:limit]
+	}
+
+	var (
+		nextBeforeLastMessageAt  *time.Time
+		nextBeforeConversationID *uint64
+	)
+
+	if hasMore && len(conversations) > 0 {
+		last := conversations[len(conversations)-1]
+		cursorTime := last.CreatedAt
+		if last.LastMessageAt != nil {
+			cursorTime = *last.LastMessageAt
+		}
+		nextBeforeLastMessageAt = &cursorTime
+		nextConversationID := last.ID
+		nextBeforeConversationID = &nextConversationID
+	}
+
+	return &models.ListConversationsResponse{
+		Conversations: conversations,
+		Pagination: models.ListConversationsPaginationResponse{
+			Limit:                    limit,
+			HasMore:                  hasMore,
+			NextBeforeLastMessageAt:  nextBeforeLastMessageAt,
+			NextBeforeConversationID: nextBeforeConversationID,
+		},
+	}, nil
 }

@@ -80,3 +80,56 @@ func (h *ConversationHandler) CreateConversation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(resp))
 }
+
+// API List Conversations godoc
+// @Tags Conversation
+// @Summary list conversations for authenticated user
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param limit query int false "Limit, default 20 and max 100"
+// @Param before_last_message_at query string false "Cursor activity timestamp"
+// @Param before_conversation_id query int false "Cursor conversation ID"
+// @Router /api/v1/conversations [get]
+// @Success 200 {object} httpcommon.SuccessResponse[models.ListConversationsResponse]
+// @Failure 400 {object} httpcommon.SuccessResponse[any]
+// @Failure 401 {object} httpcommon.SuccessResponse[any]
+func (h *ConversationHandler) ListConversations(c *gin.Context) {
+
+	var req models.ListConversationsRequest
+	if err := httpcommon.GetQueryParamsHTTP(c, &req); err != nil {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{
+				Code:    constants.INVALID_FORMAT,
+				Message: "Invalid Request",
+			}).ExposeHttpError(c)
+		return
+	}
+
+	//
+	claimsValue, ok := c.Get("authClaims")
+	claims, claimsOK := claimsValue.(jwt.MapClaims)
+	if !ok || !claimsOK {
+		errHandler.InitErrorBuilder(c).
+			SetLogError(errors.New(constants.InvalidValue)).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{
+				Code:    "unauthorized",
+				Message: "missing authenticated user",
+			}).ExposeHttpError(c)
+		return
+	}
+
+	//
+	req.RequesterID = utils.ParseUserID(claims["sub"])
+	ctx := utils.SetHeaderByKey(c, "headers")
+	resp, errBuilder := h.conversationService.ListConversations(ctx, &req)
+	if errBuilder != nil {
+		errBuilder.ExposeHttpError(c)
+		return
+	}
+
+	c.JSON(http.StatusOK, httpcommon.NewSuccessResponse(*resp))
+}

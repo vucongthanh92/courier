@@ -24,6 +24,10 @@ func (s conversationQueryStub) GetConversationByID(context.Context, uint64) (*en
 	return s.conversation, nil
 }
 
+func (s conversationQueryStub) ListConversationsByMember(context.Context, *models.ListConversationsRequest) ([]models.ConversationListResponse, *errHandler.ErrorBuilder) {
+	return nil, nil
+}
+
 type memberQueryStub struct {
 	member  *entities.ConversationMember
 	members []entities.ConversationMember

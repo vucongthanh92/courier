@@ -19,8 +19,9 @@ func MapRoutes(
 	v1.Use(authMiddleWare)
 	{
 		v1.POST("/conversation/create", conversationHandler.CreateConversation)
-		v1.POST("/conversations/:id/messages/create", messageRateLimitMiddleware, messageHandler.CreateMessage)
-		v1.GET("/conversations/:id/messages", messageHandler.ListMessages)
+		v1.GET("/conversations", conversationHandler.ListConversations)
+		v1.POST("/conversation/:id/messages/create", messageRateLimitMiddleware, messageHandler.CreateMessage)
+		v1.GET("/conversation/:id/messages", messageHandler.ListMessages)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

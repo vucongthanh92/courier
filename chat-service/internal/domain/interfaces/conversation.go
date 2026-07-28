@@ -10,11 +10,13 @@ import (
 
 type ConversationServiceI interface {
 	CreateConversation(ctx context.Context, req *models.CreateConversationRequest) (*models.CreateConversationResponse, *errHandler.ErrorBuilder)
+	ListConversations(ctx context.Context, req *models.ListConversationsRequest) (*models.ListConversationsResponse, *errHandler.ErrorBuilder)
 }
 
 type ConversationQueryRepoI interface {
 	GetDirectConversationByKey(ctx context.Context, directKey string) (*entities.Conversation, *errHandler.ErrorBuilder)
 	GetConversationByID(ctx context.Context, id uint64) (*entities.Conversation, *errHandler.ErrorBuilder)
+	ListConversationsByMember(ctx context.Context, req *models.ListConversationsRequest) ([]models.ConversationListResponse, *errHandler.ErrorBuilder)
 }
 
 type ConversationCommandRepoI interface {
