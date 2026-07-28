@@ -37,6 +37,17 @@ definitions:
       success:
         type: boolean
     type: object
+  httpcommon.SuccessResponse-models_ListConversationsResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.ListConversationsResponse'
+      errors:
+        items:
+          $ref: '#/definitions/models.ErrorDTO'
+        type: array
+      success:
+        type: boolean
+    type: object
   httpcommon.SuccessResponse-models_ListMessagesResponse:
     properties:
       data:
@@ -58,6 +69,32 @@ definitions:
         type: array
       success:
         type: boolean
+    type: object
+  models.ConversationListResponse:
+    properties:
+      created_at:
+        type: string
+      created_by:
+        type: integer
+      direct_key:
+        type: string
+      id:
+        type: integer
+      last_message:
+        $ref: '#/definitions/models.MessageResponse'
+      last_message_at:
+        type: string
+      last_message_id:
+        type: integer
+      metadata:
+        additionalProperties: {}
+        type: object
+      name:
+        type: string
+      type:
+        type: string
+      updated_at:
+        type: string
     type: object
   models.ConversationMemberResponse:
     properties:
@@ -138,6 +175,26 @@ definitions:
         type: string
       message:
         type: string
+    type: object
+  models.ListConversationsPaginationResponse:
+    properties:
+      has_more:
+        type: boolean
+      limit:
+        type: integer
+      next_before_conversation_id:
+        type: integer
+      next_before_last_message_at:
+        type: string
+    type: object
+  models.ListConversationsResponse:
+    properties:
+      conversations:
+        items:
+          $ref: '#/definitions/models.ConversationListResponse'
+        type: array
+      pagination:
+        $ref: '#/definitions/models.ListConversationsPaginationResponse'
     type: object
   models.ListMessagesResponse:
     properties:
@@ -231,6 +288,43 @@ paths:
           schema:
             $ref: '#/definitions/models.CreateConversationResponse'
       summary: create new conversation
+      tags:
+      - Conversation
+  /api/v1/conversations:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Limit, default 20 and max 100
+        in: query
+        name: limit
+        type: integer
+      - description: Cursor activity timestamp
+        in: query
+        name: before_last_message_at
+        type: string
+      - description: Cursor conversation ID
+        in: query
+        name: before_conversation_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-models_ListConversationsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+      security:
+      - BearerAuth: []
+      summary: list conversations for authenticated user
       tags:
       - Conversation
   /api/v1/conversations/{id}/messages:

@@ -49,6 +49,65 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/conversations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversation"
+                ],
+                "summary": "list conversations for authenticated user",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Limit, default 20 and max 100",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cursor activity timestamp",
+                        "name": "before_last_message_at",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Cursor conversation ID",
+                        "name": "before_conversation_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-models_ListConversationsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/conversations/{id}/messages": {
             "get": {
                 "security": [
@@ -266,6 +325,23 @@ const docTemplate = `{
                 }
             }
         },
+        "httpcommon.SuccessResponse-models_ListConversationsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.ListConversationsResponse"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ErrorDTO"
+                    }
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "httpcommon.SuccessResponse-models_ListMessagesResponse": {
             "type": "object",
             "properties": {
@@ -297,6 +373,45 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "models.ConversationListResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "created_by": {
+                    "type": "integer"
+                },
+                "direct_key": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_message": {
+                    "$ref": "#/definitions/models.MessageResponse"
+                },
+                "last_message_at": {
+                    "type": "string"
+                },
+                "last_message_id": {
+                    "type": "integer"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -417,6 +532,37 @@ const docTemplate = `{
                 },
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "models.ListConversationsPaginationResponse": {
+            "type": "object",
+            "properties": {
+                "has_more": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "next_before_conversation_id": {
+                    "type": "integer"
+                },
+                "next_before_last_message_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ListConversationsResponse": {
+            "type": "object",
+            "properties": {
+                "conversations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ConversationListResponse"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/models.ListConversationsPaginationResponse"
                 }
             }
         },
