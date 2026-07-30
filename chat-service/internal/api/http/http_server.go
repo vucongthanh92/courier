@@ -10,6 +10,7 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 	user_grpc "github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
+	httpmiddlewares "github.com/vucongthanh92/go-base-utils/http/middlewares"
 	httpserver "github.com/vucongthanh92/go-base-utils/http/server"
 )
 
@@ -52,6 +53,7 @@ func (s *Server) Run() {
 	}
 
 	httpServer, router := httpserver.NewServer(*serverConfig)
+	router.Use(httpmiddlewares.Cors(s.cfg.Http.AllowOrigins...))
 
 	// Set up JWT middleware with denylist and public key resolver
 	authMW := middleware.JWTMiddleware(s.tokenDeny, func(ctx context.Context, kid string) (interface{}, *errHandler.ErrorBuilder) {
