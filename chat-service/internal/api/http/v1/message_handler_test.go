@@ -88,7 +88,7 @@ func TestMessageHandlerCreateMessage(t *testing.T) {
 		t.Fatalf("handler did not source identities from path/JWT: %#v", service.createRequest)
 	}
 	if !bytes.Contains(response.Body.Bytes(), []byte(`"success":true`)) ||
-		!bytes.Contains(response.Body.Bytes(), []byte(`"conversation_id":10`)) {
+		!bytes.Contains(response.Body.Bytes(), []byte(`"conversation_id":"10"`)) {
 		t.Fatalf("unexpected response body: %s", response.Body.String())
 	}
 }

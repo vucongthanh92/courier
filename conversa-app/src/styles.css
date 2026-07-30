@@ -229,6 +229,25 @@ button {
   background: #e9f0f6;
 }
 
+.conversation-item.unread {
+  background: #e3f4eb;
+}
+
+.conversation-item.unread::after {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #087f5b;
+  content: "";
+}
+
+.conversation-item.unread strong,
+.conversation-item.unread small {
+  color: #075f46;
+  font-weight: 700;
+}
+
 .conversation-item span {
   min-width: 0;
   display: grid;

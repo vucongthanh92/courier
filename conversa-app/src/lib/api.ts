@@ -72,7 +72,7 @@ export const chatApi = {
       token
     });
   },
-  listMessages(token: string, conversationId: number, beforeMessageId?: number) {
+  listMessages(token: string, conversationId: string, beforeMessageId?: string) {
     const query = new URLSearchParams({ limit: "30" });
     if (beforeMessageId) query.set("before_message_id", String(beforeMessageId));
     return request<ListMessagesResponse>(
@@ -81,7 +81,7 @@ export const chatApi = {
       { token }
     );
   },
-  createMessage(token: string, conversationId: number, body: string) {
+  createMessage(token: string, conversationId: string, body: string) {
     return request<Message>(CHAT_API_BASE_URL, `/conversation/${conversationId}/messages/create`, {
       method: "POST",
       token,

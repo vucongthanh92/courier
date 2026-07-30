@@ -1,7 +1,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authApi, chatApi } from "./lib/api";
+import { RealtimeClient, type RealtimeStatus } from "./lib/realtime";
 import { clearSession, readSession, saveSession, type Session } from "./lib/session";
-import type { Conversation, ListMessagesResponse, Message } from "./types";
+import type { Conversation, ListMessagesResponse, Message, RealtimeEvent } from "./types";
 
 type AuthMode = "login" | "signup" | "verify";
 
@@ -173,17 +174,20 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Session) =
 
 function MessengerShell({ session, onLogout }: { session: Session; onLogout: () => void }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<ListMessagesResponse["members"]>([]);
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
-  const [nextBeforeMessageId, setNextBeforeMessageId] = useState<number | undefined>();
+  const [nextBeforeMessageId, setNextBeforeMessageId] = useState<string | undefined>();
   const [sidebarLoading, setSidebarLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>("disconnected");
+  const [unreadConversationIds, setUnreadConversationIds] = useState<Set<string>>(() => new Set());
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
+  const selectedIdRef = useRef<string | null>(null);
 
   const selectedConversation = conversations.find((conversation) => conversation.id === selectedId) ?? null;
   const memberByUserId = useMemo(
@@ -205,7 +209,7 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
     }
   }, [session.access_token]);
 
-  const loadMessages = useCallback(async (conversationId: number, beforeMessageId?: number) => {
+  const loadMessages = useCallback(async (conversationId: string, beforeMessageId?: string) => {
     const viewport = messageViewportRef.current;
     const previousScrollHeight = viewport?.scrollHeight ?? 0;
     setMessagesLoading(true);
@@ -215,7 +219,9 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
       setMembers(response.members);
       setHasOlderMessages(response.pagination.has_more);
       setNextBeforeMessageId(response.pagination.next_before_message_id);
-      setMessages((current) => sortMessagesByCreatedAt(beforeMessageId ? [...response.messages, ...current] : response.messages));
+      setMessages((current) =>
+        beforeMessageId ? mergeMessages(response.messages, current) : mergeMessages(response.messages)
+      );
       window.setTimeout(() => {
         const currentViewport = messageViewportRef.current;
         if (!currentViewport) return;
@@ -232,6 +238,46 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
     }
   }, [session.access_token]);
 
+  const handleRealtimeEvent = useCallback((event: RealtimeEvent) => {
+    if (event.type !== "message.created") return;
+    const message = event.message;
+
+    setConversations((current) =>
+      sortConversationsByActivity(
+        current.map((conversation) =>
+          conversation.id === event.conversation_id
+            ? {
+                ...conversation,
+                last_message_id: message.id,
+                last_message_at: message.created_at,
+                last_message: message,
+                updated_at: message.updated_at
+              }
+            : conversation
+        )
+      )
+    );
+
+    if (message.sender_id !== session.user_id && selectedIdRef.current !== event.conversation_id) {
+      setUnreadConversationIds((current) => {
+        const next = new Set(current);
+        next.add(event.conversation_id);
+        return next;
+      });
+    }
+
+    if (selectedIdRef.current !== event.conversation_id) return;
+    setMessages((current) => mergeMessages(current, [message]));
+    window.setTimeout(() => {
+      const viewport = messageViewportRef.current;
+      if (!viewport) return;
+      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
+      if (distanceFromBottom < 160 || message.sender_id === session.user_id) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    }, 0);
+  }, [session.user_id]);
+
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
     const text = draft.trim();
@@ -241,7 +287,7 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
     setError("");
     try {
       const message = await chatApi.createMessage(session.access_token, selectedId, text);
-      setMessages((current) => sortMessagesByCreatedAt([...current, message]));
+      setMessages((current) => mergeMessages(current, [message]));
       setDraft("");
       await loadConversations();
       window.setTimeout(() => {
@@ -260,11 +306,43 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
   }, [loadConversations]);
 
   useEffect(() => {
+    selectedIdRef.current = selectedId;
+  }, [selectedId]);
+
+  useEffect(() => {
     if (!selectedId) return;
     setMessages([]);
     setMembers([]);
     void loadMessages(selectedId);
   }, [selectedId, loadMessages]);
+
+  useEffect(() => {
+    const client = new RealtimeClient({
+      token: session.access_token,
+      onEvent: handleRealtimeEvent,
+      onStatusChange: setRealtimeStatus
+    });
+    client.connect();
+    return () => client.disconnect();
+  }, [handleRealtimeEvent, session.access_token]);
+
+  useEffect(() => {
+    if (realtimeStatus !== "connected") return;
+    void loadConversations();
+    if (selectedIdRef.current) {
+      void loadMessages(selectedIdRef.current);
+    }
+  }, [loadConversations, loadMessages, realtimeStatus]);
+
+  function selectConversation(conversationId: string) {
+    setSelectedId(conversationId);
+    setUnreadConversationIds((current) => {
+      if (!current.has(conversationId)) return current;
+      const next = new Set(current);
+      next.delete(conversationId);
+      return next;
+    });
+  }
 
   return (
     <main className="messenger-shell">
@@ -272,7 +350,7 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
         <div className="sidebar-header">
           <div>
             <h1>Conversa</h1>
-            <span>User #{session.user_id ?? "?"}</span>
+            <span>User #{session.user_id ?? "?"} · {realtimeStatus}</span>
           </div>
           <button className="text-button" onClick={onLogout}>
             Logout
@@ -282,22 +360,25 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
         <div className="conversation-list">
           {sidebarLoading && <div className="empty-state">Loading conversations...</div>}
           {!sidebarLoading && conversations.length === 0 && <div className="empty-state">No conversations yet.</div>}
-          {conversations.map((conversation) => (
-            <button
-              key={conversation.id}
-              className={`conversation-item ${conversation.id === selectedId ? "selected" : ""} type-${conversation.type}`}
-              onClick={() => setSelectedId(conversation.id)}
-            >
-              <Avatar label={conversation.name || conversation.type || String(conversation.id)} />
-              <span>
-                <strong>
-                  {conversationTitle(conversation)}
-                  <ConversationTypeBadge type={conversation.type} />
-                </strong>
-                <small>{conversation.last_message?.body ?? "No messages yet"}</small>
-              </span>
-            </button>
-          ))}
+          {conversations.map((conversation) => {
+            const isUnread = unreadConversationIds.has(conversation.id);
+            return (
+              <button
+                key={conversation.id}
+                className={`conversation-item ${conversation.id === selectedId ? "selected" : ""} ${isUnread ? "unread" : ""} type-${conversation.type}`}
+                onClick={() => selectConversation(conversation.id)}
+              >
+                <Avatar label={conversation.name || conversation.type || String(conversation.id)} />
+                <span>
+                  <strong>
+                    {conversationTitle(conversation)}
+                    <ConversationTypeBadge type={conversation.type} />
+                  </strong>
+                  <small>{conversation.last_message?.body ?? "No messages yet"}</small>
+                </span>
+              </button>
+            );
+          })}
         </div>
       </aside>
 
@@ -396,6 +477,31 @@ function sortMessagesByCreatedAt(messages: Message[]) {
     const leftTime = new Date(left.created_at).getTime();
     const rightTime = new Date(right.created_at).getTime();
     if (leftTime !== rightTime) return leftTime - rightTime;
-    return left.id - right.id;
+    return compareSnowflakeIds(left.id, right.id);
   });
+}
+
+function mergeMessages(...messageGroups: Message[][]) {
+  const messagesById = new Map<string, Message>();
+  for (const messages of messageGroups) {
+    for (const message of messages) {
+      messagesById.set(message.id, message);
+    }
+  }
+  return sortMessagesByCreatedAt([...messagesById.values()]);
+}
+
+function sortConversationsByActivity(conversations: Conversation[]) {
+  return [...conversations].sort((left, right) => {
+    const leftTime = new Date(left.last_message_at ?? left.created_at).getTime();
+    const rightTime = new Date(right.last_message_at ?? right.created_at).getTime();
+    if (leftTime !== rightTime) return rightTime - leftTime;
+    return compareSnowflakeIds(right.id, left.id);
+  });
+}
+
+function compareSnowflakeIds(left: string, right: string) {
+  const leftId = BigInt(left);
+  const rightId = BigInt(right);
+  return leftId < rightId ? -1 : leftId > rightId ? 1 : 0;
 }

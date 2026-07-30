@@ -26,44 +26,58 @@ func JWTMiddleware(deny interfaces.TokenDenylistI, keyResolver func(context.Cont
 			return
 		}
 
-		token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			kid, _ := t.Header["kid"].(string)
-			key, resErr := keyResolver(c.Request.Context(), kid)
-			if resErr != nil || key == nil {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return key, nil
-		})
-		if err != nil || !token.Valid {
-			unauthorized(c, "invalid_token", "Token is invalid")
+		claims, errBuilder := VerifyToken(c.Request.Context(), tokenStr, deny, keyResolver)
+		if errBuilder != nil {
+			errBuilder.ExposeHttpError(c)
+			c.Abort()
 			return
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok || !claims.VerifyExpiresAt(time.Now().Unix(), true) {
-			unauthorized(c, "token_expired", "Token expired")
-			return
-		}
-
-		// denylist check
-		if jti, _ := claims["jti"].(string); jti != "" {
-			blocked, derr := deny.IsBlocked(c, jti)
-			if derr != nil {
-				unauthorized(c, "system_error", "Denylist check failed")
-				return
-			}
-			if blocked {
-				unauthorized(c, "token_revoked", "Token revoked")
-				return
-			}
 		}
 
 		c.Set("authClaims", claims)
 		c.Next()
 	}
+}
+
+func VerifyToken(ctx context.Context, tokenStr string, deny interfaces.TokenDenylistI, keyResolver func(context.Context, string) (interface{}, *errHandler.ErrorBuilder)) (jwt.MapClaims, *errHandler.ErrorBuilder) {
+	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		kid, _ := t.Header["kid"].(string)
+		key, resErr := keyResolver(ctx, kid)
+		if resErr != nil || key == nil {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return key, nil
+	})
+	if err != nil || !token.Valid {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{Code: "invalid_token", Field: "authorization token", Message: "Token is invalid"})
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !claims.VerifyExpiresAt(time.Now().Unix(), true) {
+		return nil, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusUnauthorized).
+			SetError(models.ErrorDTO{Code: "token_expired", Field: "authorization token", Message: "Token expired"})
+	}
+
+	if jti, _ := claims["jti"].(string); jti != "" {
+		blocked, derr := deny.IsBlocked(ctx, jti)
+		if derr != nil {
+			return nil, errHandler.InitErrorBuilder(ctx).
+				SetStatus(http.StatusUnauthorized).
+				SetError(models.ErrorDTO{Code: "system_error", Field: "authorization token", Message: "Denylist check failed"})
+		}
+		if blocked {
+			return nil, errHandler.InitErrorBuilder(ctx).
+				SetStatus(http.StatusUnauthorized).
+				SetError(models.ErrorDTO{Code: "token_revoked", Field: "authorization token", Message: "Token revoked"})
+		}
+	}
+
+	return claims, nil
 }
 
 // extractBearer extracts the token from "Authorization: Bearer

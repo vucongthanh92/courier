@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/vucongthanh92/courier/chat-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
@@ -17,6 +18,7 @@ type UseCase struct {
 	messageQuery      interfaces.MessageQueryRepoI
 	messageCommand    interfaces.MessageCmdRepoI
 	messageListCache  interfaces.MessageListCacheI
+	realtimePublisher interfaces.RealtimePublisherI
 }
 
 func InitMessageUsecase(
@@ -25,6 +27,7 @@ func InitMessageUsecase(
 	messageQuery interfaces.MessageQueryRepoI,
 	messageCommand interfaces.MessageCmdRepoI,
 	messageListCache interfaces.MessageListCacheI,
+	realtimePublisher interfaces.RealtimePublisherI,
 ) interfaces.MessageServiceI {
 	return &UseCase{
 		conversationQuery: conversationQuery,
@@ -32,6 +35,7 @@ func InitMessageUsecase(
 		messageQuery:      messageQuery,
 		messageCommand:    messageCommand,
 		messageListCache:  messageListCache,
+		realtimePublisher: realtimePublisher,
 	}
 }
 
@@ -174,7 +178,34 @@ func (s *UseCase) CreateMessage(ctx context.Context, req *models.SendMessageRequ
 	// Map the newly created message entity to a MessageResponse and return it
 	var response models.MessageResponse
 	response.MappeDTO(&newMessageEntity)
+	s.publishMessageCreated(ctx, req.ConversationID, response)
 	return &response, true, nil
+}
+
+func (s *UseCase) publishMessageCreated(ctx context.Context, conversationID uint64, message models.MessageResponse) {
+	if s.realtimePublisher == nil {
+		return
+	}
+	members, errBuilder := s.memberQuery.ListConversationMembers(ctx, conversationID)
+	if errBuilder != nil {
+		return
+	}
+	recipientIDs := make([]uint64, 0, len(members))
+	for i := range members {
+		if members[i].Status == "active" {
+			recipientIDs = append(recipientIDs, members[i].UserID)
+		}
+	}
+	if len(recipientIDs) == 0 {
+		return
+	}
+	_ = s.realtimePublisher.PublishMessageCreated(ctx, models.MessageCreatedEvent{
+		Type:             models.RealtimeEventMessageCreated,
+		ConversationID:   conversationID,
+		RecipientUserIDs: recipientIDs,
+		Message:          message,
+		EventAt:          time.Now().UTC(),
+	})
 }
 
 // ListMessages retrieves a list of messages in a conversation based on the provided request parameters.
