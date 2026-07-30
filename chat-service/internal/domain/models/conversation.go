@@ -31,12 +31,12 @@ func (c *CreateConversationRequest) ValidateConversationType(sortedMemberIDs []u
 
 // CreateConversationResponse represents the response payload after successfully creating a new conversation.
 type CreateConversationResponse struct {
-	ID            uint64                        `json:"id"`
+	ID            uint64                        `json:"id,string"`
 	Type          string                        `json:"type"`
 	DirectKey     *string                       `json:"direct_key,omitempty"`
 	Name          *string                       `json:"name,omitempty"`
-	CreatedBy     uint64                        `json:"created_by"`
-	LastMessageID *uint64                       `json:"last_message_id,omitempty"`
+	CreatedBy     uint64                        `json:"created_by,string"`
+	LastMessageID *uint64                       `json:"last_message_id,omitempty,string"`
 	LastMessageAt *time.Time                    `json:"last_message_at,omitempty"`
 	Metadata      map[string]any                `json:"metadata"`
 	CreatedAt     time.Time                     `json:"created_at"`
@@ -86,12 +86,12 @@ func (req *ListConversationsRequest) ValidateRequest() (messageCode, messageErr 
 
 // struct ConversationListItemResponse
 type ConversationListResponse struct {
-	ID            uint64           `json:"id"`
+	ID            uint64           `json:"id,string"`
 	Type          string           `json:"type"`
 	DirectKey     string           `json:"direct_key,omitempty"`
 	Name          string           `json:"name,omitempty"`
-	CreatedBy     uint64           `json:"created_by"`
-	LastMessageID *uint64          `json:"last_message_id,omitempty"`
+	CreatedBy     uint64           `json:"created_by,string"`
+	LastMessageID *uint64          `json:"last_message_id,omitempty,string"`
 	LastMessageAt *time.Time       `json:"last_message_at,omitempty"`
 	Metadata      map[string]any   `json:"metadata"`
 	CreatedAt     time.Time        `json:"created_at"`
@@ -145,7 +145,7 @@ type ListConversationsPaginationResponse struct {
 	Limit                    int        `json:"limit"`
 	HasMore                  bool       `json:"has_more"`
 	NextBeforeLastMessageAt  *time.Time `json:"next_before_last_message_at,omitempty"`
-	NextBeforeConversationID *uint64    `json:"next_before_conversation_id,omitempty"`
+	NextBeforeConversationID *uint64    `json:"next_before_conversation_id,omitempty,string"`
 }
 
 type ListConversationsResponse struct {

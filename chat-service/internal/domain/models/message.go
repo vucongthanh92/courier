@@ -51,12 +51,12 @@ func (req *SendMessageRequest) ValidateRequest() (messageCode, messageErr string
 // MessageResponse represents a message returned by chat APIs.
 // It includes the message ID, conversation ID, sender ID, type, body, optional reply-to message ID, optional client message ID, metadata, and timestamps for creation, update, and edit.
 type MessageResponse struct {
-	ID               uint64         `json:"id"`
-	ConversationID   uint64         `json:"conversation_id"`
-	SenderID         uint64         `json:"sender_id"`
+	ID               uint64         `json:"id,string"`
+	ConversationID   uint64         `json:"conversation_id,string"`
+	SenderID         uint64         `json:"sender_id,string"`
 	Type             string         `json:"type"`
 	Body             string         `json:"body"`
-	ReplyToMessageID *uint64        `json:"reply_to_message_id,omitempty"`
+	ReplyToMessageID *uint64        `json:"reply_to_message_id,omitempty,string"`
 	ClientMessageID  *string        `json:"client_message_id,omitempty"`
 	Metadata         map[string]any `json:"metadata"`
 	CreatedAt        time.Time      `json:"created_at"`
@@ -111,7 +111,7 @@ func (req *ListMessagesRequest) ValidateRequest() (messageCode, messageErr strin
 
 // ListMessagesResponse represents the response for listing messages in a conversation.
 type ListMessagesResponse struct {
-	ConversationID uint64                       `json:"conversation_id"`
+	ConversationID uint64                       `json:"conversation_id,string"`
 	Messages       []MessageResponse            `json:"messages"`
 	Members        []ConversationMemberResponse `json:"members"`
 	Pagination     MessagePaginationResponse    `json:"pagination"`
@@ -120,7 +120,7 @@ type ListMessagesResponse struct {
 // MessagePaginationResponse represents the pagination information for listing messages in a conversation.
 type MessagePaginationResponse struct {
 	Limit               int     `json:"limit"`
-	NextBeforeMessageID *uint64 `json:"next_before_message_id,omitempty"`
+	NextBeforeMessageID *uint64 `json:"next_before_message_id,omitempty,string"`
 	HasMore             bool    `json:"has_more"`
 }
 

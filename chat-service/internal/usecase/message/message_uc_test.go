@@ -90,6 +90,17 @@ type messageListCacheStub struct {
 	invalidateCalls int
 }
 
+type realtimePublisherStub struct {
+	event *models.MessageCreatedEvent
+	calls int
+}
+
+func (s *realtimePublisherStub) PublishMessageCreated(_ context.Context, event models.MessageCreatedEvent) error {
+	s.calls++
+	s.event = &event
+	return nil
+}
+
 func (s *messageListCacheStub) GetLatest(context.Context, uint64, int) (*models.CachedMessageListPage, error) {
 	s.getCalls++
 	return s.page, nil
@@ -116,6 +127,7 @@ func TestCreateMessageSuccess(t *testing.T) {
 		query,
 		command,
 		&messageListCacheStub{},
+		nil,
 	)
 	clientID := " client-1 "
 	request := &models.SendMessageRequest{
@@ -157,6 +169,7 @@ func TestCreateMessageRejectsInactiveMember(t *testing.T) {
 		&messageQueryStub{},
 		&messageCommandStub{},
 		nil,
+		nil,
 	)
 
 	_, _, resultErr := service.CreateMessage(context.Background(), validRequest())
@@ -182,6 +195,7 @@ func TestCreateMessageReturnsIdempotentMessage(t *testing.T) {
 		&messageQueryStub{byClientID: []*entities.Message{existing}},
 		command,
 		&messageListCacheStub{},
+		nil,
 	)
 	request := validRequest()
 	request.ClientMessageID = &clientID
@@ -222,6 +236,7 @@ func TestCreateMessageRecoversConcurrentIdempotencyConflict(t *testing.T) {
 		&messageQueryStub{byClientID: []*entities.Message{nil, existing}},
 		&messageCommandStub{err: commandErr},
 		nil,
+		nil,
 	)
 	request := validRequest()
 	request.ClientMessageID = &clientID
@@ -240,6 +255,7 @@ func TestCreateMessageRejectsReplyFromAnotherConversation(t *testing.T) {
 		memberQueryStub{member: &entities.ConversationMember{Status: "active"}},
 		&messageQueryStub{byID: &entities.Message{ID: replyID, ConversationID: 11}},
 		&messageCommandStub{},
+		nil,
 		nil,
 	)
 	request := validRequest()
@@ -272,6 +288,7 @@ func TestCreateMessageValidation(t *testing.T) {
 				&messageQueryStub{},
 				&messageCommandStub{},
 				nil,
+				nil,
 			)
 
 			_, _, resultErr := service.CreateMessage(context.Background(), request)
@@ -291,6 +308,7 @@ func TestCreateMessageInvalidatesLatestMessageCache(t *testing.T) {
 		&messageQueryStub{},
 		&messageCommandStub{},
 		cache,
+		nil,
 	)
 
 	_, created, resultErr := service.CreateMessage(context.Background(), validRequest())
@@ -300,6 +318,44 @@ func TestCreateMessageInvalidatesLatestMessageCache(t *testing.T) {
 	}
 	if cache.invalidateCalls != 1 || cache.invalidated != 10 {
 		t.Fatalf("cache invalidation = calls:%d conversation:%d", cache.invalidateCalls, cache.invalidated)
+	}
+}
+
+func TestCreateMessagePublishesRealtimeEventToActiveMembers(t *testing.T) {
+	publisher := &realtimePublisherStub{}
+	service := InitMessageUsecase(
+		conversationQueryStub{conversation: &entities.Conversation{ID: 10}},
+		memberQueryStub{
+			member: &entities.ConversationMember{Status: "active"},
+			members: []entities.ConversationMember{
+				{ID: 1, ConversationID: 10, UserID: 20, Status: "active"},
+				{ID: 2, ConversationID: 10, UserID: 21, Status: "active"},
+				{ID: 3, ConversationID: 10, UserID: 22, Status: "left"},
+			},
+		},
+		&messageQueryStub{},
+		&messageCommandStub{},
+		nil,
+		publisher,
+	)
+
+	response, created, resultErr := service.CreateMessage(context.Background(), validRequest())
+
+	if resultErr != nil || !created {
+		t.Fatalf("CreateMessage() created=%v error=%#v", created, resultErr)
+	}
+	if publisher.calls != 1 || publisher.event == nil {
+		t.Fatalf("publisher was not called: %#v", publisher)
+	}
+	if publisher.event.Type != models.RealtimeEventMessageCreated ||
+		publisher.event.ConversationID != 10 ||
+		publisher.event.Message.ID != response.ID {
+		t.Fatalf("unexpected realtime event: %#v", publisher.event)
+	}
+	if len(publisher.event.RecipientUserIDs) != 2 ||
+		publisher.event.RecipientUserIDs[0] != 20 ||
+		publisher.event.RecipientUserIDs[1] != 21 {
+		t.Fatalf("unexpected recipients: %#v", publisher.event.RecipientUserIDs)
 	}
 }
 
@@ -324,6 +380,7 @@ func TestListMessagesReturnsMembersAndCachesLatestPage(t *testing.T) {
 		query,
 		&messageCommandStub{},
 		cache,
+		nil,
 	)
 	request := &models.ListMessagesRequest{ConversationID: 10, RequesterID: 20, Limit: 2}
 
@@ -368,6 +425,7 @@ func TestListMessagesUsesCachedLatestPage(t *testing.T) {
 		query,
 		&messageCommandStub{},
 		cache,
+		nil,
 	)
 
 	response, resultErr := service.ListMessages(context.Background(), &models.ListMessagesRequest{
@@ -405,6 +463,7 @@ func TestListMessagesSkipsCacheForCursorPage(t *testing.T) {
 		query,
 		&messageCommandStub{},
 		cache,
+		nil,
 	)
 
 	response, resultErr := service.ListMessages(context.Background(), &models.ListMessagesRequest{

@@ -31,12 +31,12 @@ export type VerifyEmailRequest = {
 };
 
 export type Conversation = {
-  id: number;
+  id: string;
   type: "direct" | "group" | string;
   direct_key?: string;
   name?: string;
-  created_by: number;
-  last_message_id?: number;
+  created_by: string;
+  last_message_id?: string;
   last_message_at?: string;
   metadata: Record<string, unknown>;
   created_at: string;
@@ -50,28 +50,28 @@ export type ConversationListResponse = {
     limit: number;
     has_more: boolean;
     next_before_last_message_at?: string;
-    next_before_conversation_id?: number;
+    next_before_conversation_id?: string;
   };
 };
 
 export type Member = {
-  id: number;
-  conversation_id: number;
-  user_id: number;
+  id: string;
+  conversation_id: string;
+  user_id: string;
   role: string;
   status: string;
   joined_at: string;
-  last_read_message_id?: number;
+  last_read_message_id?: string;
   last_read_at?: string;
 };
 
 export type Message = {
-  id: number;
-  conversation_id: number;
-  sender_id: number;
+  id: string;
+  conversation_id: string;
+  sender_id: string;
   type: "text" | string;
   body: string;
-  reply_to_message_id?: number;
+  reply_to_message_id?: string;
   client_message_id?: string;
   metadata: Record<string, unknown>;
   created_at: string;
@@ -80,12 +80,22 @@ export type Message = {
 };
 
 export type ListMessagesResponse = {
-  conversation_id: number;
+  conversation_id: string;
   messages: Message[];
   members: Member[];
   pagination: {
     limit: number;
-    next_before_message_id?: number;
+    next_before_message_id?: string;
     has_more: boolean;
   };
 };
+
+export type MessageCreatedEvent = {
+  type: "message.created";
+  conversation_id: string;
+  recipient_user_ids: number[];
+  message: Message;
+  event_at: string;
+};
+
+export type RealtimeEvent = MessageCreatedEvent;

@@ -12,6 +12,7 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/api/cron"
 	grpc "github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
+	"github.com/vucongthanh92/courier/chat-service/internal/api/ws"
 	"github.com/vucongthanh92/courier/chat-service/redis"
 
 	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
@@ -58,11 +59,14 @@ var repoSet = wire.NewSet(
 	cacheRepo.InitRedisDenylist,
 	cacheRepo.InitMessageRateLimiter,
 	cacheRepo.InitMessageListCache,
+	cacheRepo.InitRealtimePublisher,
+	cacheRepo.InitRealtimeSubscriber,
 )
 
 var providerSet = wire.NewSet(
 	user_grpc.NewGrpcClient,
 	transaction.InitManagerTxn,
+	ws.NewHub,
 )
 
 func InitializeContainer(
