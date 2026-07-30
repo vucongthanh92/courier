@@ -11,6 +11,7 @@ import (
 	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	cacheRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
+	httpmiddlewares "github.com/vucongthanh92/go-base-utils/http/middlewares"
 	httpserver "github.com/vucongthanh92/go-base-utils/http/server"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
@@ -55,6 +56,7 @@ func (s *Server) Run() {
 		AllowOrigins:    s.cfg.Http.AllowOrigins,
 	}
 	httpServer, router := httpserver.NewServer(*config)
+	router.Use(httpmiddlewares.Cors(s.cfg.Http.AllowOrigins...))
 
 	// // Add recover panic middleware
 	// router.Use(middlewares.RecoverPanicMiddleware(middlewares.RecoverPanicMiddlewareConfig{
