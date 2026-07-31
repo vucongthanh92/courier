@@ -25,6 +25,11 @@ const (
 	Kafka              = "kafka"
 )
 
+// event-driven topic list
+const (
+	EventTypeUserEmailVerifiedV1 = "user.email_verified.v1"
+)
+
 // OAuth2 provider constants
 const (
 	GithubProvider       = "github"

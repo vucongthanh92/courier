@@ -21,6 +21,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	kafkaRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/kafka"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	redis2 "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
@@ -84,14 +85,15 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	pool := newPgxPool(appCfg)
 	emailConfig := provideEmailConfig(appCfg)
 	emailSenderI := emailsender.InitSMTPSender(emailConfig, logger)
-	outboxWorker := worker.InitOutboxWorker(pool, outboxQueryRepoI, outboxCommandRepoI, auditLogServiceI, emailSenderI, logger)
-	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, outboxWorker)
+	eventPublisher := kafkaRepo.InitEventPublisher(appCfg)
+	outboxWorker := worker.InitOutboxWorker(pool, outboxQueryRepoI, outboxCommandRepoI, auditLogServiceI, emailSenderI, eventPublisher, logger)
+	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, outboxWorker, eventPublisher)
 	return apiContainer
 }
 
 // wire.go:
 
-var workerSet = wire.NewSet(worker.InitOutboxWorker, newPgxPool)
+var workerSet = wire.NewSet(worker.InitOutboxWorker, newPgxPool, kafkaRepo.InitEventPublisher, wire.Bind(new(interfaces.IntegrationEventPublisherI), new(*kafkaRepo.EventPublisher)))
 
 var container = wire.NewSet(api.NewApiContainer)
 

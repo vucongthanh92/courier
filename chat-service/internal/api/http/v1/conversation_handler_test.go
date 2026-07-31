@@ -33,6 +33,10 @@ func (s *conversationServiceStub) ListConversations(_ context.Context, request *
 	}, nil
 }
 
+func (s *conversationServiceStub) EnsureSystemConversations(context.Context, *models.EnsureSystemConversationsRequest) (*models.EnsureSystemConversationsResponse, *errHandler.ErrorBuilder) {
+	return nil, nil
+}
+
 func TestConversationHandlerListConversations(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service := &conversationServiceStub{}

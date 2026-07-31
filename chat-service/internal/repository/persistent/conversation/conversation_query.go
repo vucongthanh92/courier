@@ -52,6 +52,21 @@ func (r *repoQueryConversation) GetConversationByID(ctx context.Context, id uint
 	return &res, nil
 }
 
+func (r *repoQueryConversation) GetSystemConversation(ctx context.Context, userID uint64, name string) (*entities.Conversation, *errHandler.ErrorBuilder) {
+	run := transaction.RunnerFromCtx(ctx, r.readDB)
+	var res entities.Conversation
+	err := run.Model(&entities.Conversation{}).
+		Where("created_by = ? AND name = ? AND type = ? AND deleted_at IS NULL", userID, name, "system").
+		Take(&res).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
+	return &res, nil
+}
+
 // func ListConversationsByMember
 func (r *repoQueryConversation) ListConversationsByMember(ctx context.Context, req *models.ListConversationsRequest) (
 	[]models.ConversationListResponse, *errHandler.ErrorBuilder) {

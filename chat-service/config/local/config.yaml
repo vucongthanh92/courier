@@ -44,6 +44,11 @@ redis:
   password: ""
   db: 1
   poolSize: 100
+kafka:
+  brokers: ["localhost:9092"]
+  groupID: chat-service
+  topics:
+    userEvents: courier.user.events.v1
 messageRateLimit:
   enabled: true
   burst:

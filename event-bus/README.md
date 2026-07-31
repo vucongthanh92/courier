@@ -1,0 +1,63 @@
+# Courier Event Bus
+
+This folder stores broker configuration, event contracts, and routing conventions shared by Courier services. Service-specific business logic belongs in each service.
+
+## Phase 1 Broker
+
+Courier uses Kafka as the main event-driven infrastructure target. Kafka gives Courier a durable event log, partition-level ordering, replay-friendly consumers, and a path toward analytics/audit/event-stream use cases as the platform grows.
+
+RabbitMQ remains a possible alternative for command-like workflows that need simple routing, acknowledgements, and dead-letter queues, but it is not the target for this feature.
+
+## Kafka Conventions
+
+- Bootstrap server: `localhost:9092`
+- Dashboard: `http://localhost:8081`
+- Main user event topic: `courier.user.events.v1`
+- Retry topic: `courier.user.events.retry.v1`
+- Dead-letter topic: `courier.user.events.dlq.v1`
+- Chat consumer group: `chat-service`
+- Producer message key: `aggregate_id` or `user_id` so events for the same user stay ordered within a partition.
+
+Consumers must commit offsets only after their database transaction succeeds.
+
+## Topic Definitions
+
+Kafka topics are declared in `event-bus/kafka/topics.json`.
+
+Each topic object uses:
+
+```json
+{
+  "name": "courier.user.events.v1",
+  "partitions": 3,
+  "replicationFactor": 1,
+  "description": "User lifecycle integration events."
+}
+```
+
+When adding a new topic, add one object to that file and rerun:
+
+```sh
+docker compose -f event-bus/kafka/docker-compose.yaml up kafka-init
+```
+
+## Event Envelope
+
+All integration events should use this envelope:
+
+```json
+{
+  "event_id": "unique-event-id",
+  "event_type": "user.email_verified",
+  "event_version": 1,
+  "occurred_at": "2026-07-31T00:00:00Z",
+  "source": "user-service",
+  "aggregate_type": "user",
+  "aggregate_id": "123",
+  "payload": {}
+}
+```
+
+Consumers must be idempotent by `event_id`.
+
+— Nội dung được viết/cập nhật bởi AI (OpenAI Codex).

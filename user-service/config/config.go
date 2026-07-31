@@ -133,7 +133,7 @@ type KafkaConfigDetail struct {
 // This configuration allows the application to manage and interact with Kafka topics effectively,
 // ensuring proper message handling and processing within the application's event-driven architecture.
 type KafkaTopics struct {
-	SubmitOrder KafkaTopicConfig `mapstructure:"submitOrder"`
+	EmailVerified KafkaTopicConfig `mapstructure:"emailVerified"`
 }
 
 // KafkaTopicConfig holds the configuration for a Kafka topic,

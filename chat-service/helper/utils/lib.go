@@ -331,6 +331,15 @@ func GenerateConversationDirectKey(memberUserIDs []uint64) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func GenerateSystemConversationDirectKey(userID uint64, name string) string {
+	if userID == 0 || strings.TrimSpace(name) == "" {
+		return ""
+	}
+	canonical := fmt.Sprintf("system:%d:%s", userID, strings.TrimSpace(name))
+	sum := sha256.Sum256([]byte(canonical))
+	return hex.EncodeToString(sum[:])
+}
+
 // func NormalizeMemberIDs normalizes a slice of member IDs by removing duplicates and ensuring all IDs are greater than 0.
 func NormalizeMemberIDs(ids []uint64) ([]uint64, error) {
 

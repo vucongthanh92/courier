@@ -13,6 +13,7 @@ import (
 	grpc "github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/ws"
+	"github.com/vucongthanh92/courier/chat-service/internal/worker"
 	"github.com/vucongthanh92/courier/chat-service/redis"
 
 	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
@@ -26,6 +27,7 @@ import (
 	messageUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/message"
 
 	v1 "github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
+	"github.com/vucongthanh92/go-base-utils/logger"
 )
 
 var container = wire.NewSet(
@@ -46,6 +48,7 @@ var handlerSet = wire.NewSet(
 var serviceSet = wire.NewSet(
 	conversationUc.InitConversationUsecase,
 	messageUc.InitMessageUsecase,
+	conversationUc.InitUserEventHandler,
 )
 
 var repoSet = wire.NewSet(
@@ -67,6 +70,8 @@ var providerSet = wire.NewSet(
 	user_grpc.NewGrpcClient,
 	transaction.InitManagerTxn,
 	ws.NewHub,
+	worker.InitUserEventConsumer,
+	provideLogger,
 )
 
 func InitializeContainer(
@@ -86,3 +91,7 @@ func InitializeContainer(
 // 	}
 // 	return client
 // }
+
+func provideLogger(cfg *config.AppConfig) logger.Logger {
+	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}

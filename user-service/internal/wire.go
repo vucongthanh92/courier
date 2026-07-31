@@ -36,6 +36,7 @@ import (
 	// external repositories
 	emailSender "github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	jwtSigner "github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
+	kafkaRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/kafka"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	oauthRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	redisRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
@@ -58,6 +59,8 @@ import (
 var workerSet = wire.NewSet(
 	worker.InitOutboxWorker,
 	newPgxPool,
+	kafkaRepo.InitEventPublisher,
+	wire.Bind(new(interfaces.IntegrationEventPublisherI), new(*kafkaRepo.EventPublisher)),
 )
 
 var container = wire.NewSet(

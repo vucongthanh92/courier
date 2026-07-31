@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/chat-service/helper/transaction"
 	"github.com/vucongthanh92/courier/chat-service/helper/utils"
@@ -209,4 +210,81 @@ func (s *ConversationUseCaseImpl) ListConversations(ctx context.Context, req *mo
 			NextBeforeConversationID: nextBeforeConversationID,
 		},
 	}, nil
+}
+
+func (s *ConversationUseCaseImpl) EnsureSystemConversations(ctx context.Context, req *models.EnsureSystemConversationsRequest) (
+	*models.EnsureSystemConversationsResponse, *errHandler.ErrorBuilder) {
+
+	if messageCode, messageErr := req.ValidateRequest(); messageCode != "" {
+		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(http.StatusBadRequest).SetError(models.ErrorDTO{
+			Code:    messageCode,
+			Message: messageErr,
+		})
+	}
+
+	resp := &models.EnsureSystemConversationsResponse{
+		UserID:        req.UserID,
+		Conversations: make([]models.CreateConversationResponse, 0, len(models.SystemConversationNames())),
+	}
+
+	if err := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
+		insertedEvent, txnErr := s.conversationCmdRepo.CreateProcessedEvent(txCtx, req.EventID, req.EventType)
+		if txnErr != nil {
+			return txnErr
+		}
+		if !insertedEvent {
+			resp.Processed = false
+			return nil
+		}
+
+		resp.Processed = true
+		for _, name := range models.SystemConversationNames() {
+			conversationEntity, txnErr := s.conversationReadRepo.GetSystemConversation(txCtx, req.UserID, name)
+			if txnErr != nil {
+				return txnErr
+			}
+
+			var memberEntities []entities.ConversationMember
+			if conversationEntity == nil {
+				conversationEntity = &entities.Conversation{}
+				directKey := utils.GenerateSystemConversationDirectKey(req.UserID, name)
+				conversationEntity.InitConversationEntity(constants.ConversationTypeSystem, &directKey, name, req.UserID)
+				if txnErr := s.conversationCmdRepo.CreateConversation(txCtx, conversationEntity); txnErr != nil {
+					if !txnErr.IsUniqueViolation() {
+						return txnErr
+					}
+					conversationEntity, txnErr = s.conversationReadRepo.GetSystemConversation(txCtx, req.UserID, name)
+					if txnErr != nil {
+						return txnErr
+					}
+				}
+
+				var memberEntity entities.ConversationMember
+				memberEntity.InitMemberEntity(conversationEntity.ID, req.UserID, req.UserID)
+				memberEntities = append(memberEntities, memberEntity)
+				if txnErr := s.memberCmdRepo.CreateMembers(txCtx, memberEntities); txnErr != nil && !txnErr.IsUniqueViolation() {
+					return txnErr
+				}
+			}
+
+			if len(memberEntities) == 0 {
+				member, txnErr := s.memberQueryRepo.GetConversationMember(txCtx, conversationEntity.ID, req.UserID)
+				if txnErr != nil {
+					return txnErr
+				}
+				if member != nil {
+					memberEntities = append(memberEntities, *member)
+				}
+			}
+
+			var conversationResp models.CreateConversationResponse
+			conversationResp.FromEntity(conversationEntity, memberEntities)
+			resp.Conversations = append(resp.Conversations, conversationResp)
+		}
+		return nil
+	}); err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(http.StatusInternalServerError).SetLogError(err)
+	}
+
+	return resp, nil
 }

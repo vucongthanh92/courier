@@ -53,9 +53,12 @@ func runServer(
 	})
 
 	wp.StopWait()
+	if container.EventPublisher != nil {
+		_ = container.EventPublisher.Close()
+	}
 }
 
-func registerDependencies(ctx context.Context) (*api.ApiContainer, database.GormReadDb, database.GormWriteDb) {
+func registerDependencies() (*api.ApiContainer, database.GormReadDb, database.GormWriteDb) {
 	redisClient := redis.Open(cfg.Redis)
 
 	// Open database connection
@@ -94,7 +97,7 @@ func start() {
 	})
 
 	// Register dependencies
-	container, readDb, writeDb := registerDependencies(ctx)
+	container, readDb, writeDb := registerDependencies()
 
 	// Init resources for localization
 	err := localization.InitResources(cfg.Http.Resources)
