@@ -23,6 +23,10 @@ func (s *conversationQueryStub) GetConversationByID(context.Context, uint64) (*e
 	return nil, nil
 }
 
+func (s *conversationQueryStub) GetSystemConversation(context.Context, uint64, string) (*entities.Conversation, *errHandler.ErrorBuilder) {
+	return nil, nil
+}
+
 func (s *conversationQueryStub) ListConversationsByMember(_ context.Context, req *models.ListConversationsRequest) ([]models.ConversationListResponse, *errHandler.ErrorBuilder) {
 	s.listRequest = *req
 	return s.listConversations, nil
@@ -32,6 +36,10 @@ type conversationCommandStub struct{}
 
 func (s conversationCommandStub) CreateConversation(context.Context, *entities.Conversation) *errHandler.ErrorBuilder {
 	return nil
+}
+
+func (s conversationCommandStub) CreateProcessedEvent(context.Context, string, string) (bool, *errHandler.ErrorBuilder) {
+	return true, nil
 }
 
 type memberCommandStub struct{}

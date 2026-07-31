@@ -10,6 +10,7 @@ type AppConfig struct {
 	Database         *DatabaseConfig         `mapstructure:"database"`
 	Tracing          *TracingConfig          `mapstructure:"tracing"`
 	Redis            *RedisConfig            `mapstructure:"redis"`
+	Kafka            *KafkaConfig            `mapstructure:"kafka"`
 	MessageRateLimit *MessageRateLimitConfig `mapstructure:"messageRateLimit"`
 	Heathcheck       *HeathcheckConfig       `mapstructure:"heathcheck"`
 	Metrics          *MetricsConfig          `mapstructure:"metrics"`
@@ -81,6 +82,16 @@ type RedisConfig struct {
 	PoolSize int      `mapstructure:"poolSize"`
 	Username string   `mapstructure:"username"`
 	DB       int      `mapstructure:"db"`
+}
+
+type KafkaConfig struct {
+	Brokers []string          `mapstructure:"brokers"`
+	GroupID string            `mapstructure:"groupID"`
+	Topics  KafkaTopicsConfig `mapstructure:"topics"`
+}
+
+type KafkaTopicsConfig struct {
+	UserEvents string `mapstructure:"userEvents"`
 }
 
 type RateLimitWindowConfig struct {

@@ -32,6 +32,10 @@ func (s *messageServiceStub) CreateMessage(_ context.Context, request *models.Se
 	}, s.created, nil
 }
 
+func (s *messageServiceStub) CreateSystemMessage(context.Context, *models.CreateSystemMessageRequest) (*models.MessageResponse, bool, *errHandler.ErrorBuilder) {
+	return nil, false, nil
+}
+
 func (s *messageServiceStub) ListMessages(_ context.Context, request *models.ListMessagesRequest) (*models.ListMessagesResponse, *errHandler.ErrorBuilder) {
 	s.listRequest = request
 	now := time.Date(2026, 7, 24, 10, 0, 0, 0, time.UTC)

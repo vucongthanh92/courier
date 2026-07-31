@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/entities"
 )
 
@@ -151,6 +153,39 @@ type ListConversationsPaginationResponse struct {
 type ListConversationsResponse struct {
 	Conversations []ConversationListResponse          `json:"conversations"`
 	Pagination    ListConversationsPaginationResponse `json:"pagination"`
+}
+
+type EnsureSystemConversationsRequest struct {
+	UserID    uint64
+	EventID   string
+	EventType string
+}
+
+func (req *EnsureSystemConversationsRequest) ValidateRequest() (messageCode, messageErr string) {
+	req.EventID = strings.TrimSpace(req.EventID)
+	req.EventType = strings.TrimSpace(req.EventType)
+	switch {
+	case req.UserID == 0:
+		return "invalid_user_id", "user_id must be a positive integer"
+	case req.EventID == "":
+		return "invalid_event_id", "event_id is required"
+	case req.EventType == "":
+		return "invalid_event_type", "event_type is required"
+	}
+	return "", ""
+}
+
+type EnsureSystemConversationsResponse struct {
+	UserID        uint64                       `json:"user_id,string"`
+	Conversations []CreateConversationResponse `json:"conversations"`
+	Processed     bool                         `json:"processed"`
+}
+
+func SystemConversationNames() []string {
+	return []string{
+		constants.SystemConversationNotification,
+		constants.SystemConversationAssistant,
+	}
 }
 
 // struct ConversationWithLastMessage

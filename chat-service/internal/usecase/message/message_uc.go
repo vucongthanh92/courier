@@ -182,6 +182,70 @@ func (s *messageUseCase) CreateMessage(ctx context.Context, req *models.SendMess
 	return &response, true, nil
 }
 
+func (s *messageUseCase) CreateSystemMessage(ctx context.Context, req *models.CreateSystemMessageRequest) (*models.MessageResponse, bool, *errHandler.ErrorBuilder) {
+	if messageCode, messageErr := req.ValidateRequest(); messageCode != "" {
+		return nil, false, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{
+				Code:    messageCode,
+				Message: messageErr,
+			})
+	}
+
+	conversation, queryErr := s.conversationQuery.GetConversationByID(ctx, req.ConversationID)
+	if queryErr != nil {
+		return nil, false, queryErr
+	}
+	if conversation == nil {
+		return nil, false, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusNotFound).
+			SetError(models.ErrorDTO{
+				Code:    "conversation_not_found",
+				Message: "conversation does not exist",
+				Field:   "conversation_id",
+			})
+	}
+	if conversation.Type != constants.ConversationTypeSystem {
+		return nil, false, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusBadRequest).
+			SetError(models.ErrorDTO{
+				Code:    "invalid_conversation_type",
+				Message: "system messages can only be created in system conversations",
+				Field:   "conversation_id",
+			})
+	}
+
+	newMessageEntity := entities.Message{}
+	if initErr := newMessageEntity.InitMessageEntity(
+		req.ConversationID,
+		0,
+		constants.MessageTypeSystem,
+		req.Body,
+		nil,
+		nil,
+		req.Metadata,
+	); initErr != nil {
+		return nil, false, errHandler.InitErrorBuilder(ctx).
+			SetStatus(http.StatusInternalServerError).
+			SetLogError(initErr).
+			SetIsSystemError(true).
+			SetError(models.ErrorDTO{Code: "system_error", Message: "There was an error on the server side"})
+	}
+
+	if createErr := s.messageCommand.CreateMessage(ctx, &newMessageEntity); createErr != nil {
+		return nil, false, createErr
+	}
+
+	if s.messageListCache != nil {
+		_ = s.messageListCache.InvalidateLatest(ctx, req.ConversationID)
+	}
+
+	var response models.MessageResponse
+	response.MappeDTO(&newMessageEntity)
+	s.publishMessageCreated(ctx, req.ConversationID, response)
+	return &response, true, nil
+}
+
 // ListMessages retrieves a list of messages in a conversation based on the provided request parameters.
 // It performs validation, checks for conversation existence and membership, and returns the messages along with pagination information.
 func (s *messageUseCase) ListMessages(ctx context.Context, req *models.ListMessagesRequest) (*models.ListMessagesResponse, *errHandler.ErrorBuilder) {

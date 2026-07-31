@@ -36,6 +36,13 @@ const (
 const (
 	ConversationTypeDirect = "direct"
 	ConversationTypeGroup  = "group"
+	ConversationTypeSystem = "system"
+)
+
+// conversation type system config
+const (
+	SystemConversationNotification = "notification"
+	SystemConversationAssistant    = "assistant"
 )
 
 const (

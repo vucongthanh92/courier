@@ -3,10 +3,55 @@
 # Run Database Migration
 
 `migrate \
-  -path migrations \
+  -path shared/migrations \
   -database "postgresql://dev:dev@127.0.0.1:5432/dev_db?sslmode=disable" \
   up
 `
+
+All database migrations now live in `shared/migrations` because local Courier services share the same PostgreSQL database and `schema_migrations` table. Do not run service-local migration folders for `user-service` or `chat-service`.
+
+# Event-Driven System Conversations
+
+Courier uses Kafka as the primary event bus for cross-service integration events.
+
+Local Kafka stack:
+
+```bash
+docker compose -f event-bus/kafka/docker-compose.yaml up -d
+```
+
+Kafka endpoints:
+
+- Kafka broker: `localhost:9092`
+- Kafka UI: `http://localhost:8081`
+- Topic definitions: `event-bus/kafka/topics.json`
+
+Topic initialization is handled by the one-shot `kafka-init` service. When adding a topic, update `event-bus/kafka/topics.json`, then run:
+
+```bash
+docker compose -f event-bus/kafka/docker-compose.yaml up kafka-init
+```
+
+## Verified User Flow
+
+When a user verifies their email successfully in `user-service`, the service writes a transactional outbox record with event type `user.email_verified.v1`. The outbox worker publishes this event to Kafka topic `courier.user.events.v1`.
+
+`chat-service` runs a Kafka consumer in consumer group `chat-service`. After consuming `user.email_verified.v1`, it idempotently provisions two system conversations for the verified user:
+
+- `notification`
+- `assistant`
+
+Each system conversation:
+
+- has `type = system`
+- has `created_by = user_id`
+- has one active member, the user
+- has a deterministic `direct_key` based on `system:{user_id}:{name}`
+- uses Snowflake-format IDs matching `chat-service` ID generation
+
+Backend-generated system messages use `sender_id = 0`. Database triggers allow `sender_id = 0` only in `system` conversations. Normal user messages still require the sender to be an active conversation member.
+
+Existing verified users are backfilled by migration `016_chat_service_core_and_system_conversations` with empty `notification` and `assistant` conversations.
 
 # Case Study: WebSocket Realtime Delivery With Redis Pub/Sub
 

@@ -21,6 +21,27 @@ type SendMessageRequest struct {
 	ConversationID   uint64         `json:"-"`
 }
 
+type CreateSystemMessageRequest struct {
+	ConversationID uint64
+	Body           string
+	Metadata       map[string]any
+}
+
+func (req *CreateSystemMessageRequest) ValidateRequest() (messageCode, messageErr string) {
+	req.Body = strings.TrimSpace(req.Body)
+	switch {
+	case req.ConversationID == 0:
+		return "invalid_conversation_id", "conversation id must be a positive integer"
+	case req.Body == "":
+		return "empty_message_body", "message body cannot be empty"
+	case utf8.RuneCountInString(req.Body) > constants.MaxTextMessageRunes:
+		return "message_body_too_long", "message body cannot exceed 4000 characters"
+	case req.Metadata == nil:
+		req.Metadata = map[string]any{}
+	}
+	return "", ""
+}
+
 func (req *SendMessageRequest) ValidateRequest() (messageCode, messageErr string) {
 	req.Body = strings.TrimSpace(req.Body)
 	switch {

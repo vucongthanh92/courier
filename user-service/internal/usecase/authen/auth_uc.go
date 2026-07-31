@@ -207,6 +207,21 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 		if txnErr := s.userWriteRepo.UpdateEmailVerified(txCtx, verEmail.UserID, "verified"); txnErr != nil {
 			return txnErr
 		}
+
+		payload, _ := json.Marshal(map[string]any{
+			"user_id": verEmail.UserID,
+			"email":   verEmail.Email,
+			"status":  constants.UserStatusVerified,
+		})
+		outboxReq := models.CreateOutboxRequest{
+			AggregateType: "user",
+			AggregateID:   strconv.FormatUint(verEmail.UserID, 10),
+			EventType:     constants.EventTypeUserEmailVerifiedV1,
+			Payload:       payload,
+		}
+		if txnErr := s.outboxService.CreateOutbox(txCtx, outboxReq); txnErr != nil {
+			return txnErr
+		}
 		return nil
 	})
 	if err != nil {

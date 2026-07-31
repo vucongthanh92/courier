@@ -24,7 +24,9 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/message"
 	conversation2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
 	message2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/message"
+	"github.com/vucongthanh92/courier/chat-service/internal/worker"
 	"github.com/vucongthanh92/courier/chat-service/redis"
+	"github.com/vucongthanh92/go-base-utils/logger"
 )
 
 // Injectors from wire.go:
@@ -37,12 +39,12 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	userGrpcClient := user_grpc.NewGrpcClient(appCfg)
 	managerTxn := transaction.InitManagerTxn(writeDb)
 	conversationServiceI := conversation2.InitConversationUsecase(conversationQueryRepoI, conversationCommandRepoI, memberCmdRepoI, memberQueryRepoI, userGrpcClient, managerTxn)
-	conversationHandler := v1.InitConversationHandler(conversationServiceI)
 	messageQueryRepoI := message.InitMessageQueryRepo(readDb, writeDb)
 	messageCmdRepoI := message.InitMessageCmdRepo(readDb, writeDb)
 	messageListCacheI := redis2.InitMessageListCache(redisClient)
 	wsPublisherI := redis2.InitWsPublisher(redisClient)
 	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI, wsPublisherI)
+	conversationHandler := v1.InitConversationHandler(conversationServiceI)
 	messageHandler := v1.InitMessageHandler(messageServiceI)
 	wsSubscriberI := redis2.InitWsSubscriber(redisClient)
 	hub := ws.NewHub(wsSubscriberI)
@@ -52,7 +54,10 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	server := http.NewServer(appCfg, conversationHandler, messageHandler, hub, messageRateLimiterI, jwkCacheRepo, userGrpcClient, tokenDenylistI)
 	grpcServer := grpc.NewServer(appCfg)
 	cronServer := cron.NewServer(appCfg)
-	apiContainer := api.NewApiContainer(server, grpcServer, cronServer)
+	logger := provideLogger(appCfg)
+	userEventHandler := conversation2.InitUserEventHandler(conversationServiceI, messageServiceI)
+	userEventConsumer := worker.InitUserEventConsumer(appCfg, userEventHandler, logger)
+	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, userEventConsumer)
 	return apiContainer
 }
 
@@ -64,8 +69,12 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitConversationHandler, v1.InitMessageHandler)
 
-var serviceSet = wire.NewSet(conversation2.InitConversationUsecase, message2.InitMessageUsecase)
+var serviceSet = wire.NewSet(conversation2.InitConversationUsecase, message2.InitMessageUsecase, conversation2.InitUserEventHandler)
 
 var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitWsPublisher, redis2.InitWsSubscriber)
 
-var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn, ws.NewHub)
+var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn, ws.NewHub, worker.InitUserEventConsumer, provideLogger)
+
+func provideLogger(cfg *config.AppConfig) logger.Logger {
+	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}

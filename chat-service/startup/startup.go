@@ -2,6 +2,7 @@ package startup
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,6 +15,7 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/redis"
 	"github.com/vucongthanh92/go-base-utils/command"
 	"github.com/vucongthanh92/go-base-utils/logger"
+	"go.uber.org/zap"
 )
 
 var cfg *config.AppConfig
@@ -31,7 +33,7 @@ func start() {
 	defer cancel()
 
 	container, _, _ := registerDependencies(ctx)
-	runServer(container)
+	runServer(ctx, container)
 }
 
 func registerDependencies(_ context.Context) (*api.ApiContainer, database.GormReadDb, database.GormWriteDb) {
@@ -46,13 +48,21 @@ func registerDependencies(_ context.Context) (*api.ApiContainer, database.GormRe
 	), readDb, writeDb
 }
 
-func runServer(container *api.ApiContainer) {
-	wp := workerpool.New(3)
+func runServer(ctx context.Context, container *api.ApiContainer) {
+	wp := workerpool.New(4)
 
 	wp.Submit(container.GrpcServer.Run)
 	wp.Submit(container.HttpServer.Run)
 	wp.Submit(container.CronServer.Run)
+	wp.Submit(func() {
+		if err := container.UserEventConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Error("user event consumer stopped", zap.Error(err))
+		}
+	})
 
 	wp.StopWait()
+	if container.UserEventConsumer != nil {
+		_ = container.UserEventConsumer.Close()
+	}
 	logger.Info("chat-service stopped")
 }

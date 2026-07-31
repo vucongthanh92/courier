@@ -21,6 +21,7 @@ type OutboxWorker struct {
 	outboxCommandRepo interfaces.OutboxCommandRepoI
 	auditLogService   interfaces.AuditLogServiceI
 	emailSender       interfaces.EmailSenderI
+	eventPublisher    interfaces.IntegrationEventPublisherI
 	logger            logger.Logger
 }
 
@@ -30,6 +31,7 @@ func InitOutboxWorker(
 	outboxCommandRepo interfaces.OutboxCommandRepoI,
 	auditLogService interfaces.AuditLogServiceI,
 	emailSender interfaces.EmailSenderI,
+	eventPublisher interfaces.IntegrationEventPublisherI,
 	logger logger.Logger,
 ) *OutboxWorker {
 	return &OutboxWorker{
@@ -38,6 +40,7 @@ func InitOutboxWorker(
 		outboxCommandRepo: outboxCommandRepo,
 		auditLogService:   auditLogService,
 		emailSender:       emailSender,
+		eventPublisher:    eventPublisher,
 		logger:            logger,
 	}
 }
@@ -111,7 +114,7 @@ func (w *OutboxWorker) processNotification(ctx context.Context, payload string) 
 	outboxEvent, txnErr := w.outboxQueryRepo.GetOutboxByID(ctx, outboxID)
 	if txnErr != nil {
 		w.logger.Error("Failed to fetch outbox event", zap.Any("error", txnErr), zap.Uint64("outbox_id", outboxID))
-		return fmt.Errorf("failed to fetch outbox event: %w", txnErr)
+		return fmt.Errorf("failed to fetch outbox event: %v", txnErr)
 	}
 
 	// Check if already published
@@ -130,6 +133,13 @@ func (w *OutboxWorker) processNotification(ctx context.Context, payload string) 
 		if err := w.processSendVerifyEmail(ctx, outboxEvent); err != nil {
 			return err
 		}
+	case "user.email_verified.v1":
+		if w.eventPublisher == nil {
+			return fmt.Errorf("integration event publisher is not configured for event type %s", outboxEvent.EventType)
+		}
+		if err := w.eventPublisher.PublishOutbox(ctx, outboxEvent); err != nil {
+			return err
+		}
 	default:
 		w.logger.Warn("Unknown event type", zap.String("event_type", outboxEvent.EventType), zap.Uint64("outbox_id", outboxID))
 		return nil
@@ -141,7 +151,7 @@ func (w *OutboxWorker) processNotification(ctx context.Context, payload string) 
 	txnErr = w.outboxCommandRepo.UpdateOutboxPublished(ctx, outboxEvent)
 	if txnErr != nil {
 		w.logger.Error("Failed to mark outbox event as published", zap.Any("error", txnErr), zap.Uint64("outbox_id", outboxID))
-		return fmt.Errorf("failed to mark outbox event as published: %w", txnErr)
+		return fmt.Errorf("failed to mark outbox event as published: %v", txnErr)
 	}
 
 	w.logger.Info("Successfully processed outbox event", zap.Uint64("outbox_id", outboxID), zap.String("event_type", outboxEvent.EventType))
@@ -182,7 +192,7 @@ func (w *OutboxWorker) processSendVerifyEmail(ctx context.Context, outboxEvent *
 	// Call email sender to send verification email
 	if err := w.emailSender.SendVerificationEmail(ctx, payload.Email, payload.Token); err != nil {
 		w.logger.Error("Send verification email failed", zap.Any("error", err), zap.String("email", payload.Email))
-		return fmt.Errorf("send verification email: %w", err)
+		return fmt.Errorf("send verification email: %v", err)
 	}
 	return nil
 }
