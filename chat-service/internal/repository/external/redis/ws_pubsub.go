@@ -5,37 +5,36 @@ import (
 	"encoding/json"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 	redisClient "github.com/vucongthanh92/courier/chat-service/redis"
 )
 
-const messageCreatedChannel = "chat:events:message.created"
-
-type realtimePubSub struct {
+type wsPubSub struct {
 	client redis.UniversalClient
 }
 
-func InitRealtimePublisher(client redisClient.Client) interfaces.RealtimePublisherI {
-	return &realtimePubSub{client: redis.UniversalClient(client)}
+func InitWsPublisher(client redisClient.Client) interfaces.WsPublisherI {
+	return &wsPubSub{client: redis.UniversalClient(client)}
 }
 
-func InitRealtimeSubscriber(client redisClient.Client) interfaces.RealtimeSubscriberI {
-	return &realtimePubSub{client: redis.UniversalClient(client)}
+func InitWsSubscriber(client redisClient.Client) interfaces.WsSubscriberI {
+	return &wsPubSub{client: redis.UniversalClient(client)}
 }
 
-func (r *realtimePubSub) PublishMessageCreated(ctx context.Context, event models.MessageCreatedEvent) error {
+func (r *wsPubSub) PublishMessageCreated(ctx context.Context, event models.MessageCreatedEvent) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
-	return r.client.Publish(ctx, messageCreatedChannel, payload).Err()
+	return r.client.Publish(ctx, constants.MessageCreatedChannel, payload).Err()
 }
 
-func (r *realtimePubSub) SubscribeMessageCreated(ctx context.Context) (<-chan models.MessageCreatedEvent, <-chan error) {
+func (r *wsPubSub) SubscribeMessageCreated(ctx context.Context) (<-chan models.MessageCreatedEvent, <-chan error) {
 	events := make(chan models.MessageCreatedEvent)
 	errs := make(chan error, 1)
-	pubsub := r.client.Subscribe(ctx, messageCreatedChannel)
+	pubsub := r.client.Subscribe(ctx, constants.MessageCreatedChannel)
 
 	go func() {
 		defer close(events)

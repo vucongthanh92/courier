@@ -10,24 +10,28 @@ func MapRoutes(
 	router *gin.Engine,
 	conversationHandler *ConversationHandler,
 	messageHandler *MessageHandler,
-	realtimeHandler *RealtimeHandler,
+	wsHandler *WsHandler,
 	authMiddleWare gin.HandlerFunc,
 	messageRateLimitMiddleware gin.HandlerFunc,
 ) {
 
-	v1 := router.Group("/api/v1")
-	if realtimeHandler != nil {
-		v1.GET("/ws", realtimeHandler.Handle)
+	// path origin
+	origin := router.Group("/api")
+
+	// non auth
+	v1NonAuth := origin.Group("/v1")
+	if wsHandler != nil {
+		v1NonAuth.GET("/ws", wsHandler.VerifyAndConnect)
 	}
 
 	// Protected REST routes
-	protected := v1.Group("")
-	protected.Use(authMiddleWare)
+	v1HasAuth := origin.Group("/v1")
+	v1HasAuth.Use(authMiddleWare)
 	{
-		protected.POST("/conversation/create", conversationHandler.CreateConversation)
-		protected.GET("/conversations", conversationHandler.ListConversations)
-		protected.POST("/conversation/:id/messages/create", messageRateLimitMiddleware, messageHandler.CreateMessage)
-		protected.GET("/conversation/:id/messages", messageHandler.ListMessages)
+		v1HasAuth.POST("/conversation/create", conversationHandler.CreateConversation)
+		v1HasAuth.GET("/conversations", conversationHandler.ListConversations)
+		v1HasAuth.POST("/conversation/:id/messages/create", messageRateLimitMiddleware, messageHandler.CreateMessage)
+		v1HasAuth.GET("/conversation/:id/messages", messageHandler.ListMessages)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

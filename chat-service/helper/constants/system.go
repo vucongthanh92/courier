@@ -61,3 +61,16 @@ const (
 	MaxMetadataBytes    = 16 * 1024
 	MaxClientMessageID  = 64
 )
+
+// ws channels
+const (
+	MessageCreatedChannel = "chat:events:message.created"
+)
+
+// ws configs
+const (
+	WsConfigWriteWait      = 10 * time.Second
+	WsConfigPongWait       = 60 * time.Second
+	WsConfigPingPeriod     = 45 * time.Second
+	WsConfigSendBufferSize = 32
+)

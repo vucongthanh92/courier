@@ -19,7 +19,7 @@ type Server struct {
 	cfg                 *config.AppConfig
 	conversationHandler *v1.ConversationHandler
 	messageHandler      *v1.MessageHandler
-	realtimeHub         *ws.Hub
+	wsHub               *ws.Hub
 	messageRateLimiter  interfaces.MessageRateLimiterI
 	jwkCache            cacheRepo.JWKCacheRepo
 	userGrpc            user_grpc.UserGrpcClient
@@ -30,7 +30,7 @@ func NewServer(
 	cfg *config.AppConfig,
 	conversationHandler *v1.ConversationHandler,
 	messageHandler *v1.MessageHandler,
-	realtimeHub *ws.Hub,
+	wsHub *ws.Hub,
 	messageRateLimiter interfaces.MessageRateLimiterI,
 	jwkCache cacheRepo.JWKCacheRepo,
 	userGrpc user_grpc.UserGrpcClient,
@@ -39,7 +39,7 @@ func NewServer(
 		cfg:                 cfg,
 		conversationHandler: conversationHandler,
 		messageHandler:      messageHandler,
-		realtimeHub:         realtimeHub,
+		wsHub:               wsHub,
 		messageRateLimiter:  messageRateLimiter,
 		jwkCache:            jwkCache,
 		userGrpc:            userGrpc,
@@ -63,17 +63,17 @@ func (s *Server) Run() {
 		return middleware.ResolvePublicKey(ctx, s.jwkCache, s.userGrpc, kid)
 	}
 	authMW := middleware.JWTMiddleware(s.tokenDeny, keyResolver)
-	if s.realtimeHub != nil {
-		go s.realtimeHub.Run(context.Background())
+	if s.wsHub != nil {
+		go s.wsHub.Run(context.Background())
 	}
-	realtimeHandler := v1.InitRealtimeHandler(s.realtimeHub, s.cfg.Http.AllowOrigins, s.tokenDeny, keyResolver)
+	wsHandler := v1.InitWsHandler(s.wsHub, s.cfg.Http.AllowOrigins, s.tokenDeny, keyResolver)
 
 	// In the future, if we have v2, v3..., we will add at here
 	v1.MapRoutes(
 		router,
 		s.conversationHandler,
 		s.messageHandler,
-		realtimeHandler,
+		wsHandler,
 		authMW,
 		middleware.MessageRateLimitMiddleware(s.messageRateLimiter),
 	)
