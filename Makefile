@@ -1,8 +1,9 @@
 KIND_CLUSTER ?= courier-dev
 IMAGE_NAME ?= ghcr.io/vucongthanh92/courier/user-service
 IMAGE_TAG ?= dev
+LOCAL_SERVICES ?= user-service chat-service
 
-.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up
+.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up run-user-service run-chat-service run-local-services
 
 kind-create:
 	kind create cluster --name $(KIND_CLUSTER) --config infra/kind/courier-dev.yaml
@@ -28,3 +29,21 @@ dev-user-up: kind-load-user-service kind-apply-argocd kind-apply-user-service
 ## pwd: J3q-dYVlXGBsR7KV
 start-argocd:
 	kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+run-user-service:
+	$(MAKE) -C user-service run-local
+
+run-chat-service:
+	$(MAKE) -C chat-service run-local
+
+run-local-services:
+	@echo "Starting local services: $(LOCAL_SERVICES)"
+	@set -e; \
+	pids=""; \
+	trap 'echo "Stopping local services..."; for pid in $$pids; do kill $$pid 2>/dev/null || true; done; wait 2>/dev/null || true' INT TERM EXIT; \
+	for service in $(LOCAL_SERVICES); do \
+		echo "-> starting $$service"; \
+		($(MAKE) -C $$service run-local) & \
+		pids="$$pids $$!"; \
+	done; \
+	wait
