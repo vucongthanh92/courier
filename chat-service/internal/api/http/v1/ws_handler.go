@@ -14,20 +14,20 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 )
 
-type RealtimeHandler struct {
+type WsHandler struct {
 	hub         *ws.Hub
 	upgrader    websocket.Upgrader
 	tokenDeny   interfaces.TokenDenylistI
 	keyResolver func(context.Context, string) (interface{}, *errHandler.ErrorBuilder)
 }
 
-func InitRealtimeHandler(
+func InitWsHandler(
 	hub *ws.Hub,
 	allowOrigins []string,
 	tokenDeny interfaces.TokenDenylistI,
 	keyResolver func(context.Context, string) (interface{}, *errHandler.ErrorBuilder),
-) *RealtimeHandler {
-	return &RealtimeHandler{
+) *WsHandler {
+	return &WsHandler{
 		hub:         hub,
 		upgrader:    ws.Upgrader(allowOrigins),
 		tokenDeny:   tokenDeny,
@@ -35,7 +35,7 @@ func InitRealtimeHandler(
 	}
 }
 
-func (h *RealtimeHandler) Handle(c *gin.Context) {
+func (h *WsHandler) VerifyAndConnect(c *gin.Context) {
 	token := c.Query("access_token")
 	if token == "" {
 		token = c.Query("token")
@@ -53,6 +53,7 @@ func (h *RealtimeHandler) Handle(c *gin.Context) {
 		authErr.ExposeHttpError(c)
 		return
 	}
+
 	userID := utils.ParseUserID(claims["sub"])
 	if userID == 0 {
 		errHandler.InitErrorBuilder(c).

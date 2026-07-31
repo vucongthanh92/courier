@@ -41,11 +41,11 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	messageQueryRepoI := message.InitMessageQueryRepo(readDb, writeDb)
 	messageCmdRepoI := message.InitMessageCmdRepo(readDb, writeDb)
 	messageListCacheI := redis2.InitMessageListCache(redisClient)
-	realtimePublisherI := redis2.InitRealtimePublisher(redisClient)
-	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI, realtimePublisherI)
+	wsPublisherI := redis2.InitWsPublisher(redisClient)
+	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI, wsPublisherI)
 	messageHandler := v1.InitMessageHandler(messageServiceI)
-	realtimeSubscriberI := redis2.InitRealtimeSubscriber(redisClient)
-	hub := ws.NewHub(realtimeSubscriberI)
+	wsSubscriberI := redis2.InitWsSubscriber(redisClient)
+	hub := ws.NewHub(wsSubscriberI)
 	messageRateLimiterI := redis2.InitMessageRateLimiter(redisClient, appCfg)
 	jwkCacheRepo := redis2.InitJWKCacheRepo(redisClient)
 	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
@@ -66,6 +66,6 @@ var handlerSet = wire.NewSet(v1.InitConversationHandler, v1.InitMessageHandler)
 
 var serviceSet = wire.NewSet(conversation2.InitConversationUsecase, message2.InitMessageUsecase)
 
-var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitRealtimePublisher, redis2.InitRealtimeSubscriber)
+var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitWsPublisher, redis2.InitWsSubscriber)
 
 var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn, ws.NewHub)

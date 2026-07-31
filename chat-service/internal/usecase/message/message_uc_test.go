@@ -90,12 +90,12 @@ type messageListCacheStub struct {
 	invalidateCalls int
 }
 
-type realtimePublisherStub struct {
+type wsPublisherStub struct {
 	event *models.MessageCreatedEvent
 	calls int
 }
 
-func (s *realtimePublisherStub) PublishMessageCreated(_ context.Context, event models.MessageCreatedEvent) error {
+func (s *wsPublisherStub) PublishMessageCreated(_ context.Context, event models.MessageCreatedEvent) error {
 	s.calls++
 	s.event = &event
 	return nil
@@ -321,8 +321,8 @@ func TestCreateMessageInvalidatesLatestMessageCache(t *testing.T) {
 	}
 }
 
-func TestCreateMessagePublishesRealtimeEventToActiveMembers(t *testing.T) {
-	publisher := &realtimePublisherStub{}
+func TestCreateMessagePublishesMessageCreatedEventToActiveMembers(t *testing.T) {
+	publisher := &wsPublisherStub{}
 	service := InitMessageUsecase(
 		conversationQueryStub{conversation: &entities.Conversation{ID: 10}},
 		memberQueryStub{
@@ -347,10 +347,10 @@ func TestCreateMessagePublishesRealtimeEventToActiveMembers(t *testing.T) {
 	if publisher.calls != 1 || publisher.event == nil {
 		t.Fatalf("publisher was not called: %#v", publisher)
 	}
-	if publisher.event.Type != models.RealtimeEventMessageCreated ||
+	if publisher.event.Type != models.MessageCreatedEventType ||
 		publisher.event.ConversationID != 10 ||
 		publisher.event.Message.ID != response.ID {
-		t.Fatalf("unexpected realtime event: %#v", publisher.event)
+		t.Fatalf("unexpected message created event: %#v", publisher.event)
 	}
 	if len(publisher.event.RecipientUserIDs) != 2 ||
 		publisher.event.RecipientUserIDs[0] != 20 ||

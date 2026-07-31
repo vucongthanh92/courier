@@ -8,26 +8,20 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
 )
 
-const (
-	writeWait      = 10 * time.Second
-	pongWait       = 60 * time.Second
-	pingPeriod     = 45 * time.Second
-	sendBufferSize = 32
-)
-
 type Hub struct {
-	subscriber interfaces.RealtimeSubscriberI
+	subscriber interfaces.WsSubscriberI
 	mu         sync.RWMutex
 	clients    map[uint64]map[*Client]struct{}
 }
 
-func NewHub(subscriber interfaces.RealtimeSubscriberI) *Hub {
+func NewHub(subscriber interfaces.WsSubscriberI) *Hub {
 	return &Hub{
 		subscriber: subscriber,
 		clients:    make(map[uint64]map[*Client]struct{}),
@@ -45,7 +39,7 @@ func (h *Hub) Run(ctx context.Context) {
 			return
 		case err, ok := <-errs:
 			if ok && err != nil {
-				logger.Error("realtime subscription error", zap.Error(err))
+				logger.Error("websocket subscription error", zap.Error(err))
 			}
 		case event, ok := <-events:
 			if !ok {
@@ -61,7 +55,7 @@ func (h *Hub) Register(userID uint64, conn *websocket.Conn) {
 		hub:    h,
 		userID: userID,
 		conn:   conn,
-		send:   make(chan []byte, sendBufferSize),
+		send:   make(chan []byte, constants.WsConfigSendBufferSize),
 	}
 
 	h.mu.Lock()
@@ -95,7 +89,7 @@ func (h *Hub) unregister(client *Client) {
 func (h *Hub) broadcast(event models.MessageCreatedEvent) {
 	payload, err := json.Marshal(event)
 	if err != nil {
-		logger.Error("marshal realtime event failed", zap.Error(err))
+		logger.Error("marshal websocket event failed", zap.Error(err))
 		return
 	}
 
@@ -126,9 +120,9 @@ func (c *Client) readPump() {
 		_ = c.conn.Close()
 	}()
 	c.conn.SetReadLimit(1024)
-	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	_ = c.conn.SetReadDeadline(time.Now().Add(constants.WsConfigPongWait))
 	c.conn.SetPongHandler(func(string) error {
-		return c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return c.conn.SetReadDeadline(time.Now().Add(constants.WsConfigPongWait))
 	})
 	for {
 		if _, _, err := c.conn.NextReader(); err != nil {
@@ -138,7 +132,7 @@ func (c *Client) readPump() {
 }
 
 func (c *Client) writePump() {
-	ticker := time.NewTicker(pingPeriod)
+	ticker := time.NewTicker(constants.WsConfigPingPeriod)
 	defer func() {
 		ticker.Stop()
 		_ = c.conn.Close()
@@ -146,7 +140,7 @@ func (c *Client) writePump() {
 	for {
 		select {
 		case message, ok := <-c.send:
-			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(constants.WsConfigWriteWait))
 			if !ok {
 				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
@@ -155,7 +149,7 @@ func (c *Client) writePump() {
 				return
 			}
 		case <-ticker.C:
-			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			_ = c.conn.SetWriteDeadline(time.Now().Add(constants.WsConfigWriteWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}

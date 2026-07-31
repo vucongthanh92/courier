@@ -59,8 +59,8 @@ var repoSet = wire.NewSet(
 	cacheRepo.InitRedisDenylist,
 	cacheRepo.InitMessageRateLimiter,
 	cacheRepo.InitMessageListCache,
-	cacheRepo.InitRealtimePublisher,
-	cacheRepo.InitRealtimeSubscriber,
+	cacheRepo.InitWsPublisher,
+	cacheRepo.InitWsSubscriber,
 )
 
 var providerSet = wire.NewSet(

@@ -3,7 +3,7 @@ package models
 import "time"
 
 const (
-	RealtimeEventMessageCreated = "message.created"
+	MessageCreatedEventType = "message.created"
 )
 
 type MessageCreatedEvent struct {

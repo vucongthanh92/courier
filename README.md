@@ -53,19 +53,43 @@ Recommended package layout:
 <service>/internal/api/http
 <service>/internal/api/grpc
 <service>/internal/api/ws
-<service>/internal/domain/interfaces/realtime.go
-<service>/internal/domain/models/realtime.go
-<service>/internal/repository/external/redis/realtime_pubsub.go
+<service>/internal/domain/interfaces/ws.go
+<service>/internal/domain/models/event.go
+<service>/internal/repository/external/redis/ws_pubsub.go
 ```
 
 Keep responsibilities separated:
 
 - `api/ws`: WebSocket hub, connection registry, ping/pong, local delivery.
 - `api/http`: REST routes plus a small WebSocket upgrade handler if the service uses Gin routing.
-- `domain/interfaces`: `RealtimePublisherI` and `RealtimeSubscriberI`.
+- `domain/interfaces`: `WsPublisherI` and `WsSubscriberI`.
 - `domain/models`: stable realtime event envelopes.
 - `repository/external/redis`: Redis Pub/Sub publish/subscribe implementation.
 - usecase layer: publish the event only after the business write succeeds.
+
+### Naming And Route Convention
+
+Use `Ws` for names owned by the WebSocket transport or its delivery infrastructure:
+
+- `WsHandler`, `WsPublisherI`, `WsSubscriberI`
+- `InitWsHandler`, `InitWsPublisher`, `InitWsSubscriber`
+- `ws.go`, `ws_pubsub.go`, `wsHandler`, `wsHub`
+
+Keep domain event names transport-independent, such as `MessageCreatedEvent`, because the same event may later be consumed by WebSocket, push notification, or another adapter.
+
+For Gin routes, separate the shared API origin from authentication groups:
+
+```go
+origin := router.Group("/api")
+
+v1NonAuth := origin.Group("/v1")
+v1NonAuth.GET("/ws", wsHandler.VerifyAndConnect)
+
+v1HasAuth := origin.Group("/v1")
+v1HasAuth.Use(authMiddleWare)
+```
+
+Use the same naming and route grouping when WebSocket support is added to another Courier service, including `user-service`.
 
 ## Client Shape
 
@@ -103,12 +127,12 @@ The event payload includes the full message for MVP rendering:
 ```json
 {
   "type": "message.created",
-  "conversation_id": 10,
+  "conversation_id": "10",
   "recipient_user_ids": [20, 21],
   "message": {
-    "id": 100,
-    "conversation_id": 10,
-    "sender_id": 20,
+    "id": "100",
+    "conversation_id": "10",
+    "sender_id": "20",
     "type": "text",
     "body": "hello",
     "metadata": {},

@@ -12,13 +12,13 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 )
 
-type UseCase struct {
+type messageUseCase struct {
 	conversationQuery interfaces.ConversationQueryRepoI
 	memberQuery       interfaces.MemberQueryRepoI
 	messageQuery      interfaces.MessageQueryRepoI
 	messageCommand    interfaces.MessageCmdRepoI
 	messageListCache  interfaces.MessageListCacheI
-	realtimePublisher interfaces.RealtimePublisherI
+	wsPublisher       interfaces.WsPublisherI
 }
 
 func InitMessageUsecase(
@@ -27,21 +27,21 @@ func InitMessageUsecase(
 	messageQuery interfaces.MessageQueryRepoI,
 	messageCommand interfaces.MessageCmdRepoI,
 	messageListCache interfaces.MessageListCacheI,
-	realtimePublisher interfaces.RealtimePublisherI,
+	wsPublisher interfaces.WsPublisherI,
 ) interfaces.MessageServiceI {
-	return &UseCase{
+	return &messageUseCase{
 		conversationQuery: conversationQuery,
 		memberQuery:       memberQuery,
 		messageQuery:      messageQuery,
 		messageCommand:    messageCommand,
 		messageListCache:  messageListCache,
-		realtimePublisher: realtimePublisher,
+		wsPublisher:       wsPublisher,
 	}
 }
 
 // func CreateMessage handles the creation of a new message in a conversation.
 // It performs validation, checks for existing messages, and persists the new message if all checks pass.
-func (s *UseCase) CreateMessage(ctx context.Context, req *models.SendMessageRequest) (*models.MessageResponse, bool, *errHandler.ErrorBuilder) {
+func (s *messageUseCase) CreateMessage(ctx context.Context, req *models.SendMessageRequest) (*models.MessageResponse, bool, *errHandler.ErrorBuilder) {
 
 	// Validate the request body using the ValidateRequest method of SendMessageRequest
 	if messageCode, messageErr := req.ValidateRequest(); messageCode != "" {
@@ -182,35 +182,9 @@ func (s *UseCase) CreateMessage(ctx context.Context, req *models.SendMessageRequ
 	return &response, true, nil
 }
 
-func (s *UseCase) publishMessageCreated(ctx context.Context, conversationID uint64, message models.MessageResponse) {
-	if s.realtimePublisher == nil {
-		return
-	}
-	members, errBuilder := s.memberQuery.ListConversationMembers(ctx, conversationID)
-	if errBuilder != nil {
-		return
-	}
-	recipientIDs := make([]uint64, 0, len(members))
-	for i := range members {
-		if members[i].Status == "active" {
-			recipientIDs = append(recipientIDs, members[i].UserID)
-		}
-	}
-	if len(recipientIDs) == 0 {
-		return
-	}
-	_ = s.realtimePublisher.PublishMessageCreated(ctx, models.MessageCreatedEvent{
-		Type:             models.RealtimeEventMessageCreated,
-		ConversationID:   conversationID,
-		RecipientUserIDs: recipientIDs,
-		Message:          message,
-		EventAt:          time.Now().UTC(),
-	})
-}
-
 // ListMessages retrieves a list of messages in a conversation based on the provided request parameters.
 // It performs validation, checks for conversation existence and membership, and returns the messages along with pagination information.
-func (s *UseCase) ListMessages(ctx context.Context, req *models.ListMessagesRequest) (*models.ListMessagesResponse, *errHandler.ErrorBuilder) {
+func (s *messageUseCase) ListMessages(ctx context.Context, req *models.ListMessagesRequest) (*models.ListMessagesResponse, *errHandler.ErrorBuilder) {
 
 	if messageCode, messageErr := req.ValidateRequest(); messageCode != "" {
 		return nil, errHandler.InitErrorBuilder(ctx).
@@ -316,4 +290,31 @@ func (s *UseCase) ListMessages(ctx context.Context, req *models.ListMessagesRequ
 		Members:        memberResponses,
 		Pagination:     page.Pagination,
 	}, nil
+}
+
+// private func publishMessageCreated
+func (s *messageUseCase) publishMessageCreated(ctx context.Context, conversationID uint64, message models.MessageResponse) {
+	if s.wsPublisher == nil {
+		return
+	}
+	members, errBuilder := s.memberQuery.ListConversationMembers(ctx, conversationID)
+	if errBuilder != nil {
+		return
+	}
+	recipientIDs := make([]uint64, 0, len(members))
+	for i := range members {
+		if members[i].Status == "active" {
+			recipientIDs = append(recipientIDs, members[i].UserID)
+		}
+	}
+	if len(recipientIDs) == 0 {
+		return
+	}
+	_ = s.wsPublisher.PublishMessageCreated(ctx, models.MessageCreatedEvent{
+		Type:             models.MessageCreatedEventType,
+		ConversationID:   conversationID,
+		RecipientUserIDs: recipientIDs,
+		Message:          message,
+		EventAt:          time.Now().UTC(),
+	})
 }
