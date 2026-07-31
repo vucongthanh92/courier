@@ -1,9 +1,10 @@
 KIND_CLUSTER ?= courier-dev
 IMAGE_NAME ?= ghcr.io/vucongthanh92/courier/user-service
 IMAGE_TAG ?= dev
-LOCAL_SERVICES ?= user-service chat-service
+COURIER_GO_SERVICES ?= user-service chat-service
+COURIER_FRONTEND_APPS ?= conversa-app
 
-.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up run-user-service run-chat-service run-local-services
+.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up run-user-service run-chat-service run-conversa-app start-courier
 
 kind-create:
 	kind create cluster --name $(KIND_CLUSTER) --config infra/kind/courier-dev.yaml
@@ -36,14 +37,22 @@ run-user-service:
 run-chat-service:
 	$(MAKE) -C chat-service run-local
 
-run-local-services:
-	@echo "Starting local services: $(LOCAL_SERVICES)"
+run-conversa-app:
+	pnpm --dir conversa-app dev
+
+start-courier:
+	@echo "Starting Courier local apps..."
 	@set -e; \
 	pids=""; \
 	trap 'echo "Stopping local services..."; for pid in $$pids; do kill $$pid 2>/dev/null || true; done; wait 2>/dev/null || true' INT TERM EXIT; \
-	for service in $(LOCAL_SERVICES); do \
+	for service in $(COURIER_GO_SERVICES); do \
 		echo "-> starting $$service"; \
 		($(MAKE) -C $$service run-local) & \
+		pids="$$pids $$!"; \
+	done; \
+	for app in $(COURIER_FRONTEND_APPS); do \
+		echo "-> starting $$app"; \
+		(pnpm --dir $$app dev) & \
 		pids="$$pids $$!"; \
 	done; \
 	wait
