@@ -1,0 +1,16 @@
+<svg width="360" height="104" viewBox="0 0 360 104" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">conversa logo</title>
+  <desc id="desc">Spatial glass logo mark and wordmark for conversa.</desc>
+  <rect width="104" height="104" rx="24" fill="url(#markFill)"/>
+  <rect x="1" y="1" width="102" height="102" rx="23" stroke="white" stroke-opacity=".32" stroke-width="2"/>
+  <path d="M52 22C68.569 22 82 35.431 82 52C82 68.569 68.569 82 52 82C35.431 82 22 68.569 22 52C22 35.431 35.431 22 52 22Z" fill="white" fill-opacity=".16"/>
+  <path d="M66.4 62.7C62.9 67.1 57.9 69.4 52 69.4C41.9 69.4 34.6 62 34.6 52C34.6 42 41.9 34.6 52 34.6C57.8 34.6 62.7 36.8 66.1 41L60.7 46C58.5 43.4 55.6 42.1 52.3 42.1C46.6 42.1 42.5 46.2 42.5 52C42.5 57.8 46.6 61.9 52.3 61.9C55.8 61.9 58.7 60.5 61 57.8L66.4 62.7Z" fill="white"/>
+  <text x="128" y="66" fill="#F7FBFF" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="44" font-weight="800" letter-spacing="0">conversa</text>
+  <defs>
+    <linearGradient id="markFill" x1="8" y1="10" x2="96" y2="96" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3577FF"/>
+      <stop offset=".58" stop-color="#18CCB4"/>
+      <stop offset="1" stop-color="#94F3DF"/>
+    </linearGradient>
+  </defs>
+</svg>

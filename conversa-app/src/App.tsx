@@ -84,10 +84,12 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Session) =
 
   return (
     <main className="auth-page">
+      <div className="aurora aurora-a" />
+      <div className="aurora aurora-b" />
       <section className="auth-card">
-        <div className="brand-mark">C</div>
+        <ConversaLogo />
         <h1>Conversa</h1>
-        <p className="muted">A lightweight Courier messaging client.</p>
+        <p className="muted">Spatial messaging for Courier teams.</p>
 
         <div className="auth-tabs" role="tablist">
           <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>
@@ -186,6 +188,8 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
   const [unreadConversationIds, setUnreadConversationIds] = useState<Set<string>>(() => new Set());
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
+  const [conversationQuery, setConversationQuery] = useState("");
+  const [conversationFilter, setConversationFilter] = useState<"all" | "unread" | "groups">("all");
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const selectedIdRef = useRef<string | null>(null);
 
@@ -193,6 +197,29 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
   const memberByUserId = useMemo(
     () => new Map(members.map((member) => [member.user_id, member])),
     [members]
+  );
+  const filteredConversations = useMemo(
+    () =>
+      conversations.filter((conversation) => {
+        const title = conversationTitle(conversation).toLowerCase();
+        const preview = (conversation.last_message?.body ?? "").toLowerCase();
+        const query = conversationQuery.trim().toLowerCase();
+        const matchesQuery = !query || title.includes(query) || preview.includes(query);
+        const matchesFilter =
+          conversationFilter === "all" ||
+          (conversationFilter === "unread" && unreadConversationIds.has(conversation.id)) ||
+          (conversationFilter === "groups" && conversation.type.toLowerCase() === "group");
+        return matchesQuery && matchesFilter;
+      }),
+    [conversationFilter, conversationQuery, conversations, unreadConversationIds]
+  );
+  const sharedItems = useMemo(
+    () =>
+      messages
+        .filter((message) => message.metadata && Object.keys(message.metadata).length > 0)
+        .slice(-3)
+        .reverse(),
+    [messages]
   );
 
   const loadConversations = useCallback(async () => {
@@ -346,21 +373,67 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
 
   return (
     <main className="messenger-shell">
-      <aside className="sidebar">
-        <div className="sidebar-header">
+      <div className="aurora aurora-a" />
+      <div className="aurora aurora-b" />
+      <div className="aurora aurora-c" />
+
+      <aside className="space-rail" aria-label="Primary navigation">
+        <ConversaLogo compact />
+        <button className="rail-action active" title="Messages">C</button>
+        <button className="rail-action" title="Friends">+</button>
+        <button className="rail-action" title="Groups">#</button>
+        <button className="rail-action" title="Notifications">.</button>
+        <button className="rail-action bottom" title="Logout" onClick={onLogout}>
+          Q
+        </button>
+      </aside>
+
+      <aside className="conversation-panel glass-card">
+        <header className="panel-title">
           <div>
-            <h1>Conversa</h1>
-            <span>User #{session.user_id ?? "?"} · {realtimeStatus}</span>
+            <p>Courier Conversa</p>
+            <h1>Spaces</h1>
           </div>
-          <button className="text-button" onClick={onLogout}>
-            Logout
+          <button title="Create conversation">+</button>
+        </header>
+
+        <section className="profile-glance">
+          <Avatar label="Thanh" tone="me" />
+          <div>
+            <strong>User #{session.user_id ?? "?"}</strong>
+            <small>{realtimeStatus} · spatial glass</small>
+          </div>
+          <span className={`live-dot status-${realtimeStatus}`} />
+        </section>
+
+        <label className="space-search">
+          <span>Search</span>
+          <input
+            value={conversationQuery}
+            onChange={(event) => setConversationQuery(event.target.value)}
+            placeholder="Find friends, groups, messages..."
+          />
+        </label>
+
+        <nav className="smart-filters" aria-label="Conversation filters">
+          <button className={conversationFilter === "all" ? "active" : ""} onClick={() => setConversationFilter("all")}>
+            All
           </button>
-        </div>
+          <button className={conversationFilter === "unread" ? "active" : ""} onClick={() => setConversationFilter("unread")}>
+            Unread
+          </button>
+          <button className={conversationFilter === "groups" ? "active" : ""} onClick={() => setConversationFilter("groups")}>
+            Groups
+          </button>
+        </nav>
 
         <div className="conversation-list">
           {sidebarLoading && <div className="empty-state">Loading conversations...</div>}
           {!sidebarLoading && conversations.length === 0 && <div className="empty-state">No conversations yet.</div>}
-          {conversations.map((conversation) => {
+          {!sidebarLoading && conversations.length > 0 && filteredConversations.length === 0 && (
+            <div className="empty-state">No matching conversations.</div>
+          )}
+          {filteredConversations.map((conversation) => {
             const isUnread = unreadConversationIds.has(conversation.id);
             return (
               <button
@@ -368,13 +441,17 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
                 className={`conversation-item ${conversation.id === selectedId ? "selected" : ""} ${isUnread ? "unread" : ""} type-${conversation.type}`}
                 onClick={() => selectConversation(conversation.id)}
               >
-                <Avatar label={conversation.name || conversation.type || String(conversation.id)} />
-                <span>
+                <Avatar label={conversation.name || conversation.type || String(conversation.id)} tone={conversation.type} />
+                <span className="conversation-copy">
                   <strong>
-                    {conversationTitle(conversation)}
+                    <span className="conversation-title">{conversationTitle(conversation)}</span>
                     <ConversationTypeBadge type={conversation.type} />
                   </strong>
                   <small>{conversation.last_message?.body ?? "No messages yet"}</small>
+                </span>
+                <span className="conversation-meta">
+                  <time>{formatConversationTime(conversation.last_message_at ?? conversation.updated_at)}</time>
+                  {isUnread && <b>{unreadConversationIds.has(conversation.id) ? 1 : ""}</b>}
                 </span>
               </button>
             );
@@ -382,14 +459,21 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
         </div>
       </aside>
 
-      <section className="chat-panel">
+      <section className="chat-panel glass-card">
         {selectedConversation ? (
           <>
             <header className="chat-header">
-              <Avatar label={conversationTitle(selectedConversation)} />
-              <div>
-                <h2>{conversationTitle(selectedConversation)}</h2>
-                <span>{selectedConversation.type}</span>
+              <div className="room-identity">
+                <Avatar label={conversationTitle(selectedConversation)} tone={selectedConversation.type} />
+                <div>
+                  <h2>{conversationTitle(selectedConversation)}</h2>
+                  <span>{members.length || "?"} members · {selectedConversation.type} · {realtimeStatus}</span>
+                </div>
+              </div>
+              <div className="chat-actions">
+                <button title="Audio call">Call</button>
+                <button title="Search messages">Find</button>
+                <button title="Conversation info">Info</button>
               </div>
             </header>
 
@@ -408,26 +492,42 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
               {!messagesLoading && messages.length === 0 && <div className="empty-state">No messages in this conversation.</div>}
               {messages.map((message) => {
                 const isMine = message.sender_id === session.user_id;
-                const label = isMine ? "Me" : `U${message.sender_id}`;
+                const senderName = senderDisplayName(message, memberByUserId.get(message.sender_id));
                 return (
                   <div key={message.id} className={`message-row ${isMine ? "mine" : ""}`}>
-                    {!isMine && <Avatar label={memberByUserId.get(message.sender_id)?.role ?? label} />}
+                    {!isMine && <Avatar label={senderName} />}
                     <div className="message-bubble">
+                      {!isMine && (
+                        <header>
+                          <strong>{senderName}</strong>
+                        </header>
+                      )}
                       <span>{message.body}</span>
-                      <time>{formatTime(message.created_at)}</time>
+                      <footer>
+                        <time>{formatTime(message.created_at)}</time>
+                        {isMine && <span>Sent</span>}
+                      </footer>
                     </div>
-                    {isMine && <Avatar label="Me" />}
                   </div>
                 );
               })}
             </div>
 
             <form className="composer" onSubmit={sendMessage}>
+              <button type="button" title="Attach file">
+                +
+              </button>
+              <button type="button" title="Emoji">
+                :)
+              </button>
               <input
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
                 placeholder="Write a message..."
               />
+              <button type="button" title="Voice message">
+                Mic
+              </button>
               <button className="primary-button" disabled={sending || !draft.trim()}>
                 Send
               </button>
@@ -435,30 +535,96 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
           </>
         ) : (
           <div className="no-selection">
-            <div className="brand-mark">C</div>
+            <ConversaLogo />
             <h2>Select a conversation</h2>
             <p className="muted">Your conversations will appear on the left.</p>
           </div>
         )}
       </section>
+
+      <aside className="inspector-panel glass-card">
+        {selectedConversation ? (
+          <>
+            <section className="room-card">
+              <Avatar label={conversationTitle(selectedConversation)} tone={selectedConversation.type} large />
+              <h2>{conversationTitle(selectedConversation)}</h2>
+              <small>{selectedConversation.type} conversation</small>
+              <div className="member-pile">
+                {members.slice(0, 4).map((member) => (
+                  <Avatar key={member.id} label={member.role || `U${member.user_id}`} />
+                ))}
+                {members.length === 0 && (
+                  <>
+                    <Avatar label="T" tone="me" />
+                    <Avatar label="C" tone="system" />
+                  </>
+                )}
+              </div>
+            </section>
+
+            <section className="inspector-section">
+              <h3>Conversation management</h3>
+              <button>Members and roles</button>
+              <button>Notifications and mute</button>
+              <button>Pin topic</button>
+            </section>
+
+            <section className="inspector-section">
+              <h3>Shared context</h3>
+              {sharedItems.length === 0 ? (
+                <article className="shared-item">
+                  <b>No shared metadata yet</b>
+                  <small>Attachments and links can appear here later.</small>
+                </article>
+              ) : (
+                sharedItems.map((message) => (
+                  <article key={message.id} className="shared-item">
+                    <b>{message.type} message</b>
+                    <small>{formatTime(message.created_at)} · metadata available</small>
+                  </article>
+                ))
+              )}
+            </section>
+
+            <section className="inspector-section">
+              <h3>User search</h3>
+              <label className="mini-search">
+                <span>Search</span>
+                <input placeholder="Invite user to this space" />
+              </label>
+              <button>Invite user</button>
+            </section>
+          </>
+        ) : (
+          <div className="empty-state">Select a conversation to inspect its space.</div>
+        )}
+      </aside>
     </main>
   );
 }
 
 function ConversationTypeBadge({ type }: { type: Conversation["type"] }) {
   const normalizedType = type.toLowerCase();
-  const icon = normalizedType === "group" ? "👥" : normalizedType === "system" ? "⚙️" : "💬";
   return (
     <small className={`conversation-type-badge type-${normalizedType}`}>
-      <span aria-hidden="true">{icon}</span>
       {normalizedType}
     </small>
   );
 }
 
-function Avatar({ label }: { label: string }) {
+function ConversaLogo({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={`conversa-logo ${compact ? "compact" : ""}`} aria-label="Conversa logo">
+      <span>C</span>
+      {!compact && <b>conversa</b>}
+    </div>
+  );
+}
+
+function Avatar({ label, tone, large = false }: { label: string; tone?: string; large?: boolean }) {
   const letter = label.trim().charAt(0).toUpperCase() || "C";
-  return <span className="avatar">{letter}</span>;
+  const normalizedTone = tone?.toLowerCase().replace(/[^a-z0-9_-]/g, "") || "default";
+  return <span className={`avatar tone-${normalizedTone} ${large ? "large" : ""}`}>{letter}</span>;
 }
 
 function conversationTitle(conversation: Conversation) {
@@ -470,6 +636,32 @@ function formatTime(value: string) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatConversationTime(value: string) {
+  const date = new Date(value);
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) return formatTime(value);
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "2-digit"
+  }).format(date);
+}
+
+function senderDisplayName(message: Message, member?: ListMessagesResponse["members"][number]) {
+  const metadataName = readMetadataString(message.metadata, "sender_display_name", "sender_name", "display_name", "name");
+  if (metadataName) return metadataName;
+  if (member?.role && member.role !== "member") return `${member.role} · User ${message.sender_id}`;
+  return `User ${message.sender_id}`;
+}
+
+function readMetadataString(metadata: Record<string, unknown>, ...keys: string[]) {
+  for (const key of keys) {
+    const value = metadata[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
 }
 
 function sortMessagesByCreatedAt(messages: Message[]) {
