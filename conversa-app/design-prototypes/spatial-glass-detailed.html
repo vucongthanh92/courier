@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Courier Conversa - Spatial Glass detailed UI</title>
+    <link rel="stylesheet" href="./spatial-glass-detailed.css" />
+  </head>
+  <body>
+    <main class="space-app">
+      <div class="aurora aurora-a"></div>
+      <div class="aurora aurora-b"></div>
+      <div class="aurora aurora-c"></div>
+
+      <aside class="space-rail" aria-label="Dieu huong chinh">
+        <div class="brand">C</div>
+        <button class="rail-action active" title="Messages">⌁</button>
+        <button class="rail-action" title="Friends">+</button>
+        <button class="rail-action" title="Groups">#</button>
+        <button class="rail-action" title="Notifications">•</button>
+        <button class="rail-action bottom" title="Settings">⚙</button>
+      </aside>
+
+      <aside class="conversation-panel glass-card">
+        <header class="panel-title">
+          <div>
+            <p>Courier Conversa</p>
+            <h1>Spaces</h1>
+          </div>
+          <button title="Tao conversation moi">+</button>
+        </header>
+
+        <section class="profile-glance">
+          <span class="avatar avatar-me">T</span>
+          <div>
+            <strong>Thanh Vu</strong>
+            <small>Online - Asia/Ho_Chi_Minh</small>
+          </div>
+          <span class="live-dot"></span>
+        </section>
+
+        <label class="space-search">
+          <span>⌕</span>
+          <input placeholder="Tim ban be, nhom, tin nhan..." />
+        </label>
+
+        <nav class="smart-filters">
+          <button class="active">Tat ca</button>
+          <button>Chua doc</button>
+          <button>Pin</button>
+        </nav>
+
+        <section class="space-list">
+          <button class="space-thread active">
+            <span class="avatar blue">L</span>
+            <span class="thread-copy">
+              <b>Logistics Core</b>
+              <small>Lan: can UX cho message search...</small>
+            </span>
+            <span class="thread-meta"><time>09:41</time><b>3</b></span>
+          </button>
+          <button class="space-thread">
+            <span class="avatar violet">D</span>
+            <span class="thread-copy">
+              <b>Design Review</b>
+              <small>Prototype glass da co motion layer.</small>
+            </span>
+            <span class="thread-meta"><time>09:12</time></span>
+          </button>
+          <button class="space-thread">
+            <span class="avatar green">A</span>
+            <span class="thread-copy">
+              <b>An Nguyen</b>
+              <small>Minh se test mobile responsive.</small>
+            </span>
+            <span class="thread-meta"><time>08:20</time></span>
+          </button>
+          <button class="space-thread pinned">
+            <span class="avatar amber">S</span>
+            <span class="thread-copy">
+              <b>Support Ops</b>
+              <small>Pin: release checklist toi nay.</small>
+            </span>
+            <span class="thread-meta"><time>Hom qua</time><i></i></span>
+          </button>
+        </section>
+      </aside>
+
+      <section class="chat-shell glass-card">
+        <header class="chat-topbar">
+          <div class="room-identity">
+            <span class="avatar blue">L</span>
+            <div>
+              <h2>Logistics Core</h2>
+              <small>8 thanh vien - 3 online - realtime connected</small>
+            </div>
+          </div>
+          <div class="chat-actions">
+            <button title="Goi audio">☎</button>
+            <button title="Tim trong conversation">⌕</button>
+            <button title="Thong tin">i</button>
+          </div>
+        </header>
+
+        <section class="context-strip">
+          <span>Topic</span>
+          <b>Finalize Spatial Glass cho conversa-app: conversation, message, composer, profile, settings.</b>
+        </section>
+
+        <section class="message-space">
+          <div class="day-marker"><span>Hom nay</span></div>
+
+          <article class="message incoming">
+            <span class="avatar green">L</span>
+            <div class="bubble">
+              <header><b>Lan Tran</b><time>09:32</time></header>
+              <p>Huong glass nay dep, nhung can dam bao van la messaging app that: danh sach chat, search, composer va profile phai ro.</p>
+              <div class="reactions"><span>👍 4</span><span>✅ 2</span></div>
+            </div>
+          </article>
+
+          <article class="message mine">
+            <div class="bubble">
+              <p>Dong y. Minh tach background motion va content layer, de UI tinh te nhung khong lam mat kha nang doc.</p>
+              <footer><time>09:35</time><span>Delivered</span></footer>
+            </div>
+          </article>
+
+          <article class="message incoming">
+            <span class="avatar violet">D</span>
+            <div class="bubble attachment">
+              <header><b>Design Bot</b><time>09:37</time></header>
+              <p>Trong tuong lai co the gan metadata cho attachment, reply_to, edited_at va delivered state.</p>
+              <div class="file-card">
+                <span></span>
+                <div>
+                  <b>spatial-glass-spec.md</b>
+                  <small>24 KB - UI notes</small>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="message mine">
+            <div class="bubble">
+              <p>Composer nen co icon attachment, emoji, voice, send. Khi mobile thi rut gon thanh bottom dock.</p>
+              <footer><time>09:40</time><span>Seen by Lan</span></footer>
+            </div>
+          </article>
+
+          <article class="message incoming typing-row">
+            <span class="avatar amber">S</span>
+            <div class="typing"><i></i><i></i><i></i></div>
+          </article>
+        </section>
+
+        <form class="composer-bar">
+          <button type="button" title="Dinh kem">+</button>
+          <button type="button" title="Emoji">☺</button>
+          <input value="Thu nghiem Spatial Glass chi tiet..." aria-label="Nhap tin nhan" />
+          <button type="button" title="Ghi am">🎙</button>
+          <button class="send" type="button">Gui</button>
+        </form>
+      </section>
+
+      <aside class="inspector-panel glass-card">
+        <section class="room-card">
+          <span class="avatar blue large">L</span>
+          <h2>Logistics Core</h2>
+          <small>Group conversation</small>
+          <div class="member-pile">
+            <span class="avatar green">L</span>
+            <span class="avatar avatar-me">T</span>
+            <span class="avatar amber">S</span>
+            <span class="avatar violet">D</span>
+          </div>
+        </section>
+
+        <section class="inspector-section">
+          <h3>Quan ly conversation</h3>
+          <button>Thanh vien va vai tro</button>
+          <button>Thong bao va mute</button>
+          <button>Pin topic</button>
+        </section>
+
+        <section class="inspector-section">
+          <h3>Shared</h3>
+          <article class="shared-item"><b>spatial-glass-spec.md</b><small>09:37 - Design Bot</small></article>
+          <article class="shared-item"><b>message-api-roadmap.pdf</b><small>Hom qua - Support Ops</small></article>
+        </section>
+
+        <section class="inspector-section">
+          <h3>User search</h3>
+          <label class="mini-search"><span>⌕</span><input placeholder="Moi user vao nhom" /></label>
+          <button>Moi An Nguyen</button>
+        </section>
+      </aside>
+    </main>
+  </body>
+</html>

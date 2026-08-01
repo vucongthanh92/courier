@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Courier Conversa - distinct chat UI concepts</title>
+    <link rel="stylesheet" href="./chat-ui-concepts.css" />
+  </head>
+  <body>
+    <main class="board">
+      <nav class="switcher" aria-label="Chon mau giao dien">
+        <button class="active" data-target="focus">01 Focus</button>
+        <button data-target="zalo">02 Viet Social</button>
+        <button data-target="slack">03 Team Channels</button>
+        <button data-target="stories">04 Social Stories</button>
+        <button data-target="command">05 Command Center</button>
+        <button data-target="zen">06 Zen Minimal</button>
+        <button data-target="mobile">07 Mobile Native</button>
+        <button data-target="community">08 Community Rooms</button>
+        <button data-target="inbox">09 Inbox Pro</button>
+        <button data-target="spatial">10 Spatial Glass</button>
+      </nav>
+
+      <section class="mockup active focus">
+        <aside class="focus-sidebar">
+          <header><b>Conversa</b><button>+</button></header>
+          <label class="search">Tim kiem<input placeholder="ten, email, noi dung..." /></label>
+          <button class="focus-item active"><span class="avatar blue">L</span><b>Logistics Core</b><small>3 tin moi</small></button>
+          <button class="focus-item"><span class="avatar green">A</span><b>An Nguyen</b><small>Da gui wireframe</small></button>
+          <button class="focus-item"><span class="avatar amber">S</span><b>Support Ops</b><small>Checklist release</small></button>
+        </aside>
+        <section class="focus-chat">
+          <header><span class="avatar blue">L</span><div><h1>Logistics Core</h1><p>8 thanh vien - realtime connected</p></div><button>Info</button></header>
+          <div class="focus-topic">Topic: Chot UX cho message list, composer, profile va search.</div>
+          <div class="messages airy">
+            <article class="msg left"><span class="avatar green">L</span><p>Sidebar can ro unread, pin va group/direct. Mobile can vao chat nhanh hon.</p></article>
+            <article class="msg right"><p>Minh se giu core hien tai, them profile drawer va conversation controls de mo rong sau.</p></article>
+            <article class="msg left file"><span class="avatar violet">D</span><p><b>chat-contract-notes.md</b><small>Metadata: sent, delivered, edited, reply_to, attachment.</small></p></article>
+          </div>
+          <footer class="composer"><button>+</button><input value="Thu nghiem UI prototype..." /><button>Gui</button></footer>
+        </section>
+        <aside class="focus-details"><span class="avatar blue big">L</span><h2>Logistics Core</h2><button>Thanh vien</button><button>File da chia se</button><button>Mute</button></aside>
+      </section>
+
+      <section class="mockup zalo">
+        <aside class="zalo-contacts">
+          <div class="zalo-me"><span class="avatar photo">T</span><b>Thanh</b><button>QR</button></div>
+          <input placeholder="Tim ban be tren Courier" />
+          <div class="zalo-tabs"><button class="active">Tin nhan</button><button>Danh ba</button></div>
+          <button class="zalo-card active"><span class="avatar blue">A</span><div><b>An Nguyen</b><small>Dang online</small></div><time>09:41</time></button>
+          <button class="zalo-card"><span class="avatar pink">H</span><div><b>Hoa Le</b><small>Da xem</small></div><time>08:12</time></button>
+          <button class="zalo-card"><span class="avatar green">G</span><div><b>Gia dinh</b><small>Mai an toi nhe?</small></div><time>Thu 6</time></button>
+        </aside>
+        <section class="zalo-chat">
+          <header><b>An Nguyen</b><small>Hoat dong 2 phut truoc</small><button>Goi</button></header>
+          <div class="zalo-ribbon">Goi y ket ban va tim quanh day co the them API sau.</div>
+          <div class="messages compact"><article class="msg left"><p>Minh vua gui ban wireframe moi.</p></article><article class="msg right"><p>Dep do. Minh thich phan danh ba va QR.</p></article><article class="msg left"><p>Lam them quick sticker nua nhe.</p></article></div>
+          <footer class="zalo-compose"><button>☺</button><input placeholder="Nhap tin nhan" /><button>Gui</button></footer>
+        </section>
+      </section>
+
+      <section class="mockup slack">
+        <aside class="server-rail"><b>C</b><button>LC</button><button>DS</button><button>+</button></aside>
+        <aside class="channel-pane"><h2>Courier Team</h2><p>Channels</p><button class="active"># logistics-core</button><button># design-review</button><button># release-war-room</button><p>Direct</p><button>@ Lan</button><button>@ Minh</button></aside>
+        <section class="thread-chat">
+          <header><div><h1># logistics-core</h1><p>Build conversation APIs and client UX together</p></div><button>Canvas</button></header>
+          <div class="messages thread"><article><b>Lan Tran</b><p>Can thread reply cho mot tin nhan dai.</p><small>4 replies - View thread</small></article><article><b>Thanh Vu</b><p>Composer nen co slash command: /assign, /todo, /poll.</p></article><article><b>Design Bot</b><p>Typing status co the hien o channel list.</p></article></div>
+          <footer class="slash-compose"><span>/</span><input value="/todo review message search API" /><button>Send</button></footer>
+        </section>
+        <aside class="thread-panel"><h2>Thread</h2><p>Reply rieng cho message dang chon, khong lam chat chinh bi nhieu.</p><button>Resolve</button></aside>
+      </section>
+
+      <section class="mockup stories">
+        <aside class="story-list">
+          <h1>Conversa</h1>
+          <div class="story-row"><span class="avatar ring">T</span><span class="avatar ring blue">L</span><span class="avatar ring green">A</span><span class="avatar ring amber">S</span></div>
+          <button class="social-card active"><b>Lan Tran</b><small>Vua tha reaction</small></button><button class="social-card"><b>Design Review</b><small>Dang typing</small></button>
+        </aside>
+        <section class="social-chat">
+          <header><span class="avatar ring blue">L</span><h2>Lan Tran</h2><button>Profile</button></header>
+          <div class="messages playful"><article class="msg left"><p>Prototype nay nen co reaction noi len khi hover.</p><div class="float-reactions">♥ 👍 🔥</div></article><article class="msg right"><p>Ok, huong nay chat ca nhan se vui hon Messenger/Zalo.</p></article><article class="msg left"><p>Them sticker tray o composer nua.</p></article></div>
+          <footer class="bubble-compose"><button>Sticker</button><input placeholder="Aa" /><button>♥</button></footer>
+        </section>
+      </section>
+
+      <section class="mockup command">
+        <aside class="queue"><h1>Inbox Ops</h1><button class="metric"><b>24</b><small>Open</small></button><button class="metric"><b>07</b><small>SLA risk</small></button><button class="metric"><b>12m</b><small>Avg reply</small></button></aside>
+        <section class="ticket-list"><header><input placeholder="Search by user, tag, id" /><button>Filter</button></header><button class="ticket active"><b>#C-1042 Delivery delay</b><small>VIP - unread - 3m</small></button><button class="ticket"><b>#C-1041 Payment failed</b><small>Urgent - assigned Minh</small></button><button class="ticket"><b>#C-1039 Address change</b><small>Waiting customer</small></button></section>
+        <section class="agent-chat"><header><h2>#C-1042 Delivery delay</h2><button>Assign</button><button>Close</button></header><div class="messages dense"><article><b>Customer</b><p>Don hang cua toi bi tre.</p></article><article><b>Agent</b><p>Minh dang kiem tra trang thai courier cho ban.</p></article></div><footer class="agent-compose"><textarea>Xin loi ban vi su cham tre...</textarea><button>Macro</button><button>Reply</button></footer></section>
+        <aside class="customer-panel"><h2>Customer</h2><p>Thanh Vu</p><p>Tier: Gold</p><p>Last order: #84322</p><button>Open profile</button></aside>
+      </section>
+
+      <section class="mockup zen">
+        <section class="zen-card">
+          <header><button>←</button><div><h1>An Nguyen</h1><p>Quiet mode</p></div><button>⋯</button></header>
+          <div class="messages zen-msgs"><article class="msg left"><p>Giao dien nay danh cho tro chuyen rieng, it nhieu.</p></article><article class="msg right"><p>No cho cam giac tap trung va nhe mat.</p></article><article class="msg left"><p>Co the lam default cho mobile ca nhan.</p></article></div>
+          <footer><input placeholder="Viet tin nhan..." /><button>Send</button></footer>
+        </section>
+      </section>
+
+      <section class="mockup mobile">
+        <div class="phone">
+          <header><b>Chats</b><button>+</button></header>
+          <input placeholder="Search" />
+          <button class="mobile-row active"><span class="avatar blue">L</span><div><b>Logistics Core</b><small>3 new messages</small></div></button>
+          <button class="mobile-row"><span class="avatar green">A</span><div><b>An Nguyen</b><small>Voice note</small></div></button>
+          <section class="phone-chat"><h2>Logistics Core</h2><div class="messages mobile-msg"><article class="msg left"><p>Mobile can tap target lon.</p></article><article class="msg right"><p>Composer gan ban phim, action gon.</p></article></div><footer><button>+</button><input placeholder="Message" /><button>↑</button></footer></section>
+          <nav><button class="active">Chat</button><button>Call</button><button>Me</button></nav>
+        </div>
+      </section>
+
+      <section class="mockup community">
+        <aside class="community-map"><h1>Rooms</h1><button class="active">General</button><button>Vietnam Ops</button><button>Engineering</button><button>Random</button></aside>
+        <section class="community-main"><header><h2>Vietnam Ops</h2><p>1,248 members - slow mode 5s</p></header><div class="announcement">Pinned: release local notification before beta.</div><div class="messages forum"><article><b>Lan</b><p>Ai dang phu trach websocket reconnect?</p></article><article><b>Minh</b><p>Minh. Da co backoff va status indicator.</p></article><article><b>Thanh</b><p>Hay tach room theo topic lon sau nay.</p></article></div><footer><input placeholder="Message Vietnam Ops" /><button>Send</button></footer></section>
+        <aside class="online-members"><h2>Online</h2><p>Lan Tran</p><p>Minh Pham</p><p>Support Bot</p><p>Design Bot</p></aside>
+      </section>
+
+      <section class="mockup inbox">
+        <header class="inbox-top"><h1>Priority Inbox</h1><input placeholder="Search all conversations" /><button>New</button></header>
+        <aside class="inbox-filters"><button class="active">Needs reply</button><button>Mentions</button><button>Archived</button><button>Groups</button></aside>
+        <section class="inbox-grid"><article class="mail active"><b>Logistics Core</b><p>API message search co the...</p><span>Unread 3</span></article><article class="mail"><b>Support Ops</b><p>Checklist release toi nay</p><span>Pinned</span></article><article class="mail"><b>An Nguyen</b><p>Wireframe moi</p><span>Direct</span></article></section>
+        <section class="reading-pane"><h2>Logistics Core</h2><div class="messages emailish"><article><b>Lan</b><p>Can conversation management ro hon cho admin.</p></article><article><b>Thanh</b><p>Minh se tach Settings, Members, Shared files.</p></article></div><footer><input placeholder="Quick reply" /><button>Reply</button></footer></section>
+      </section>
+
+      <section class="mockup spatial">
+        <aside class="glass-left"><h1>Conversa Space</h1><button class="active">Core</button><button>Design</button><button>Ops</button></aside>
+        <section class="space-chat"><div class="orb one"></div><div class="orb two"></div><header><h2>Logistics Core</h2><button>Expand</button></header><div class="messages glass-msg"><article class="msg left"><p>Blur layer co the dung cho premium demo.</p></article><article class="msg right"><p>Nhung van can dam bao contrast va performance.</p></article><article class="msg left"><p>Drawer co the noi nhu panel doc lap.</p></article></div><footer><input placeholder="Send into space..." /><button>Send</button></footer></section>
+        <aside class="glass-panel"><h2>Live Context</h2><p>3 online</p><p>2 files</p><p>1 pinned decision</p></aside>
+      </section>
+
+      <section class="notes"><h2 id="note-title">01 Focus Productivity</h2><p id="note-copy">Huong mac dinh can bang: web app chuyen nghiep, co sidebar, chat rong va drawer quan ly conversation.</p></section>
+    </main>
+    <script src="./chat-ui-concepts.js"></script>
+  </body>
+</html>
