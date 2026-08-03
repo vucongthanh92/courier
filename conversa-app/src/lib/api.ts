@@ -1,6 +1,7 @@
 import { CHAT_API_BASE_URL, USER_API_BASE_URL } from "../config";
 import type {
   ApiResponse,
+  ListConversationMembersResponse,
   ConversationListResponse,
   JwtTokenResponse,
   ListMessagesResponse,
@@ -80,6 +81,11 @@ export const chatApi = {
       `/conversation/${conversationId}/messages?${query.toString()}`,
       { token }
     );
+  },
+  listConversationMembers(token: string, conversationId: string) {
+    return request<ListConversationMembersResponse>(CHAT_API_BASE_URL, `/conversation/${conversationId}/members`, {
+      token
+    });
   },
   createMessage(token: string, conversationId: string, body: string) {
     return request<Message>(CHAT_API_BASE_URL, `/conversation/${conversationId}/messages/create`, {

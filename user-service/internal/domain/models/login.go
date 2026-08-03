@@ -6,16 +6,23 @@ type LoginRequest struct {
 }
 
 type JwtTokenResponse struct {
-	AccessToken       string `json:"access_token"`
-	ExpiresIn         int64  `json:"expires_in"`
-	RefreshToken      string `json:"refresh_token"`
-	RefreshExpiresIn  int64  `json:"refresh_expires_in"`
-	TokenType         string `json:"token_type"`
-	NeedPasswordSetup bool   `json:"need_password_setup,omitempty"`
+	AccessToken       string                     `json:"access_token"`
+	ExpiresIn         int64                      `json:"expires_in"`
+	RefreshToken      string                     `json:"refresh_token"`
+	RefreshExpiresIn  int64                      `json:"refresh_expires_in"`
+	TokenType         string                     `json:"token_type"`
+	NeedPasswordSetup bool                       `json:"need_password_setup,omitempty"`
+	User              *AuthenticatedUserResponse `json:"user,omitempty"`
 }
 
 func (r *JwtTokenResponse) CheckPasswordSetup(pwdVersion int16, pwdAlgo string) {
 	r.NeedPasswordSetup = pwdVersion == 0 || pwdAlgo == ""
+}
+
+type AuthenticatedUserResponse struct {
+	ID          uint64 `json:"id,string"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
 }
 
 type RefreshTokenRequest struct {

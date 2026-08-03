@@ -81,7 +81,7 @@ func (repo *userQueryRepository) GetUsersByIDs(ctx context.Context, userIDs []ui
 
 	runner := transaction.RunnerFromCtx(ctx, repo.readDb)
 	err := runner.Model(&entities.User{}).
-		Select("id, status").
+		Select("id, display_name, avatar_url, status").
 		Where("deleted_at is null").
 		Where("id IN ?", userIDs).
 		Find(&res).Error

@@ -6,7 +6,9 @@ import (
 
 	"github.com/vucongthanh92/courier/chat-service/config"
 	errorhandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 	jwkpb "github.com/vucongthanh92/courier/shared/grpc/user-service/jwk/gen"
+	userprofilepb "github.com/vucongthanh92/courier/shared/grpc/user-service/user_profile/gen"
 	userstatuspb "github.com/vucongthanh92/courier/shared/grpc/user-service/user_status/gen"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -15,12 +17,14 @@ import (
 type UserGrpcClient interface {
 	GetPublicKey(ctx context.Context, kid string) (string, string, string, *errorhandler.ErrorBuilder)
 	CheckUsersStatus(ctx context.Context, userIDs []uint64) ([]uint64, bool, *errorhandler.ErrorBuilder)
+	BatchGetUserProfiles(ctx context.Context, userIDs []uint64) ([]models.UserProfileSummaryResponse, *errorhandler.ErrorBuilder)
 }
 
 type grpcClient struct {
-	conn      *grpc.ClientConn
-	jwkSvc    jwkpb.JWKServiceClient
-	statusSvc userstatuspb.UserStatusServiceClient
+	conn       *grpc.ClientConn
+	jwkSvc     jwkpb.JWKServiceClient
+	profileSvc userprofilepb.UserProfileServiceClient
+	statusSvc  userstatuspb.UserStatusServiceClient
 }
 
 func NewGrpcClient(appCfg *config.AppConfig) UserGrpcClient {
@@ -30,9 +34,10 @@ func NewGrpcClient(appCfg *config.AppConfig) UserGrpcClient {
 	}
 
 	return &grpcClient{
-		conn:      conn,
-		jwkSvc:    jwkpb.NewJWKServiceClient(conn),
-		statusSvc: userstatuspb.NewUserStatusServiceClient(conn),
+		conn:       conn,
+		jwkSvc:     jwkpb.NewJWKServiceClient(conn),
+		profileSvc: userprofilepb.NewUserProfileServiceClient(conn),
+		statusSvc:  userstatuspb.NewUserStatusServiceClient(conn),
 	}
 }
 
@@ -50,4 +55,22 @@ func (c *grpcClient) CheckUsersStatus(ctx context.Context, userIDs []uint64) ([]
 		return nil, false, errorhandler.InitErrorBuilder(ctx).SetStatus(500).SetLogError(fmt.Errorf("check users status: %w", err))
 	}
 	return resp.InvalidUserIds, resp.AllVerified, nil
+}
+
+func (c *grpcClient) BatchGetUserProfiles(ctx context.Context, userIDs []uint64) ([]models.UserProfileSummaryResponse, *errorhandler.ErrorBuilder) {
+	resp, err := c.profileSvc.BatchGetUserProfiles(ctx, &userprofilepb.BatchGetUserProfilesRequest{UserIds: userIDs})
+	if err != nil {
+		return nil, errorhandler.InitErrorBuilder(ctx).SetStatus(500).SetLogError(fmt.Errorf("batch get user profiles: %w", err))
+	}
+
+	profiles := make([]models.UserProfileSummaryResponse, 0, len(resp.Users))
+	for _, user := range resp.Users {
+		profiles = append(profiles, models.UserProfileSummaryResponse{
+			UserID:      user.UserId,
+			DisplayName: user.DisplayName,
+			AvatarURL:   user.AvatarUrl,
+			Status:      user.Status,
+		})
+	}
+	return profiles, nil
 }

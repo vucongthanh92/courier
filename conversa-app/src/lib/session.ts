@@ -1,10 +1,13 @@
 import type { JwtTokenResponse } from "../types";
+import { cacheUserProfiles } from "./userProfileCache";
 
 const SESSION_KEY = "conversa.session";
 
 export type Session = JwtTokenResponse & {
   saved_at: number;
   user_id?: string;
+  display_name?: string;
+  avatar_url?: string;
 };
 
 export function readSession(): Session | null {
@@ -14,7 +17,9 @@ export function readSession(): Session | null {
     const session = JSON.parse(raw) as Session;
     return {
       ...session,
-      user_id: parseJwtSubject(session.access_token)
+      user_id: session.user?.id ?? parseJwtSubject(session.access_token),
+      display_name: session.user?.display_name ?? session.display_name,
+      avatar_url: session.user?.avatar_url ?? session.avatar_url
     };
   } catch {
     localStorage.removeItem(SESSION_KEY);
@@ -26,8 +31,20 @@ export function saveSession(tokens: JwtTokenResponse): Session {
   const session: Session = {
     ...tokens,
     saved_at: Date.now(),
-    user_id: parseJwtSubject(tokens.access_token)
+    user_id: tokens.user?.id ?? parseJwtSubject(tokens.access_token),
+    display_name: tokens.user?.display_name,
+    avatar_url: tokens.user?.avatar_url
   };
+  if (tokens.user) {
+    cacheUserProfiles([
+      {
+        user_id: tokens.user.id,
+        display_name: tokens.user.display_name,
+        avatar_url: tokens.user.avatar_url,
+        status: ""
+      }
+    ]);
+  }
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   return session;
 }

@@ -80,6 +80,11 @@ func (s *TokenUseCaseImpl) GenerateJwtToken(ctx context.Context, userEntity *ent
 		RefreshToken:     refreshPlain,
 		RefreshExpiresIn: int64(refreshTTL.Seconds()),
 		TokenType:        "Bearer",
+		User: &models.AuthenticatedUserResponse{
+			ID:          userEntity.ID,
+			DisplayName: userEntity.DisplayName,
+			AvatarURL:   userEntity.AvatarURL,
+		},
 	}, nil
 }
 

@@ -37,6 +37,17 @@ definitions:
       success:
         type: boolean
     type: object
+  httpcommon.SuccessResponse-models_ListConversationMembersResponse:
+    properties:
+      data:
+        $ref: '#/definitions/models.ListConversationMembersResponse'
+      errors:
+        items:
+          $ref: '#/definitions/models.ErrorDTO'
+        type: array
+      success:
+        type: boolean
+    type: object
   httpcommon.SuccessResponse-models_ListConversationsResponse:
     properties:
       data:
@@ -75,17 +86,20 @@ definitions:
       created_at:
         type: string
       created_by:
-        type: integer
+        example: "0"
+        type: string
       direct_key:
         type: string
       id:
-        type: integer
+        example: "0"
+        type: string
       last_message:
         $ref: '#/definitions/models.MessageResponse'
       last_message_at:
         type: string
       last_message_id:
-        type: integer
+        example: "0"
+        type: string
       metadata:
         additionalProperties: {}
         type: object
@@ -99,25 +113,31 @@ definitions:
   models.ConversationMemberResponse:
     properties:
       conversation_id:
-        type: integer
+        example: "0"
+        type: string
       id:
-        type: integer
+        example: "0"
+        type: string
       joined_at:
         type: string
       last_read_at:
         type: string
       last_read_message_id:
-        type: integer
+        example: "0"
+        type: string
       left_at:
         type: string
       muted_until:
         type: string
+      profile:
+        $ref: '#/definitions/models.UserProfileSummaryResponse'
       role:
         type: string
       status:
         type: string
       user_id:
-        type: integer
+        example: "0"
+        type: string
     type: object
   models.CreateConversationRequest:
     properties:
@@ -144,15 +164,18 @@ definitions:
       created_at:
         type: string
       created_by:
-        type: integer
+        example: "0"
+        type: string
       direct_key:
         type: string
       id:
-        type: integer
+        example: "0"
+        type: string
       last_message_at:
         type: string
       last_message_id:
-        type: integer
+        example: "0"
+        type: string
       members:
         items:
           $ref: '#/definitions/entities.ConversationMember'
@@ -176,6 +199,16 @@ definitions:
       message:
         type: string
     type: object
+  models.ListConversationMembersResponse:
+    properties:
+      conversation_id:
+        example: "0"
+        type: string
+      members:
+        items:
+          $ref: '#/definitions/models.ConversationMemberResponse'
+        type: array
+    type: object
   models.ListConversationsPaginationResponse:
     properties:
       has_more:
@@ -183,7 +216,8 @@ definitions:
       limit:
         type: integer
       next_before_conversation_id:
-        type: integer
+        example: "0"
+        type: string
       next_before_last_message_at:
         type: string
     type: object
@@ -199,7 +233,8 @@ definitions:
   models.ListMessagesResponse:
     properties:
       conversation_id:
-        type: integer
+        example: "0"
+        type: string
       members:
         items:
           $ref: '#/definitions/models.ConversationMemberResponse'
@@ -218,7 +253,8 @@ definitions:
       limit:
         type: integer
       next_before_message_id:
-        type: integer
+        example: "0"
+        type: string
     type: object
   models.MessageResponse:
     properties:
@@ -227,20 +263,24 @@ definitions:
       client_message_id:
         type: string
       conversation_id:
-        type: integer
+        example: "0"
+        type: string
       created_at:
         type: string
       edited_at:
         type: string
       id:
-        type: integer
+        example: "0"
+        type: string
       metadata:
         additionalProperties: {}
         type: object
       reply_to_message_id:
-        type: integer
+        example: "0"
+        type: string
       sender_id:
-        type: integer
+        example: "0"
+        type: string
       type:
         type: string
       updated_at:
@@ -263,12 +303,58 @@ definitions:
     - body
     - type
     type: object
+  models.UserProfileSummaryResponse:
+    properties:
+      avatar_url:
+        type: string
+      display_name:
+        type: string
+      status:
+        type: string
+      user_id:
+        example: "0"
+        type: string
+    type: object
 info:
   contact: {}
   description: Conversation and messaging APIs for Courier.
   title: Courier Chat Service API
   version: "1.0"
 paths:
+  /api/v1/conversation/{id}/members:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-models_ListConversationMembersResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-any'
+      security:
+      - BearerAuth: []
+      summary: list members for a conversation with resolved user profiles
+      tags:
+      - Conversation
   /api/v1/conversation/create:
     post:
       consumes:

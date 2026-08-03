@@ -18,6 +18,7 @@ import (
 type Server struct {
 	cfg                 *config.AppConfig
 	conversationHandler *v1.ConversationHandler
+	memberHandler       *v1.MemberHandler
 	messageHandler      *v1.MessageHandler
 	wsHub               *ws.Hub
 	messageRateLimiter  interfaces.MessageRateLimiterI
@@ -29,6 +30,7 @@ type Server struct {
 func NewServer(
 	cfg *config.AppConfig,
 	conversationHandler *v1.ConversationHandler,
+	memberHandler *v1.MemberHandler,
 	messageHandler *v1.MessageHandler,
 	wsHub *ws.Hub,
 	messageRateLimiter interfaces.MessageRateLimiterI,
@@ -38,6 +40,7 @@ func NewServer(
 	return &Server{
 		cfg:                 cfg,
 		conversationHandler: conversationHandler,
+		memberHandler:       memberHandler,
 		messageHandler:      messageHandler,
 		wsHub:               wsHub,
 		messageRateLimiter:  messageRateLimiter,
@@ -72,6 +75,7 @@ func (s *Server) Run() {
 	v1.MapRoutes(
 		router,
 		s.conversationHandler,
+		s.memberHandler,
 		s.messageHandler,
 		wsHandler,
 		authMW,

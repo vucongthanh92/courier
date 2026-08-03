@@ -11,6 +11,13 @@ export type JwtTokenResponse = {
   refresh_expires_in: number;
   token_type: string;
   need_password_setup?: boolean;
+  user?: AuthenticatedUser;
+};
+
+export type AuthenticatedUser = {
+  id: string;
+  display_name: string;
+  avatar_url?: string;
 };
 
 export type LoginRequest = {
@@ -63,6 +70,19 @@ export type Member = {
   joined_at: string;
   last_read_message_id?: string;
   last_read_at?: string;
+  profile?: UserProfile;
+};
+
+export type UserProfile = {
+  user_id: string;
+  display_name: string;
+  avatar_url?: string;
+  status: string;
+};
+
+export type ListConversationMembersResponse = {
+  conversation_id: string;
+  members: Member[];
 };
 
 export type Message = {

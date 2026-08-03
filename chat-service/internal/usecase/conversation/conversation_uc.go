@@ -159,7 +159,8 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 	return &resp, nil
 }
 
-// func ListConversations
+// func ListConversations retrieves a list of conversations for a user, applying pagination and returning relevant metadata about the result set.
+// It validates the request, fetches conversations from the repository, and constructs a response that includes pagination information for client-side handling.
 func (s *ConversationUseCaseImpl) ListConversations(ctx context.Context, req *models.ListConversationsRequest) (
 	*models.ListConversationsResponse, *errHandler.ErrorBuilder) {
 
@@ -212,6 +213,7 @@ func (s *ConversationUseCaseImpl) ListConversations(ctx context.Context, req *mo
 	}, nil
 }
 
+// func EnsureSystemConversations ensures that system conversations exist for a given user, creating them if necessary.
 func (s *ConversationUseCaseImpl) EnsureSystemConversations(ctx context.Context, req *models.EnsureSystemConversationsRequest) (
 	*models.EnsureSystemConversationsResponse, *errHandler.ErrorBuilder) {
 

@@ -5,9 +5,11 @@ import (
 
 	errHandler "github.com/vucongthanh92/courier/chat-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/entities"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 )
 
 type MemberServiceI interface {
+	ListConversationMembers(ctx context.Context, req *models.ListConversationMembersRequest) (*models.ListConversationMembersResponse, *errHandler.ErrorBuilder)
 }
 
 type MemberCmdRepoI interface {

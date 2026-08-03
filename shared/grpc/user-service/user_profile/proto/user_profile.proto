@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package userprofile.v1;
+
+option go_package = "github.com/vucongthanh92/courier/shared/grpc/user-service/user_profile/gen;userprofilepb";
+
+service UserProfileService {
+  rpc BatchGetUserProfiles(BatchGetUserProfilesRequest) returns (BatchGetUserProfilesResponse);
+}
+
+message BatchGetUserProfilesRequest {
+  repeated uint64 user_ids = 1;
+}
+
+message UserProfileSummary {
+  uint64 user_id = 1;
+  string display_name = 2;
+  string avatar_url = 3;
+  string status = 4;
+}
+
+message BatchGetUserProfilesResponse {
+  repeated UserProfileSummary users = 1;
+}
