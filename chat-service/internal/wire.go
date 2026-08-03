@@ -24,6 +24,7 @@ import (
 	messageRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/message"
 
 	conversationUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
+	memberUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/member"
 	messageUc "github.com/vucongthanh92/courier/chat-service/internal/usecase/message"
 
 	v1 "github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
@@ -42,11 +43,13 @@ var apiSet = wire.NewSet(
 
 var handlerSet = wire.NewSet(
 	v1.InitConversationHandler,
+	v1.InitMemberHandler,
 	v1.InitMessageHandler,
 )
 
 var serviceSet = wire.NewSet(
 	conversationUc.InitConversationUsecase,
+	memberUc.InitMemberUsecase,
 	messageUc.InitMessageUsecase,
 	conversationUc.InitUserEventHandler,
 )
@@ -62,6 +65,7 @@ var repoSet = wire.NewSet(
 	cacheRepo.InitRedisDenylist,
 	cacheRepo.InitMessageRateLimiter,
 	cacheRepo.InitMessageListCache,
+	cacheRepo.InitUserProfileCache,
 	cacheRepo.InitWsPublisher,
 	cacheRepo.InitWsSubscriber,
 )

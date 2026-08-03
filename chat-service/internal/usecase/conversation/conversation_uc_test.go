@@ -52,17 +52,28 @@ func (s memberCommandStub) UpdateReadState(context.Context, uint64, uint64, uint
 	return nil, nil
 }
 
-type memberQueryStub struct{}
+type memberQueryStub struct {
+	members map[uint64]entities.ConversationMember
+	list    []entities.ConversationMember
+}
 
 func (s memberQueryStub) ListConversationMembers(context.Context, uint64) ([]entities.ConversationMember, *errHandler.ErrorBuilder) {
-	return nil, nil
+	return s.list, nil
 }
 
-func (s memberQueryStub) GetConversationMember(context.Context, uint64, uint64) (*entities.ConversationMember, *errHandler.ErrorBuilder) {
-	return nil, nil
+func (s memberQueryStub) GetConversationMember(_ context.Context, _ uint64, userID uint64) (*entities.ConversationMember, *errHandler.ErrorBuilder) {
+	if s.members == nil {
+		return nil, nil
+	}
+	member, ok := s.members[userID]
+	if !ok {
+		return nil, nil
+	}
+	return &member, nil
 }
 
-type userGrpcStub struct{}
+type userGrpcStub struct {
+}
 
 func (s userGrpcStub) GetPublicKey(context.Context, string) (string, string, string, *errHandler.ErrorBuilder) {
 	return "", "", "", nil
@@ -70,6 +81,11 @@ func (s userGrpcStub) GetPublicKey(context.Context, string) (string, string, str
 
 func (s userGrpcStub) CheckUsersStatus(context.Context, []uint64) ([]uint64, bool, *errHandler.ErrorBuilder) {
 	return nil, true, nil
+}
+
+func (s userGrpcStub) BatchGetUserProfiles(_ context.Context, userIDs []uint64) ([]models.UserProfileSummaryResponse, *errHandler.ErrorBuilder) {
+	_ = userIDs
+	return nil, nil
 }
 
 func TestListConversationsSuccess(t *testing.T) {

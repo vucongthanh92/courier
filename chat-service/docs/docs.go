@@ -49,6 +49,60 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/conversation/{id}/members": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversation"
+                ],
+                "summary": "list members for a conversation with resolved user profiles",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Conversation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-models_ListConversationMembersResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-any"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-any"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-any"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/conversations": {
             "get": {
                 "security": [
@@ -325,6 +379,23 @@ const docTemplate = `{
                 }
             }
         },
+        "httpcommon.SuccessResponse-models_ListConversationMembersResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/models.ListConversationMembersResponse"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ErrorDTO"
+                    }
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "httpcommon.SuccessResponse-models_ListConversationsResponse": {
             "type": "object",
             "properties": {
@@ -383,13 +454,15 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_by": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "direct_key": {
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "last_message": {
                     "$ref": "#/definitions/models.MessageResponse"
@@ -398,7 +471,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "last_message_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "metadata": {
                     "type": "object",
@@ -419,10 +493,12 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "conversation_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "joined_at": {
                     "type": "string"
@@ -431,13 +507,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "last_read_message_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "left_at": {
                     "type": "string"
                 },
                 "muted_until": {
                     "type": "string"
+                },
+                "profile": {
+                    "$ref": "#/definitions/models.UserProfileSummaryResponse"
                 },
                 "role": {
                     "type": "string"
@@ -446,7 +526,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 }
             }
         },
@@ -486,19 +567,22 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "created_by": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "direct_key": {
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "last_message_at": {
                     "type": "string"
                 },
                 "last_message_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "members": {
                     "type": "array",
@@ -535,6 +619,21 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ListConversationMembersResponse": {
+            "type": "object",
+            "properties": {
+                "conversation_id": {
+                    "type": "string",
+                    "example": "0"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ConversationMemberResponse"
+                    }
+                }
+            }
+        },
         "models.ListConversationsPaginationResponse": {
             "type": "object",
             "properties": {
@@ -545,7 +644,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "next_before_conversation_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "next_before_last_message_at": {
                     "type": "string"
@@ -570,7 +670,8 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "conversation_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "members": {
                     "type": "array",
@@ -599,7 +700,8 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "next_before_message_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 }
             }
         },
@@ -613,7 +715,8 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "conversation_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "created_at": {
                     "type": "string"
@@ -622,17 +725,20 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "metadata": {
                     "type": "object",
                     "additionalProperties": {}
                 },
                 "reply_to_message_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "sender_id": {
-                    "type": "integer"
+                    "type": "string",
+                    "example": "0"
                 },
                 "type": {
                     "type": "string"
@@ -664,6 +770,24 @@ const docTemplate = `{
                 },
                 "type": {
                     "type": "string"
+                }
+            }
+        },
+        "models.UserProfileSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "0"
                 }
             }
         }

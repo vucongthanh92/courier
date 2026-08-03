@@ -1,6 +1,7 @@
 package grpc
 
 import (
+	userprofilepb "github.com/vucongthanh92/courier/shared/grpc/user-service/user_profile/gen"
 	userstatuspb "github.com/vucongthanh92/courier/shared/grpc/user-service/user_status/gen"
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
@@ -34,6 +35,7 @@ func (s *Server) Run() {
 
 	// Register all gRPC services exposed by user-service.
 	jwkpb.RegisterJWKServiceServer(srv, grpcUsecase)
+	userprofilepb.RegisterUserProfileServiceServer(srv, grpcUsecase)
 	userstatuspb.RegisterUserStatusServiceServer(srv, grpcUsecase)
 
 	// Start the gRPC server

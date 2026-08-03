@@ -712,6 +712,7 @@ github.com/vmihailenco/tagparser/v2/internal
 github.com/vmihailenco/tagparser/v2/internal/parser
 # github.com/vucongthanh92/courier/shared v0.0.0 => ../shared
 ## explicit; go 1.25.0
+github.com/vucongthanh92/courier/shared/grpc/user-service/user_profile/gen
 github.com/vucongthanh92/courier/shared/grpc/user-service/user_status/gen
 # github.com/vucongthanh92/go-base-utils v1.2.6
 ## explicit; go 1.22.7

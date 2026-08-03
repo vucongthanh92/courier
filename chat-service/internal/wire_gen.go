@@ -23,6 +23,7 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/member"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/message"
 	conversation2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/conversation"
+	member2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/member"
 	message2 "github.com/vucongthanh92/courier/chat-service/internal/usecase/message"
 	"github.com/vucongthanh92/courier/chat-service/internal/worker"
 	"github.com/vucongthanh92/courier/chat-service/redis"
@@ -39,23 +40,26 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	userGrpcClient := user_grpc.NewGrpcClient(appCfg)
 	managerTxn := transaction.InitManagerTxn(writeDb)
 	conversationServiceI := conversation2.InitConversationUsecase(conversationQueryRepoI, conversationCommandRepoI, memberCmdRepoI, memberQueryRepoI, userGrpcClient, managerTxn)
+	conversationHandler := v1.InitConversationHandler(conversationServiceI)
+	userProfileCacheI := redis2.InitUserProfileCache(redisClient)
+	memberServiceI := member2.InitMemberUsecase(memberQueryRepoI, userProfileCacheI, userGrpcClient)
+	memberHandler := v1.InitMemberHandler(memberServiceI)
 	messageQueryRepoI := message.InitMessageQueryRepo(readDb, writeDb)
 	messageCmdRepoI := message.InitMessageCmdRepo(readDb, writeDb)
 	messageListCacheI := redis2.InitMessageListCache(redisClient)
 	wsPublisherI := redis2.InitWsPublisher(redisClient)
 	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI, wsPublisherI)
-	conversationHandler := v1.InitConversationHandler(conversationServiceI)
 	messageHandler := v1.InitMessageHandler(messageServiceI)
 	wsSubscriberI := redis2.InitWsSubscriber(redisClient)
 	hub := ws.NewHub(wsSubscriberI)
 	messageRateLimiterI := redis2.InitMessageRateLimiter(redisClient, appCfg)
 	jwkCacheRepo := redis2.InitJWKCacheRepo(redisClient)
 	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
-	server := http.NewServer(appCfg, conversationHandler, messageHandler, hub, messageRateLimiterI, jwkCacheRepo, userGrpcClient, tokenDenylistI)
+	server := http.NewServer(appCfg, conversationHandler, memberHandler, messageHandler, hub, messageRateLimiterI, jwkCacheRepo, userGrpcClient, tokenDenylistI)
 	grpcServer := grpc.NewServer(appCfg)
 	cronServer := cron.NewServer(appCfg)
-	logger := provideLogger(appCfg)
 	userEventHandler := conversation2.InitUserEventHandler(conversationServiceI, messageServiceI)
+	logger := provideLogger(appCfg)
 	userEventConsumer := worker.InitUserEventConsumer(appCfg, userEventHandler, logger)
 	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, userEventConsumer)
 	return apiContainer
@@ -67,11 +71,11 @@ var container = wire.NewSet(api.NewApiContainer)
 
 var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
-var handlerSet = wire.NewSet(v1.InitConversationHandler, v1.InitMessageHandler)
+var handlerSet = wire.NewSet(v1.InitConversationHandler, v1.InitMemberHandler, v1.InitMessageHandler)
 
-var serviceSet = wire.NewSet(conversation2.InitConversationUsecase, message2.InitMessageUsecase, conversation2.InitUserEventHandler)
+var serviceSet = wire.NewSet(conversation2.InitConversationUsecase, member2.InitMemberUsecase, message2.InitMessageUsecase, conversation2.InitUserEventHandler)
 
-var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitWsPublisher, redis2.InitWsSubscriber)
+var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitUserProfileCache, redis2.InitWsPublisher, redis2.InitWsSubscriber)
 
 var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn, ws.NewHub, worker.InitUserEventConsumer, provideLogger)
 

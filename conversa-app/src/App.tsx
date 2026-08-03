@@ -2,7 +2,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { authApi, chatApi } from "./lib/api";
 import { RealtimeClient, type RealtimeStatus } from "./lib/realtime";
 import { clearSession, readSession, saveSession, type Session } from "./lib/session";
-import type { Conversation, ListMessagesResponse, Message, RealtimeEvent } from "./types";
+import { cacheUserProfiles, readUserProfileCache } from "./lib/userProfileCache";
+import type { Conversation, ListMessagesResponse, Message, RealtimeEvent, UserProfile } from "./types";
 
 type AuthMode = "login" | "signup" | "verify";
 
@@ -179,6 +180,7 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [members, setMembers] = useState<ListMessagesResponse["members"]>([]);
+  const [userProfilesById, setUserProfilesById] = useState<Map<string, UserProfile>>(() => readUserProfileCache());
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [nextBeforeMessageId, setNextBeforeMessageId] = useState<string | undefined>();
   const [sidebarLoading, setSidebarLoading] = useState(true);
@@ -243,7 +245,9 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
     setError("");
     try {
       const response = await chatApi.listMessages(session.access_token, conversationId, beforeMessageId);
-      setMembers(response.members);
+      if (response.members.length > 0) {
+        setMembers((current) => mergeMembers(current, response.members));
+      }
       setHasOlderMessages(response.pagination.has_more);
       setNextBeforeMessageId(response.pagination.next_before_message_id);
       setMessages((current) =>
@@ -262,6 +266,18 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
       setError(err instanceof Error ? err.message : "Could not load messages");
     } finally {
       setMessagesLoading(false);
+    }
+  }, [session.access_token]);
+
+  const loadConversationMembers = useCallback(async (conversationId: string) => {
+    setError("");
+    try {
+      const response = await chatApi.listConversationMembers(session.access_token, conversationId);
+      setMembers(response.members);
+      const profiles = response.members.map((member) => member.profile).filter(Boolean) as UserProfile[];
+      setUserProfilesById(cacheUserProfiles(profiles));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load conversation members");
     }
   }, [session.access_token]);
 
@@ -340,8 +356,9 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
     if (!selectedId) return;
     setMessages([]);
     setMembers([]);
+    void loadConversationMembers(selectedId);
     void loadMessages(selectedId);
-  }, [selectedId, loadMessages]);
+  }, [selectedId, loadConversationMembers, loadMessages]);
 
   useEffect(() => {
     const client = new RealtimeClient({
@@ -398,9 +415,9 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
         </header>
 
         <section className="profile-glance">
-          <Avatar label="Thanh" tone="me" />
+          <Avatar label={session.display_name || `User ${session.user_id ?? "?"}`} imageUrl={session.avatar_url} tone="me" />
           <div>
-            <strong>User #{session.user_id ?? "?"}</strong>
+            <strong>{session.display_name || `User #${session.user_id ?? "?"}`}</strong>
             <small>{realtimeStatus} · spatial glass</small>
           </div>
           <span className={`live-dot status-${realtimeStatus}`} />
@@ -492,10 +509,11 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
               {!messagesLoading && messages.length === 0 && <div className="empty-state">No messages in this conversation.</div>}
               {messages.map((message) => {
                 const isMine = message.sender_id === session.user_id;
-                const senderName = senderDisplayName(message, memberByUserId.get(message.sender_id));
+                const senderProfile = userProfilesById.get(message.sender_id) ?? memberByUserId.get(message.sender_id)?.profile;
+                const senderName = senderDisplayName(message, memberByUserId.get(message.sender_id), senderProfile);
                 return (
                   <div key={message.id} className={`message-row ${isMine ? "mine" : ""}`}>
-                    {!isMine && <Avatar label={senderName} />}
+                    {!isMine && <Avatar label={senderName} imageUrl={senderProfile?.avatar_url} />}
                     <div className="message-bubble">
                       {!isMine && (
                         <header>
@@ -551,7 +569,11 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
               <small>{selectedConversation.type} conversation</small>
               <div className="member-pile">
                 {members.slice(0, 4).map((member) => (
-                  <Avatar key={member.id} label={member.role || `U${member.user_id}`} />
+                  <Avatar
+                    key={member.id}
+                    label={member.profile?.display_name || userProfilesById.get(member.user_id)?.display_name || `User ${member.user_id}`}
+                    imageUrl={member.profile?.avatar_url || userProfilesById.get(member.user_id)?.avatar_url}
+                  />
                 ))}
                 {members.length === 0 && (
                   <>
@@ -615,16 +637,19 @@ function ConversationTypeBadge({ type }: { type: Conversation["type"] }) {
 function ConversaLogo({ compact = false }: { compact?: boolean }) {
   return (
     <div className={`conversa-logo ${compact ? "compact" : ""}`} aria-label="Conversa logo">
-      <span>C</span>
-      {!compact && <b>conversa</b>}
+      <img src={compact ? "/brand/conversa-icon.png" : "/brand/conversa-wordmark.png"} alt="" />
     </div>
   );
 }
 
-function Avatar({ label, tone, large = false }: { label: string; tone?: string; large?: boolean }) {
+function Avatar({ label, imageUrl, tone, large = false }: { label: string; imageUrl?: string; tone?: string; large?: boolean }) {
   const letter = label.trim().charAt(0).toUpperCase() || "C";
   const normalizedTone = tone?.toLowerCase().replace(/[^a-z0-9_-]/g, "") || "default";
-  return <span className={`avatar tone-${normalizedTone} ${large ? "large" : ""}`}>{letter}</span>;
+  return (
+    <span className={`avatar tone-${normalizedTone} ${large ? "large" : ""}`}>
+      {imageUrl ? <img src={imageUrl} alt="" /> : letter}
+    </span>
+  );
 }
 
 function conversationTitle(conversation: Conversation) {
@@ -649,7 +674,9 @@ function formatConversationTime(value: string) {
   }).format(date);
 }
 
-function senderDisplayName(message: Message, member?: ListMessagesResponse["members"][number]) {
+function senderDisplayName(message: Message, member?: ListMessagesResponse["members"][number], profile?: UserProfile) {
+  if (profile?.display_name) return profile.display_name;
+  if (member?.profile?.display_name) return member.profile.display_name;
   const metadataName = readMetadataString(message.metadata, "sender_display_name", "sender_name", "display_name", "name");
   if (metadataName) return metadataName;
   if (member?.role && member.role !== "member") return `${member.role} · User ${message.sender_id}`;
@@ -681,6 +708,21 @@ function mergeMessages(...messageGroups: Message[][]) {
     }
   }
   return sortMessagesByCreatedAt([...messagesById.values()]);
+}
+
+function mergeMembers(...memberGroups: ListMessagesResponse["members"][]) {
+  const membersByUserID = new Map<string, ListMessagesResponse["members"][number]>();
+  for (const members of memberGroups) {
+    for (const member of members) {
+      const current = membersByUserID.get(member.user_id);
+      membersByUserID.set(member.user_id, {
+        ...current,
+        ...member,
+        profile: member.profile ?? current?.profile
+      });
+    }
+  }
+  return [...membersByUserID.values()];
 }
 
 function sortConversationsByActivity(conversations: Conversation[]) {

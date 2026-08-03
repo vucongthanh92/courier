@@ -378,7 +378,7 @@ func GetHttpRequest[T any](req *http.Request) (response T, err error) {
 
 	if resp.StatusCode != 200 {
 		logger.Warn("StatusCode Error", zap.Int("StatusCode", resp.StatusCode))
-		return response, fmt.Errorf(resp.Status)
+		return response, errors.New(resp.Status)
 	}
 
 	responseData, err := io.ReadAll(resp.Body)

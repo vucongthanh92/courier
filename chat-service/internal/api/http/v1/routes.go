@@ -9,6 +9,7 @@ import (
 func MapRoutes(
 	router *gin.Engine,
 	conversationHandler *ConversationHandler,
+	memberHandler *MemberHandler,
 	messageHandler *MessageHandler,
 	wsHandler *WsHandler,
 	authMiddleWare gin.HandlerFunc,
@@ -30,6 +31,7 @@ func MapRoutes(
 	{
 		v1HasAuth.POST("/conversation/create", conversationHandler.CreateConversation)
 		v1HasAuth.GET("/conversations", conversationHandler.ListConversations)
+		v1HasAuth.GET("/conversation/:id/members", memberHandler.ListConversationMembers)
 		v1HasAuth.POST("/conversation/:id/messages/create", messageRateLimitMiddleware, messageHandler.CreateMessage)
 		v1HasAuth.GET("/conversation/:id/messages", messageHandler.ListMessages)
 	}
