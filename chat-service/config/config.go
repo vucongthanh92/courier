@@ -91,7 +91,9 @@ type KafkaConfig struct {
 }
 
 type KafkaTopicsConfig struct {
-	UserEvents string `mapstructure:"userEvents"`
+	UserEvents         string `mapstructure:"userEvents"`
+	AssistantRequested string `mapstructure:"assistantRequested"`
+	AssistantResponded string `mapstructure:"assistantResponded"`
 }
 
 type RateLimitWindowConfig struct {

@@ -1,0 +1,32 @@
+serviceName: agent-gateway
+development: false
+http:
+  port: :5010
+  development: false
+  shutdownTimeout: 20
+qdrant:
+  url: http://qdrant:6333
+  apiKey: ""
+  collectionName: courier_agent_memory
+  vectorSize: 1536
+  distance: Cosine
+  timeout: 5s
+kafka:
+  brokers: ["kafka:9092"]
+  groupID: agent-gateway
+  assistantRequestedTopic: courier.assistant.requested.v1
+  assistantRespondedTopic: courier.assistant.responded.v1
+openai:
+  apiKey: ""
+  model: gpt-5.5
+  embeddingModel: text-embedding-3-small
+  requestTimeout: 45s
+  maxRecentTurns: 20
+  maxMemoryChunks: 8
+memory:
+  summaryEveryMessages: 20
+  maxMessageRunes: 4000
+safety:
+  webSearchEnabled: true
+  guardrailEnabled: true
+  blockedCategories: ["secrets", "illegal_behavior", "self_harm", "sexual_content", "hate_harassment", "violence", "cyber_abuse", "privacy"]

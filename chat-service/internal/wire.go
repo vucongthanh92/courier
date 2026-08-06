@@ -16,6 +16,7 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/worker"
 	"github.com/vucongthanh92/courier/chat-service/redis"
 
+	kafkaRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/kafka"
 	cacheRepo "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 	user_grpc "github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
 
@@ -68,6 +69,7 @@ var repoSet = wire.NewSet(
 	cacheRepo.InitUserProfileCache,
 	cacheRepo.InitWsPublisher,
 	cacheRepo.InitWsSubscriber,
+	kafkaRepo.InitAssistantEventPublisher,
 )
 
 var providerSet = wire.NewSet(
@@ -75,6 +77,7 @@ var providerSet = wire.NewSet(
 	transaction.InitManagerTxn,
 	ws.NewHub,
 	worker.InitUserEventConsumer,
+	worker.InitAssistantResponseConsumer,
 	provideLogger,
 )
 

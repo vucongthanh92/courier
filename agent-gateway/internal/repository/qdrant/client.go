@@ -1,0 +1,213 @@
+package qdrant
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+
+	"github.com/vucongthanh92/courier/agent-gateway/config"
+	"github.com/vucongthanh92/courier/agent-gateway/internal/domain/models"
+)
+
+type Client struct {
+	cfg        config.QdrantConfig
+	httpClient *http.Client
+}
+
+func NewClient(cfg config.QdrantConfig) *Client {
+	return &Client{
+		cfg: cfg,
+		httpClient: &http.Client{
+			Timeout: cfg.Timeout,
+		},
+	}
+}
+
+func (c *Client) Ready(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url("/readyz"), nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return fmt.Errorf("qdrant ready check failed: %s", resp.Status)
+	}
+	return nil
+}
+
+func (c *Client) EnsureCollection(ctx context.Context) error {
+	body := map[string]any{
+		"vectors": map[string]any{
+			"size":     c.cfg.VectorSize,
+			"distance": c.cfg.Distance,
+		},
+	}
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPut,
+		c.url("/collections/"+c.cfg.CollectionName),
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		data, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf("ensure qdrant collection failed: %s: %s", resp.Status, string(data))
+	}
+	return nil
+}
+
+func (c *Client) UpsertMemory(ctx context.Context, point models.MemoryPoint, vector []float32) error {
+	if len(vector) == 0 {
+		return fmt.Errorf("memory vector is required")
+	}
+
+	body := map[string]any{
+		"points": []map[string]any{
+			{
+				"id":      point.ID,
+				"vector":  vector,
+				"payload": point,
+			},
+		},
+	}
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPut,
+		c.url("/collections/"+c.cfg.CollectionName+"/points?wait=true"),
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		data, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
+		return fmt.Errorf("upsert qdrant memory failed: %s: %s", resp.Status, string(data))
+	}
+	return nil
+}
+
+func (c *Client) SearchMemories(ctx context.Context, vector []float32, limit int, conversationID uint64) ([]models.MemoryPoint, error) {
+	if len(vector) == 0 {
+		return nil, fmt.Errorf("search vector is required")
+	}
+	if limit <= 0 {
+		limit = 8
+	}
+
+	body := map[string]any{
+		"vector":       vector,
+		"limit":        limit,
+		"with_payload": true,
+	}
+	if conversationID > 0 {
+		body["filter"] = map[string]any{
+			"must": []map[string]any{
+				{
+					"key": "conversation_id",
+					"match": map[string]any{
+						"value": conversationID,
+					},
+				},
+			},
+		}
+	}
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		c.url("/collections/"+c.cfg.CollectionName+"/points/search"),
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("search qdrant memory failed: %s: %s", resp.Status, string(data))
+	}
+
+	var parsed searchResponse
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, err
+	}
+	memories := make([]models.MemoryPoint, 0, len(parsed.Result))
+	for _, item := range parsed.Result {
+		memories = append(memories, item.Payload)
+	}
+	return memories, nil
+}
+
+func (c *Client) do(req *http.Request) (*http.Response, error) {
+	if c.cfg.APIKey != "" {
+		req.Header.Set("api-key", c.cfg.APIKey)
+	}
+	return c.httpClient.Do(req)
+}
+
+func (c *Client) url(path string) string {
+	base := strings.TrimRight(c.cfg.URL, "/")
+	if strings.HasPrefix(path, "/") {
+		return base + path
+	}
+	return base + "/" + path
+}
+
+type searchResponse struct {
+	Result []struct {
+		Payload models.MemoryPoint `json:"payload"`
+	} `json:"result"`
+}
