@@ -53,6 +53,64 @@ Backend-generated system messages use `sender_id = 0`. Database triggers allow `
 
 Existing verified users are backfilled by migration `016_chat_service_core_and_system_conversations` with empty `notification` and `assistant` conversations.
 
+# Agent Gateway And Qdrant Memory
+
+Courier uses `agent-gateway` as the service boundary for AI assistant work. The first implementation keeps two responsibilities in this service:
+
+- build and send conversation context to the AI provider
+- manage assistant memory and vector data in Qdrant
+
+`chat-service` remains the source of truth for chat messages. When a user sends a message to the `system` conversation named `assistant`, `chat-service` publishes an assistant request event to Kafka. `agent-gateway` prepares context, uses Qdrant for memory lookup/storage, calls the AI provider, then publishes an assistant response event back to `chat-service`. `chat-service` inserts the assistant reply into its database, so `conversa-app` receives the reply through the existing WebSocket flow.
+
+Assistant Kafka topics:
+
+- Request topic: `courier.assistant.requested.v1`
+- Response topic: `courier.assistant.responded.v1`
+- Retry topic: `courier.assistant.events.retry.v1`
+- Dead-letter topic: `courier.assistant.events.dlq.v1`
+
+Run local Qdrant:
+
+```bash
+cd agent-gateway
+make qdrant-up
+```
+
+Qdrant local endpoints:
+
+- REST API: `http://localhost:6333`
+- Dashboard: `http://localhost:6333/dashboard`
+- Readiness: `http://localhost:6333/readyz`
+- gRPC: `localhost:6334`
+
+Run `agent-gateway` against local Qdrant:
+
+```bash
+cd agent-gateway
+make run-local
+curl http://localhost:5010/healthz
+```
+
+Run Qdrant and `agent-gateway` together:
+
+```bash
+cd agent-gateway
+docker compose up --build
+```
+
+`agent-gateway` follows the same config folder style as the other Courier services:
+
+- `agent-gateway/config/local/config.yaml`
+- `agent-gateway/config/dev/config.yaml`
+- `agent-gateway/config/prd/config.yaml`
+
+Important config defaults:
+
+- Qdrant collection: `courier_agent_memory`
+- Qdrant vector size: `1536`
+- Qdrant distance: `Cosine`
+- Embedding model: `text-embedding-3-small`
+
 # Case Study: WebSocket Realtime Delivery With Redis Pub/Sub
 
 This pattern was introduced for `chat-service` and `conversa-app` so active conversation members can receive newly created messages without reloading or polling REST APIs.

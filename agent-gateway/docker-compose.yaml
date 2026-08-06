@@ -1,0 +1,37 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.12.6
+    container_name: courier-agent-qdrant
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+
+  agent-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: courier-agent-gateway
+    restart: unless-stopped
+    depends_on:
+      - qdrant
+    environment:
+      SERVICE_NAME: agent-gateway
+      HTTP_PORT: :5010
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: courier_agent_memory
+      QDRANT_VECTOR_SIZE: 1536
+      QDRANT_DISTANCE: Cosine
+      KAFKA_BROKERS: host.docker.internal:9092
+      KAFKA_GROUP_ID: agent-gateway
+      KAFKA_ASSISTANT_REQUESTED_TOPIC: courier.assistant.requested.v1
+      KAFKA_ASSISTANT_RESPONDED_TOPIC: courier.assistant.responded.v1
+      OPENAI_MODEL: gpt-5.6
+      OPENAI_EMBEDDING_MODEL: text-embedding-3-small
+    ports:
+      - "5010:5010"
+
+volumes:
+  qdrant_storage:

@@ -1,0 +1,27 @@
+serviceName: agent-gateway
+development: true
+http:
+  port: :5010
+  development: true
+  shutdownTimeout: 10
+qdrant:
+  url: http://localhost:6333
+  apiKey: ""
+  collectionName: courier_agent_memory
+  vectorSize: 1536
+  distance: Cosine
+  timeout: 5s
+kafka:
+  brokers: ["localhost:9092"]
+  groupID: agent-gateway
+  assistantRequestedTopic: courier.assistant.requested.v1
+  assistantRespondedTopic: courier.assistant.responded.v1
+openai:
+  apiKey: ""
+  model: gpt-5.6
+  embeddingModel: text-embedding-3-small
+  requestTimeout: 45s
+  maxRecentTurns: 20
+  maxMemoryChunks: 8
+memory:
+  summaryEveryMessages: 20
