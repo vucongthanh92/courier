@@ -32,6 +32,12 @@ The default local command reads:
 ./config/local/config.yaml
 ```
 
+`config/local/config.yaml` is ignored by Git so local API keys are not committed. Create it from the example file when setting up the service:
+
+```sh
+cp config/local/config.example.yaml config/local/config.yaml
+```
+
 Healthcheck:
 
 ```sh
