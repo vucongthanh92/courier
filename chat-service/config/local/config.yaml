@@ -49,6 +49,8 @@ kafka:
   groupID: chat-service
   topics:
     userEvents: courier.user.events.v1
+    assistantRequested: courier.assistant.requested.v1
+    assistantResponded: courier.assistant.responded.v1
 messageRateLimit:
   enabled: true
   burst:

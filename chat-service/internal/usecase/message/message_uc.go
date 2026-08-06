@@ -13,12 +13,13 @@ import (
 )
 
 type messageUseCase struct {
-	conversationQuery interfaces.ConversationQueryRepoI
-	memberQuery       interfaces.MemberQueryRepoI
-	messageQuery      interfaces.MessageQueryRepoI
-	messageCommand    interfaces.MessageCmdRepoI
-	messageListCache  interfaces.MessageListCacheI
-	wsPublisher       interfaces.WsPublisherI
+	conversationQuery  interfaces.ConversationQueryRepoI
+	memberQuery        interfaces.MemberQueryRepoI
+	messageQuery       interfaces.MessageQueryRepoI
+	messageCommand     interfaces.MessageCmdRepoI
+	messageListCache   interfaces.MessageListCacheI
+	wsPublisher        interfaces.WsPublisherI
+	assistantPublisher interfaces.AssistantEventPublisherI
 }
 
 func InitMessageUsecase(
@@ -28,14 +29,20 @@ func InitMessageUsecase(
 	messageCommand interfaces.MessageCmdRepoI,
 	messageListCache interfaces.MessageListCacheI,
 	wsPublisher interfaces.WsPublisherI,
+	assistantPublishers ...interfaces.AssistantEventPublisherI,
 ) interfaces.MessageServiceI {
+	var assistantPublisher interfaces.AssistantEventPublisherI
+	if len(assistantPublishers) > 0 {
+		assistantPublisher = assistantPublishers[0]
+	}
 	return &messageUseCase{
-		conversationQuery: conversationQuery,
-		memberQuery:       memberQuery,
-		messageQuery:      messageQuery,
-		messageCommand:    messageCommand,
-		messageListCache:  messageListCache,
-		wsPublisher:       wsPublisher,
+		conversationQuery:  conversationQuery,
+		memberQuery:        memberQuery,
+		messageQuery:       messageQuery,
+		messageCommand:     messageCommand,
+		messageListCache:   messageListCache,
+		wsPublisher:        wsPublisher,
+		assistantPublisher: assistantPublisher,
 	}
 }
 
@@ -179,6 +186,7 @@ func (s *messageUseCase) CreateMessage(ctx context.Context, req *models.SendMess
 	var response models.MessageResponse
 	response.MappeDTO(&newMessageEntity)
 	s.publishMessageCreated(ctx, req.ConversationID, response)
+	s.publishAssistantRequestedIfNeeded(ctx, conversation, &newMessageEntity)
 	return &response, true, nil
 }
 

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/vucongthanh92/courier/agent-gateway/helper/constants"
+	"github.com/vucongthanh92/courier/agent-gateway/internal/domain/models"
 )
 
 func NewHTTPHandler(service *Service) http.Handler {
@@ -33,6 +34,22 @@ func NewHTTPHandler(service *Service) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"instructions": service.SystemInstructions(),
+		})
+	})
+	mux.HandleFunc(constants.SafetyEvaluatePath, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		var req models.SafetyEvaluationRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"error": "invalid request body",
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"result": service.EvaluateSafety(req.Text),
 		})
 	})
 	return mux

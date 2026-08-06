@@ -13,7 +13,10 @@ import (
 	"github.com/vucongthanh92/courier/agent-gateway/config"
 	"github.com/vucongthanh92/courier/agent-gateway/helper/constants"
 	"github.com/vucongthanh92/courier/agent-gateway/internal/gateway"
+	"github.com/vucongthanh92/courier/agent-gateway/internal/provider/openai"
+	kafkarepo "github.com/vucongthanh92/courier/agent-gateway/internal/repository/external/kafka"
 	"github.com/vucongthanh92/courier/agent-gateway/internal/repository/qdrant"
+	"github.com/vucongthanh92/courier/agent-gateway/internal/worker"
 )
 
 func main() {
@@ -25,7 +28,12 @@ func main() {
 		log.Fatalf("load config: %v", err)
 	}
 	qdrantClient := qdrant.NewClient(cfg.Qdrant)
-	agentGateway := gateway.NewService(cfg, qdrantClient)
+	openAIClient := openai.NewClient(cfg.OpenAI)
+	agentGateway := gateway.NewService(cfg, qdrantClient, openAIClient)
+	assistantPublisher := kafkarepo.NewPublisher(cfg)
+	assistantConsumer := worker.NewAssistantRequestConsumer(cfg, agentGateway, assistantPublisher)
+	defer assistantPublisher.Close()
+	defer assistantConsumer.Close()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
@@ -44,6 +52,12 @@ func main() {
 		log.Printf("agent-gateway listening on %s", cfg.HTTP.Port)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("run agent-gateway: %v", err)
+		}
+	}()
+
+	go func() {
+		if err := assistantConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			log.Printf("assistant request consumer stopped: %v", err)
 		}
 	}()
 

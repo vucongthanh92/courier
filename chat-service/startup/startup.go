@@ -59,10 +59,18 @@ func runServer(ctx context.Context, container *api.ApiContainer) {
 			logger.Error("user event consumer stopped", zap.Error(err))
 		}
 	})
+	wp.Submit(func() {
+		if err := container.AssistantResponseConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Error("assistant response consumer stopped", zap.Error(err))
+		}
+	})
 
 	wp.StopWait()
 	if container.UserEventConsumer != nil {
 		_ = container.UserEventConsumer.Close()
+	}
+	if container.AssistantResponseConsumer != nil {
+		_ = container.AssistantResponseConsumer.Close()
 	}
 	logger.Info("chat-service stopped")
 }

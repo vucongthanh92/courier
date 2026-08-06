@@ -8,7 +8,9 @@ bin/
 
 # Environment/config overrides (keep secrets local)
 .env
+
 user-service/config/local/config.yaml
+agent-gateway/config/local/config.yaml
 
 # IDE/editor cruft
 .DS_Store

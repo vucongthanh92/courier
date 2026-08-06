@@ -31,11 +31,13 @@ flowchart TB
     HelperConstants["helper/constants"] --> Defaults["service names, topics, defaults, paths"]
     HelperUtils["helper/utils"] --> SmallHelpers["correlation IDs, timeout contexts"]
     GatewayPkg["internal/gateway"] --> Usecase["assistant gateway orchestration"]
+    SafetyPkg["internal/safety"] --> Guardrail["deterministic guardrail"]
     QdrantRepo["internal/repository/qdrant"] --> Qdrant["Qdrant REST API"]
     Models["internal/domain/models"] --> Contracts["event and memory DTOs"]
 
     GatewayPkg --> HelperUtils
     GatewayPkg --> HelperConstants
+    GatewayPkg --> SafetyPkg
     GatewayPkg --> QdrantRepo
     GatewayPkg --> Models
     ConfigPkg --> HelperConstants
@@ -81,7 +83,9 @@ When the assistant request consumer is implemented, the internal flow should loo
 flowchart LR
     KafkaConsumer["Kafka consumer"] --> EventModel["AssistantRequestedPayload"]
     EventModel --> GatewayService["gateway.Service"]
-    GatewayService --> Idempotency["idempotency check"]
+    GatewayService --> SafetyCheck["safety guardrail"]
+    SafetyCheck --> BlockedResponse["blocked assistant response"]
+    SafetyCheck --> Idempotency["idempotency check"]
     GatewayService --> EmbeddingProvider["embedding provider"]
     EmbeddingProvider --> UserVector["user message vector"]
     GatewayService --> QdrantUpsert["Qdrant upsert memory"]
@@ -93,6 +97,7 @@ flowchart LR
     ContextBuilder --> CurrentMessage["current user message"]
     ContextBuilder --> AIProvider["AI provider client"]
     AIProvider --> ResponseModel["AssistantRespondedPayload"]
+    ResponseModel --> ResponseParts["split into <=4000 rune parts"]
     ResponseModel --> KafkaProducer["Kafka producer"]
 ```
 

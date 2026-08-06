@@ -124,6 +124,73 @@ func (c *Client) UpsertMemory(ctx context.Context, point models.MemoryPoint, vec
 	return nil
 }
 
+func (c *Client) SearchMemories(ctx context.Context, vector []float32, limit int, conversationID uint64) ([]models.MemoryPoint, error) {
+	if len(vector) == 0 {
+		return nil, fmt.Errorf("search vector is required")
+	}
+	if limit <= 0 {
+		limit = 8
+	}
+
+	body := map[string]any{
+		"vector":       vector,
+		"limit":        limit,
+		"with_payload": true,
+	}
+	if conversationID > 0 {
+		body["filter"] = map[string]any{
+			"must": []map[string]any{
+				{
+					"key": "conversation_id",
+					"match": map[string]any{
+						"value": conversationID,
+					},
+				},
+			},
+		}
+	}
+
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		c.url("/collections/"+c.cfg.CollectionName+"/points/search"),
+		bytes.NewReader(payload),
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("search qdrant memory failed: %s: %s", resp.Status, string(data))
+	}
+
+	var parsed searchResponse
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return nil, err
+	}
+	memories := make([]models.MemoryPoint, 0, len(parsed.Result))
+	for _, item := range parsed.Result {
+		memories = append(memories, item.Payload)
+	}
+	return memories, nil
+}
+
 func (c *Client) do(req *http.Request) (*http.Response, error) {
 	if c.cfg.APIKey != "" {
 		req.Header.Set("api-key", c.cfg.APIKey)
@@ -137,4 +204,10 @@ func (c *Client) url(path string) string {
 		return base + path
 	}
 	return base + "/" + path
+}
+
+type searchResponse struct {
+	Result []struct {
+		Payload models.MemoryPoint `json:"payload"`
+	} `json:"result"`
 }

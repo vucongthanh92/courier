@@ -31,7 +31,7 @@ const (
 // OpenAI constants for embedding and model selection
 const (
 	OpenAIEmbeddingModelTextEmbedding3Small = "text-embedding-3-small"
-	OpenAIDefaultModel                      = "gpt-5.6"
+	OpenAIDefaultModel                      = "gpt-5.5"
 )
 
 // Memory roles for the assistant's memory system
@@ -45,6 +45,7 @@ const (
 const (
 	HealthzPath               = "/healthz"
 	AssistantInstructionsPath = "/v1/assistant/instructions"
+	SafetyEvaluatePath        = "/v1/safety/evaluate"
 )
 
 // Default values for various configurations
@@ -55,9 +56,28 @@ const (
 	DefaultOpenAIRequestTimeout  = 45 * time.Second
 	DefaultOpenAIMaxRecentTurns  = 20
 	DefaultOpenAIMaxMemoryChunks = 8
+	DefaultMaxMessageRunes       = 4000
 	DefaultSummaryEveryMessages  = 20
 	DefaultKafkaBroker           = "localhost:9092"
 	DefaultReadHeaderTimeout     = 5 * time.Second
+)
+
+const (
+	SafetyDecisionAllow  = "allow"
+	SafetyDecisionBlock  = "block"
+	SafetyDecisionReview = "review"
+)
+
+const (
+	SafetyCategorySecrets          = "secrets"
+	SafetyCategoryIllegalBehavior  = "illegal_behavior"
+	SafetyCategorySelfHarm         = "self_harm"
+	SafetyCategorySexualContent    = "sexual_content"
+	SafetyCategoryHateHarassment   = "hate_harassment"
+	SafetyCategoryViolence         = "violence"
+	SafetyCategoryCyberAbuse       = "cyber_abuse"
+	SafetyCategoryPrivacy          = "privacy"
+	SafetyCategoryMedicalLegalRisk = "medical_legal_financial_risk"
 )
 
 // AssistantSystemInstructions is the system instructions for the assistant. It is used to guide the assistant's behavior and responses.

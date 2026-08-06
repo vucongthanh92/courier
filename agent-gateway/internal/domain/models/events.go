@@ -22,9 +22,17 @@ type AssistantRequestedPayload struct {
 }
 
 type AssistantRespondedPayload struct {
-	ConversationID      uint64         `json:"conversation_id"`
-	TriggeringMessageID uint64         `json:"triggering_message_id"`
-	Body                string         `json:"body"`
-	CorrelationID       string         `json:"correlation_id"`
-	Metadata            map[string]any `json:"metadata,omitempty"`
+	ConversationID      uint64                 `json:"conversation_id"`
+	TriggeringMessageID uint64                 `json:"triggering_message_id"`
+	Body                string                 `json:"body,omitempty"`
+	MessageParts        []AssistantMessagePart `json:"message_parts,omitempty"`
+	CorrelationID       string                 `json:"correlation_id"`
+	Metadata            map[string]any         `json:"metadata,omitempty"`
+}
+
+type AssistantMessagePart struct {
+	Body     string         `json:"body"`
+	Index    int            `json:"index"`
+	Total    int            `json:"total"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }

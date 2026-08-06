@@ -8,10 +8,11 @@ import (
 )
 
 type ApiContainer struct {
-	HttpServer        *chathttp.Server
-	GrpcServer        *chatgrpc.Server
-	CronServer        *chatcron.Server
-	UserEventConsumer *worker.UserEventConsumer
+	HttpServer                *chathttp.Server
+	GrpcServer                *chatgrpc.Server
+	CronServer                *chatcron.Server
+	UserEventConsumer         *worker.UserEventConsumer
+	AssistantResponseConsumer *worker.AssistantResponseConsumer
 }
 
 func NewApiContainer(
@@ -19,11 +20,13 @@ func NewApiContainer(
 	grpc *chatgrpc.Server,
 	cron *chatcron.Server,
 	userEventConsumer *worker.UserEventConsumer,
+	assistantResponseConsumer *worker.AssistantResponseConsumer,
 ) *ApiContainer {
 	return &ApiContainer{
-		HttpServer:        http,
-		GrpcServer:        grpc,
-		CronServer:        cron,
-		UserEventConsumer: userEventConsumer,
+		HttpServer:                http,
+		GrpcServer:                grpc,
+		CronServer:                cron,
+		UserEventConsumer:         userEventConsumer,
+		AssistantResponseConsumer: assistantResponseConsumer,
 	}
 }

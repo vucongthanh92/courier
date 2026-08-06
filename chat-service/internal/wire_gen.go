@@ -17,6 +17,7 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/ws"
+	kafka2 "github.com/vucongthanh92/courier/chat-service/internal/repository/external/kafka"
 	redis2 "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
@@ -48,7 +49,8 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	messageCmdRepoI := message.InitMessageCmdRepo(readDb, writeDb)
 	messageListCacheI := redis2.InitMessageListCache(redisClient)
 	wsPublisherI := redis2.InitWsPublisher(redisClient)
-	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI, wsPublisherI)
+	assistantEventPublisherI := kafka2.InitAssistantEventPublisher(appCfg)
+	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI, wsPublisherI, assistantEventPublisherI)
 	messageHandler := v1.InitMessageHandler(messageServiceI)
 	wsSubscriberI := redis2.InitWsSubscriber(redisClient)
 	hub := ws.NewHub(wsSubscriberI)
@@ -61,7 +63,8 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	userEventHandler := conversation2.InitUserEventHandler(conversationServiceI, messageServiceI)
 	logger := provideLogger(appCfg)
 	userEventConsumer := worker.InitUserEventConsumer(appCfg, userEventHandler, logger)
-	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, userEventConsumer)
+	assistantResponseConsumer := worker.InitAssistantResponseConsumer(appCfg, messageServiceI, logger)
+	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, userEventConsumer, assistantResponseConsumer)
 	return apiContainer
 }
 
@@ -75,9 +78,9 @@ var handlerSet = wire.NewSet(v1.InitConversationHandler, v1.InitMemberHandler, v
 
 var serviceSet = wire.NewSet(conversation2.InitConversationUsecase, member2.InitMemberUsecase, message2.InitMessageUsecase, conversation2.InitUserEventHandler)
 
-var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitUserProfileCache, redis2.InitWsPublisher, redis2.InitWsSubscriber)
+var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitUserProfileCache, redis2.InitWsPublisher, redis2.InitWsSubscriber, kafka2.InitAssistantEventPublisher)
 
-var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn, ws.NewHub, worker.InitUserEventConsumer, provideLogger)
+var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn, ws.NewHub, worker.InitUserEventConsumer, worker.InitAssistantResponseConsumer, provideLogger)
 
 func provideLogger(cfg *config.AppConfig) logger.Logger {
 	return logger.NewZapLogger(cfg.Logger.LogLevel)

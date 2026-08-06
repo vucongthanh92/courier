@@ -98,6 +98,15 @@ cd agent-gateway
 docker compose up --build
 ```
 
+For full assistant flow testing, start Kafka and initialize all topics from the repository root:
+
+```bash
+docker compose -f event-bus/kafka/docker-compose.yaml up -d
+docker compose -f event-bus/kafka/docker-compose.yaml up kafka-init
+```
+
+Set `OPENAI_API_KEY` before running `agent-gateway` when testing real AI responses.
+
 `agent-gateway` follows the same config folder style as the other Courier services:
 
 - `agent-gateway/config/local/config.yaml`
@@ -109,7 +118,10 @@ Important config defaults:
 - Qdrant collection: `courier_agent_memory`
 - Qdrant vector size: `1536`
 - Qdrant distance: `Cosine`
+- Generation model target: `gpt-5.5`
 - Embedding model: `text-embedding-3-small`
+
+Before production use, verify the exact OpenAI API model id with the provided API key. OpenAI API model availability is account/project dependent and can be checked through the Models API.
 
 # Case Study: WebSocket Realtime Delivery With Redis Pub/Sub
 

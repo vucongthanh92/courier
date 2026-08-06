@@ -19,6 +19,7 @@ type AppConfig struct {
 	OpenAI      OpenAIConfig
 	Kafka       KafkaConfig
 	Memory      MemoryConfig
+	Safety      SafetyConfig
 }
 
 type HTTPConfig struct {
@@ -54,6 +55,13 @@ type KafkaConfig struct {
 
 type MemoryConfig struct {
 	SummaryEveryMessages int
+	MaxMessageRunes      int
+}
+
+type SafetyConfig struct {
+	WebSearchEnabled  bool
+	GuardrailEnabled  bool
+	BlockedCategories []string
 }
 
 func Load(configPath string) (AppConfig, error) {
@@ -99,6 +107,21 @@ func defaultConfig() AppConfig {
 		},
 		Memory: MemoryConfig{
 			SummaryEveryMessages: constants.DefaultSummaryEveryMessages,
+			MaxMessageRunes:      constants.DefaultMaxMessageRunes,
+		},
+		Safety: SafetyConfig{
+			WebSearchEnabled: true,
+			GuardrailEnabled: true,
+			BlockedCategories: []string{
+				constants.SafetyCategorySecrets,
+				constants.SafetyCategoryIllegalBehavior,
+				constants.SafetyCategorySelfHarm,
+				constants.SafetyCategorySexualContent,
+				constants.SafetyCategoryHateHarassment,
+				constants.SafetyCategoryViolence,
+				constants.SafetyCategoryCyberAbuse,
+				constants.SafetyCategoryPrivacy,
+			},
 		},
 	}
 }
@@ -171,6 +194,10 @@ func applyYAMLValues(values map[string]string, cfg *AppConfig) {
 	cfg.Kafka.AssistantRespondedTopic = stringValue(values, "kafka.assistantRespondedTopic", cfg.Kafka.AssistantRespondedTopic)
 
 	cfg.Memory.SummaryEveryMessages = intValue(values, "memory.summaryEveryMessages", cfg.Memory.SummaryEveryMessages)
+	cfg.Memory.MaxMessageRunes = intValue(values, "memory.maxMessageRunes", cfg.Memory.MaxMessageRunes)
+	cfg.Safety.WebSearchEnabled = boolValue(values, "safety.webSearchEnabled", cfg.Safety.WebSearchEnabled)
+	cfg.Safety.GuardrailEnabled = boolValue(values, "safety.guardrailEnabled", cfg.Safety.GuardrailEnabled)
+	cfg.Safety.BlockedCategories = stringSliceValue(values, "safety.blockedCategories", cfg.Safety.BlockedCategories)
 }
 
 func applyEnvOverrides(cfg *AppConfig) {
