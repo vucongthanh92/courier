@@ -227,7 +227,7 @@ func (s *messageUseCase) CreateSystemMessage(ctx context.Context, req *models.Cr
 	if initErr := newMessageEntity.InitMessageEntity(
 		req.ConversationID,
 		0,
-		constants.MessageTypeSystem,
+		req.Type,
 		req.Body,
 		nil,
 		nil,

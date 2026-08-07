@@ -32,10 +32,10 @@ func InitAssistantEventPublisher(cfg *config.AppConfig) interfaces.AssistantEven
 		if strings.TrimSpace(cfg.ServiceName) != "" {
 			source = cfg.ServiceName
 		}
-		if cfg.Kafka.Brokers != nil && len(cfg.Kafka.Brokers) > 0 {
+		if cfg.Kafka != nil && cfg.Kafka.Brokers != nil && len(cfg.Kafka.Brokers) > 0 {
 			brokers = cfg.Kafka.Brokers
 		}
-		if strings.TrimSpace(cfg.Kafka.Topics.AssistantRequested) != "" {
+		if cfg.Kafka != nil && strings.TrimSpace(cfg.Kafka.Topics.AssistantRequested) != "" {
 			topic = cfg.Kafka.Topics.AssistantRequested
 		}
 	}

@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/vucongthanh92/courier/agent-gateway/config"
@@ -93,22 +94,27 @@ func (s *Service) ProcessAssistantRequest(ctx context.Context, req models.Assist
 	if req.CorrelationID == "" {
 		req.CorrelationID = utils.NewCorrelationID()
 	}
+	log.Printf("processing assistant request: conversation_id=%d triggering_message_id=%d correlation_id=%s web_search=%t", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, s.cfg.Safety.WebSearchEnabled)
 
 	safetyResult := s.EvaluateSafety(req.Body)
 	if safetyResult.Decision == constants.SafetyDecisionBlock {
+		log.Printf("assistant request blocked by guardrail: conversation_id=%d triggering_message_id=%d correlation_id=%s category=%s reasons=%v", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, safetyResult.Category, safetyResult.Reasons)
 		return s.BuildBlockedAssistantResponse(req, safetyResult), nil
 	}
+	log.Printf("assistant request allowed by guardrail: conversation_id=%d triggering_message_id=%d correlation_id=%s", req.ConversationID, req.TriggeringMessageID, req.CorrelationID)
 
 	providerCtx, cancel := utils.TimeoutContext(ctx, s.cfg.OpenAI.RequestTimeout)
 	defer cancel()
 
 	vector, err := s.provider.CreateEmbedding(providerCtx, req.Body)
 	if err != nil {
+		log.Printf("create user embedding failed: conversation_id=%d triggering_message_id=%d correlation_id=%s error=%v", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, err)
 		return s.BuildErrorAssistantResponse(req, err), nil
 	}
+	log.Printf("created user embedding: conversation_id=%d triggering_message_id=%d correlation_id=%s vector_size=%d", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, len(vector))
 
 	userMemory := models.MemoryPoint{
-		ID:             req.CorrelationID + "-user",
+		ID:             utils.StableUUID(req.CorrelationID + ":" + constants.MemoryRoleUser),
 		ConversationID: req.ConversationID,
 		ChatMessageID:  req.TriggeringMessageID,
 		Role:           constants.MemoryRoleUser,
@@ -117,9 +123,18 @@ func (s *Service) ProcessAssistantRequest(ctx context.Context, req models.Assist
 		CorrelationID:  req.CorrelationID,
 		CreatedAt:      time.Now().UTC(),
 	}
-	_ = s.memory.UpsertMemory(ctx, userMemory, vector)
+	if err := s.memory.UpsertMemory(ctx, userMemory, vector); err != nil {
+		log.Printf("upsert user memory failed: conversation_id=%d triggering_message_id=%d correlation_id=%s error=%v", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, err)
+	} else {
+		log.Printf("upserted user memory: conversation_id=%d triggering_message_id=%d correlation_id=%s memory_id=%s", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, userMemory.ID)
+	}
 
-	memories, _ := s.memory.SearchMemories(ctx, vector, s.cfg.OpenAI.MaxMemoryChunks, req.ConversationID)
+	memories, searchErr := s.memory.SearchMemories(ctx, vector, s.cfg.OpenAI.MaxMemoryChunks, req.ConversationID)
+	if searchErr != nil {
+		log.Printf("search memories failed: conversation_id=%d triggering_message_id=%d correlation_id=%s error=%v", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, searchErr)
+	} else {
+		log.Printf("searched memories: conversation_id=%d triggering_message_id=%d correlation_id=%s count=%d", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, len(memories))
+	}
 	answer, err := s.provider.GenerateAnswer(providerCtx, models.GenerateAnswerRequest{
 		WebSearch: s.cfg.Safety.WebSearchEnabled,
 		ContextPackage: models.ContextPackage{
@@ -129,11 +144,13 @@ func (s *Service) ProcessAssistantRequest(ctx context.Context, req models.Assist
 		},
 	})
 	if err != nil {
+		log.Printf("generate assistant answer failed: conversation_id=%d triggering_message_id=%d correlation_id=%s error=%v", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, err)
 		return s.BuildErrorAssistantResponse(req, err), nil
 	}
+	log.Printf("generated assistant answer: conversation_id=%d triggering_message_id=%d correlation_id=%s model=%s response_id=%s runes=%d", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, answer.Model, answer.ResponseID, len([]rune(answer.Text)))
 
 	assistantMemory := models.MemoryPoint{
-		ID:             req.CorrelationID + "-assistant",
+		ID:             utils.StableUUID(req.CorrelationID + ":" + constants.MemoryRoleAssistant),
 		ConversationID: req.ConversationID,
 		Role:           constants.MemoryRoleAssistant,
 		Body:           answer.Text,
@@ -146,7 +163,13 @@ func (s *Service) ProcessAssistantRequest(ctx context.Context, req models.Assist
 		CreatedAt: time.Now().UTC(),
 	}
 	if answerVector, embeddingErr := s.provider.CreateEmbedding(providerCtx, answer.Text); embeddingErr == nil {
-		_ = s.memory.UpsertMemory(ctx, assistantMemory, answerVector)
+		if err := s.memory.UpsertMemory(ctx, assistantMemory, answerVector); err != nil {
+			log.Printf("upsert assistant memory failed: conversation_id=%d triggering_message_id=%d correlation_id=%s error=%v", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, err)
+		} else {
+			log.Printf("upserted assistant memory: conversation_id=%d triggering_message_id=%d correlation_id=%s memory_id=%s vector_size=%d", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, assistantMemory.ID, len(answerVector))
+		}
+	} else {
+		log.Printf("create assistant embedding failed: conversation_id=%d triggering_message_id=%d correlation_id=%s error=%v", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, embeddingErr)
 	}
 
 	parts := BuildAssistantResponseParts(answer.Text, s.cfg.Memory.MaxMessageRunes, map[string]any{
@@ -171,6 +194,7 @@ func (s *Service) ProcessAssistantRequest(ctx context.Context, req models.Assist
 }
 
 func (s *Service) BuildErrorAssistantResponse(req models.AssistantRequestedPayload, cause error) models.AssistantRespondedPayload {
+	log.Printf("building failed assistant response: conversation_id=%d triggering_message_id=%d correlation_id=%s error=%v", req.ConversationID, req.TriggeringMessageID, req.CorrelationID, cause)
 	body := "Mình đang gặp lỗi khi xử lý yêu cầu này. Bạn vui lòng thử lại sau."
 	parts := BuildAssistantResponseParts(body, s.cfg.Memory.MaxMessageRunes, map[string]any{
 		"status": "failed",

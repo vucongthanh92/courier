@@ -23,15 +23,22 @@ type SendMessageRequest struct {
 
 type CreateSystemMessageRequest struct {
 	ConversationID uint64
+	Type           string
 	Body           string
 	Metadata       map[string]any
 }
 
 func (req *CreateSystemMessageRequest) ValidateRequest() (messageCode, messageErr string) {
 	req.Body = strings.TrimSpace(req.Body)
+	req.Type = strings.TrimSpace(req.Type)
+	if req.Type == "" {
+		req.Type = constants.MessageTypeSystem
+	}
 	switch {
 	case req.ConversationID == 0:
 		return "invalid_conversation_id", "conversation id must be a positive integer"
+	case req.Type != constants.MessageTypeSystem && req.Type != constants.MessageTypeText:
+		return "invalid_message_type", "system-created messages must be text or system"
 	case req.Body == "":
 		return "empty_message_body", "message body cannot be empty"
 	case utf8.RuneCountInString(req.Body) > constants.MaxTextMessageRunes:

@@ -1,12 +1,16 @@
 KIND_CLUSTER ?= courier-dev
 IMAGE_NAME ?= ghcr.io/vucongthanh92/courier/user-service
 IMAGE_TAG ?= dev
-COURIER_GO_SERVICES ?= user-service chat-service
+
+# config list services to run in local development mode
+COURIER_GO_SERVICES ?= user-service chat-service agent-gateway
+# COURIER_GO_SERVICES ?= user-service
+
 COURIER_FRONTEND_APPS ?= conversa-app
 COURIER_RUNTIME_DIR ?= .courier
 COURIER_PID_FILE ?= $(COURIER_RUNTIME_DIR)/pids
 
-.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up run-user-service run-chat-service run-conversa-app start-courier stop-courier
+.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up kafka-up kafka-init kafka-topics run-user-service run-chat-service run-agent-gateway run-conversa-app start-courier stop-courier
 
 kind-create:
 	kind create cluster --name $(KIND_CLUSTER) --config infra/kind/courier-dev.yaml
@@ -28,6 +32,15 @@ kind-apply-user-service:
 
 dev-user-up: kind-load-user-service kind-apply-argocd kind-apply-user-service
 
+kafka-up:
+	docker compose -f event-bus/kafka/docker-compose.yaml up -d
+
+kafka-init:
+	docker compose -f event-bus/kafka/docker-compose.yaml up kafka-init
+
+kafka-topics:
+	docker exec courier-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+
 ## user: admin
 ## pwd: J3q-dYVlXGBsR7KV
 start-argocd:
@@ -38,6 +51,9 @@ run-user-service:
 
 run-chat-service:
 	$(MAKE) -C chat-service run-local
+
+run-agent-gateway:
+	$(MAKE) -C agent-gateway run-local
 
 run-conversa-app:
 	pnpm --dir conversa-app dev
