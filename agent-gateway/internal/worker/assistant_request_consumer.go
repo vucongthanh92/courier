@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"time"
 
 	kafkago "github.com/segmentio/kafka-go"
@@ -21,6 +22,7 @@ type AssistantRequestConsumer struct {
 }
 
 func NewAssistantRequestConsumer(cfg config.AppConfig, gateway *gateway.Service, publisher *kafka.Publisher) *AssistantRequestConsumer {
+	log.Printf("configuring Kafka assistant request consumer: brokers=%v group_id=%s topic=%s", cfg.Kafka.Brokers, cfg.Kafka.GroupID, cfg.Kafka.AssistantRequestedTopic)
 	return &AssistantRequestConsumer{
 		reader: kafkago.NewReader(kafkago.ReaderConfig{
 			Brokers:        cfg.Kafka.Brokers,
@@ -36,20 +38,24 @@ func NewAssistantRequestConsumer(cfg config.AppConfig, gateway *gateway.Service,
 }
 
 func (c *AssistantRequestConsumer) Start(ctx context.Context) error {
+	log.Println("starting Kafka assistant request consumer")
 	for {
 		msg, err := c.reader.FetchMessage(ctx)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return err
 			}
+			log.Printf("fetch Kafka assistant request failed: %v", err)
 			time.Sleep(time.Second)
 			continue
 		}
 
 		if err := c.handleMessage(ctx, msg.Value); err != nil {
+			log.Printf("handle Kafka assistant request failed: topic=%s partition=%d offset=%d error=%v", msg.Topic, msg.Partition, msg.Offset, err)
 			continue
 		}
 		if err := c.reader.CommitMessages(ctx, msg); err != nil {
+			log.Printf("commit Kafka assistant request failed: topic=%s partition=%d offset=%d error=%v", msg.Topic, msg.Partition, msg.Offset, err)
 			continue
 		}
 	}
@@ -61,6 +67,7 @@ func (c *AssistantRequestConsumer) handleMessage(ctx context.Context, body []byt
 		return err
 	}
 	if envelope.EventType != constants.AssistantRequestedEventType || envelope.EventVersion != 1 {
+		log.Printf("skip unsupported assistant event: type=%s version=%d", envelope.EventType, envelope.EventVersion)
 		return nil
 	}
 	var payload models.AssistantRequestedPayload
@@ -70,11 +77,16 @@ func (c *AssistantRequestConsumer) handleMessage(ctx context.Context, body []byt
 	if payload.CorrelationID == "" {
 		payload.CorrelationID = envelope.EventID
 	}
+	log.Printf("received assistant request: conversation_id=%d triggering_message_id=%d correlation_id=%s", payload.ConversationID, payload.TriggeringMessageID, payload.CorrelationID)
 	response, err := c.gateway.ProcessAssistantRequest(ctx, payload)
 	if err != nil {
 		return err
 	}
-	return c.publisher.PublishAssistantResponded(ctx, response)
+	if err := c.publisher.PublishAssistantResponded(ctx, response); err != nil {
+		return err
+	}
+	log.Printf("published assistant response: conversation_id=%d triggering_message_id=%d correlation_id=%s parts=%d", response.ConversationID, response.TriggeringMessageID, response.CorrelationID, len(response.MessageParts))
+	return nil
 }
 
 func (c *AssistantRequestConsumer) Close() error {

@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"strconv"
 	"time"
 
@@ -19,6 +20,7 @@ type Publisher struct {
 }
 
 func NewPublisher(cfg config.AppConfig) *Publisher {
+	log.Printf("configuring Kafka assistant response publisher: brokers=%v topic=%s", cfg.Kafka.Brokers, cfg.Kafka.AssistantRespondedTopic)
 	return &Publisher{
 		writer: &kafkago.Writer{
 			Addr:         kafkago.TCP(cfg.Kafka.Brokers...),

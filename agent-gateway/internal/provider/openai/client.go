@@ -77,6 +77,9 @@ func (c *Client) GenerateAnswer(ctx context.Context, req models.GenerateAnswerRe
 	if text == "" {
 		text = strings.TrimSpace(resp.extractOutputText())
 	}
+	if text == "" {
+		return nil, fmt.Errorf("OpenAI responses output text is empty: response_id=%s model=%s", resp.ID, resp.Model)
+	}
 	return &models.GenerateAnswerResponse{
 		Text:       text,
 		Model:      resp.Model,
@@ -142,7 +145,7 @@ func (c *Client) post(ctx context.Context, path string, reqBody any, respBody an
 		return err
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
-		return fmt.Errorf("OpenAI API request failed: %s: %s", resp.Status, string(data))
+		return fmt.Errorf("OpenAI API request failed: path=%s status=%s body=%s", path, resp.Status, string(data))
 	}
 	if err := json.Unmarshal(data, respBody); err != nil {
 		return err

@@ -73,6 +73,9 @@ func (c *Client) EnsureCollection(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusConflict {
+		return nil
+	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 2048))
 		return fmt.Errorf("ensure qdrant collection failed: %s: %s", resp.Status, string(data))

@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authApi, chatApi } from "./lib/api";
 import { RealtimeClient, type RealtimeStatus } from "./lib/realtime";
 import { clearSession, readSession, saveSession, type Session } from "./lib/session";
@@ -192,10 +192,28 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
   const [error, setError] = useState("");
   const [conversationQuery, setConversationQuery] = useState("");
   const [conversationFilter, setConversationFilter] = useState<"all" | "unread" | "groups">("all");
+  const [inspectorVisible, setInspectorVisible] = useState(true);
   const messageViewportRef = useRef<HTMLDivElement | null>(null);
   const selectedIdRef = useRef<string | null>(null);
 
+  const scrollToMessage = useCallback((messageId?: string) => {
+    const viewport = messageViewportRef.current;
+    if (!viewport) return;
+
+    if (messageId) {
+      const target = viewport.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(messageId)}"]`);
+      if (target) {
+        target.scrollIntoView({ block: "end", behavior: "smooth" });
+        return;
+      }
+    }
+
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+  }, []);
+
   const selectedConversation = conversations.find((conversation) => conversation.id === selectedId) ?? null;
+  const selectedConversationIcon = systemConversationIcon(selectedConversation);
+  const selectedConversationIsNotification = isNotificationConversation(selectedConversation);
   const memberByUserId = useMemo(
     () => new Map(members.map((member) => [member.user_id, member])),
     [members]
@@ -260,14 +278,14 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
           currentViewport.scrollTop = currentViewport.scrollHeight - previousScrollHeight;
           return;
         }
-        currentViewport.scrollTop = currentViewport.scrollHeight;
+        scrollToMessage(response.messages[response.messages.length - 1]?.id);
       }, 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load messages");
     } finally {
       setMessagesLoading(false);
     }
-  }, [session.access_token]);
+  }, [scrollToMessage, session.access_token]);
 
   const loadConversationMembers = useCallback(async (conversationId: string) => {
     setError("");
@@ -311,15 +329,8 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
 
     if (selectedIdRef.current !== event.conversation_id) return;
     setMessages((current) => mergeMessages(current, [message]));
-    window.setTimeout(() => {
-      const viewport = messageViewportRef.current;
-      if (!viewport) return;
-      const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-      if (distanceFromBottom < 160 || message.sender_id === session.user_id) {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
-    }, 0);
-  }, [session.user_id]);
+    window.setTimeout(() => scrollToMessage(message.id), 0);
+  }, [scrollToMessage, session.user_id]);
 
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
@@ -333,10 +344,7 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
       setMessages((current) => mergeMessages(current, [message]));
       setDraft("");
       await loadConversations();
-      window.setTimeout(() => {
-        const viewport = messageViewportRef.current;
-        if (viewport) viewport.scrollTop = viewport.scrollHeight;
-      }, 0);
+      window.setTimeout(() => scrollToMessage(message.id), 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not send message");
     } finally {
@@ -389,7 +397,7 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
   }
 
   return (
-    <main className="messenger-shell">
+    <main className={`messenger-shell ${inspectorVisible ? "" : "inspector-collapsed"}`}>
       <div className="aurora aurora-a" />
       <div className="aurora aurora-b" />
       <div className="aurora aurora-c" />
@@ -452,13 +460,18 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
           )}
           {filteredConversations.map((conversation) => {
             const isUnread = unreadConversationIds.has(conversation.id);
+            const icon = systemConversationIcon(conversation);
             return (
               <button
                 key={conversation.id}
                 className={`conversation-item ${conversation.id === selectedId ? "selected" : ""} ${isUnread ? "unread" : ""} type-${conversation.type}`}
                 onClick={() => selectConversation(conversation.id)}
               >
-                <Avatar label={conversation.name || conversation.type || String(conversation.id)} tone={conversation.type} />
+                <Avatar
+                  label={conversationTitle(conversation)}
+                  tone={conversation.type}
+                  systemIcon={icon}
+                />
                 <span className="conversation-copy">
                   <strong>
                     <span className="conversation-title">{conversationTitle(conversation)}</span>
@@ -481,13 +494,25 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
           <>
             <header className="chat-header">
               <div className="room-identity">
-                <Avatar label={conversationTitle(selectedConversation)} tone={selectedConversation.type} />
+                <Avatar
+                  label={conversationTitle(selectedConversation)}
+                  tone={selectedConversation.type}
+                  systemIcon={selectedConversationIcon}
+                />
                 <div>
                   <h2>{conversationTitle(selectedConversation)}</h2>
                   <span>{members.length || "?"} members · {selectedConversation.type} · {realtimeStatus}</span>
                 </div>
               </div>
               <div className="chat-actions">
+                <button
+                  className={`icon-button split-toggle ${inspectorVisible ? "active" : ""}`}
+                  type="button"
+                  title={inspectorVisible ? "Hide conversation info" : "Show conversation info"}
+                  onClick={() => setInspectorVisible((current) => !current)}
+                >
+                  <SplitPanelIcon />
+                </button>
                 <button title="Audio call">Call</button>
                 <button title="Search messages">Find</button>
                 <button title="Conversation info">Info</button>
@@ -509,18 +534,31 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
               {!messagesLoading && messages.length === 0 && <div className="empty-state">No messages in this conversation.</div>}
               {messages.map((message) => {
                 const isMine = message.sender_id === session.user_id;
+                const messageIcon = systemMessageIcon(message, selectedConversation);
+                const isAssistant = messageIcon === "bot";
+                const isNotification = messageIcon === "notification";
                 const senderProfile = userProfilesById.get(message.sender_id) ?? memberByUserId.get(message.sender_id)?.profile;
-                const senderName = senderDisplayName(message, memberByUserId.get(message.sender_id), senderProfile);
+                const senderName = senderDisplayName(message, selectedConversation, memberByUserId.get(message.sender_id), senderProfile);
                 return (
-                  <div key={message.id} className={`message-row ${isMine ? "mine" : ""}`}>
-                    {!isMine && <Avatar label={senderName} imageUrl={senderProfile?.avatar_url} />}
+                  <div
+                    key={message.id}
+                    className={`message-row ${isMine ? "mine" : ""} ${isAssistant ? "assistant" : ""} ${isNotification ? "notification" : ""}`}
+                    data-message-id={message.id}
+                  >
+                    {!isMine && (
+                      <Avatar
+                        label={senderName}
+                        imageUrl={senderProfile?.avatar_url}
+                        systemIcon={messageIcon}
+                      />
+                    )}
                     <div className="message-bubble">
                       {!isMine && (
                         <header>
                           <strong>{senderName}</strong>
                         </header>
                       )}
-                      <span>{message.body}</span>
+                      <MessageBody message={message} />
                       <footer>
                         <time>{formatTime(message.created_at)}</time>
                         {isMine && <span>Sent</span>}
@@ -531,25 +569,27 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
               })}
             </div>
 
-            <form className="composer" onSubmit={sendMessage}>
-              <button type="button" title="Attach file">
-                +
-              </button>
-              <button type="button" title="Emoji">
-                :)
-              </button>
-              <input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                placeholder="Write a message..."
-              />
-              <button type="button" title="Voice message">
-                Mic
-              </button>
-              <button className="primary-button" disabled={sending || !draft.trim()}>
-                Send
-              </button>
-            </form>
+            {!selectedConversationIsNotification && (
+              <form className="composer" onSubmit={sendMessage}>
+                <button type="button" title="Attach file">
+                  +
+                </button>
+                <button type="button" title="Emoji">
+                  :)
+                </button>
+                <input
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  placeholder="Write a message..."
+                />
+                <button type="button" title="Voice message">
+                  Mic
+                </button>
+                <button className="primary-button" disabled={sending || !draft.trim()}>
+                  Send
+                </button>
+              </form>
+            )}
           </>
         ) : (
           <div className="no-selection">
@@ -560,11 +600,16 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
         )}
       </section>
 
-      <aside className="inspector-panel glass-card">
+      {inspectorVisible && <aside className="inspector-panel glass-card">
         {selectedConversation ? (
           <>
             <section className="room-card">
-              <Avatar label={conversationTitle(selectedConversation)} tone={selectedConversation.type} large />
+              <Avatar
+                label={conversationTitle(selectedConversation)}
+                tone={selectedConversation.type}
+                large
+                systemIcon={selectedConversationIcon}
+              />
               <h2>{conversationTitle(selectedConversation)}</h2>
               <small>{selectedConversation.type} conversation</small>
               <div className="member-pile">
@@ -620,7 +665,7 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
         ) : (
           <div className="empty-state">Select a conversation to inspect its space.</div>
         )}
-      </aside>
+      </aside>}
     </main>
   );
 }
@@ -642,9 +687,37 @@ function ConversaLogo({ compact = false }: { compact?: boolean }) {
   );
 }
 
-function Avatar({ label, imageUrl, tone, large = false }: { label: string; imageUrl?: string; tone?: string; large?: boolean }) {
+function MessageBody({ message }: { message: Message }) {
+  if (isAssistantMessage(message)) {
+    return <div className="message-body markdown-body">{renderAssistantMarkdown(message.body)}</div>;
+  }
+
+  return <div className="message-body">{message.body}</div>;
+}
+
+function Avatar({
+  label,
+  imageUrl,
+  tone,
+  large = false,
+  systemIcon
+}: {
+  label: string;
+  imageUrl?: string;
+  tone?: string;
+  large?: boolean;
+  systemIcon?: SystemIcon;
+}) {
   const letter = label.trim().charAt(0).toUpperCase() || "C";
   const normalizedTone = tone?.toLowerCase().replace(/[^a-z0-9_-]/g, "") || "default";
+  if (systemIcon) {
+    return (
+      <span className={`avatar system-avatar ${systemIcon}-avatar tone-system ${large ? "large" : ""}`} aria-label={label}>
+        {systemIcon === "bot" ? <BotAvatarIcon /> : <NotificationAvatarIcon />}
+      </span>
+    );
+  }
+
   return (
     <span className={`avatar tone-${normalizedTone} ${large ? "large" : ""}`}>
       {imageUrl ? <img src={imageUrl} alt="" /> : letter}
@@ -652,8 +725,66 @@ function Avatar({ label, imageUrl, tone, large = false }: { label: string; image
   );
 }
 
+function SplitPanelIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="14" rx="2.5" />
+      <path d="M14 5v14" />
+    </svg>
+  );
+}
+
+function BotAvatarIcon() {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <path className="bot-antenna" d="M16 7v-3" />
+      <circle className="bot-signal" cx="16" cy="3.5" r="1.8" />
+      <rect className="bot-face" x="7" y="9" width="18" height="15" rx="6" />
+      <path className="bot-mouth" d="M13 19.5h6" />
+      <circle className="bot-eye" cx="13" cy="15.5" r="1.7" />
+      <circle className="bot-eye" cx="19" cy="15.5" r="1.7" />
+      <path className="bot-ear" d="M7 16h-2M27 16h-2" />
+    </svg>
+  );
+}
+
+function NotificationAvatarIcon() {
+  return (
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <path className="notification-bell" d="M10 22h12l-1.4-2.5v-4.2a4.6 4.6 0 0 0-9.2 0v4.2L10 22Z" />
+      <path className="notification-clapper" d="M14 24.5a2.4 2.4 0 0 0 4 0" />
+      <path className="notification-spark" d="M8 11.5l-2-2M24 11.5l2-2" />
+      <circle className="notification-dot" cx="22.5" cy="9.5" r="3" />
+    </svg>
+  );
+}
+
 function conversationTitle(conversation: Conversation) {
+  if (isAssistantConversation(conversation)) return "Courier Assistant";
+  if (isNotificationConversation(conversation)) return "Notification";
   return conversation.name || `${conversation.type} #${conversation.id}`;
+}
+
+type SystemIcon = "bot" | "notification";
+
+function systemConversationIcon(conversation?: Conversation | null): SystemIcon | undefined {
+  if (!conversation) return undefined;
+  if (isAssistantConversation(conversation)) return "bot";
+  if (isNotificationConversation(conversation)) return "notification";
+  return undefined;
+}
+
+function systemMessageIcon(message: Message, conversation?: Conversation | null): SystemIcon | undefined {
+  if (String(message.sender_id) !== "0") return undefined;
+  return systemConversationIcon(conversation);
+}
+
+function isAssistantConversation(conversation?: Conversation | null) {
+  return conversation?.type.toLowerCase() === "system" && (conversation.name ?? "").trim().toLowerCase() === "assistant";
+}
+
+function isNotificationConversation(conversation?: Conversation | null) {
+  return conversation?.type.toLowerCase() === "system" && (conversation.name ?? "").trim().toLowerCase() === "notification";
 }
 
 function formatTime(value: string) {
@@ -674,13 +805,24 @@ function formatConversationTime(value: string) {
   }).format(date);
 }
 
-function senderDisplayName(message: Message, member?: ListMessagesResponse["members"][number], profile?: UserProfile) {
+function senderDisplayName(
+  message: Message,
+  conversation?: Conversation | null,
+  member?: ListMessagesResponse["members"][number],
+  profile?: UserProfile
+) {
+  if (String(message.sender_id) === "0" && isNotificationConversation(conversation)) return "Courier Notification";
+  if (isAssistantMessage(message)) return "Courier Assistant";
   if (profile?.display_name) return profile.display_name;
   if (member?.profile?.display_name) return member.profile.display_name;
   const metadataName = readMetadataString(message.metadata, "sender_display_name", "sender_name", "display_name", "name");
   if (metadataName) return metadataName;
   if (member?.role && member.role !== "member") return `${member.role} · User ${message.sender_id}`;
   return `User ${message.sender_id}`;
+}
+
+function isAssistantMessage(message: Message) {
+  return String(message.sender_id) === "0";
 }
 
 function readMetadataString(metadata: Record<string, unknown>, ...keys: string[]) {
@@ -708,6 +850,75 @@ function mergeMessages(...messageGroups: Message[][]) {
     }
   }
   return sortMessagesByCreatedAt([...messagesById.values()]);
+}
+
+function renderAssistantMarkdown(body: string) {
+  const blocks: ReactNode[] = [];
+  const lines = body.split(/\r?\n/);
+  let paragraph: string[] = [];
+  let bullets: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length === 0) return;
+    blocks.push(
+      <p key={`p-${blocks.length}`}>
+        {renderInlineMarkdown(paragraph.join(" "))}
+      </p>
+    );
+    paragraph = [];
+  };
+
+  const flushBullets = () => {
+    if (bullets.length === 0) return;
+    blocks.push(
+      <ul key={`ul-${blocks.length}`}>
+        {bullets.map((item, index) => (
+          <li key={`${index}-${item}`}>{renderInlineMarkdown(item)}</li>
+        ))}
+      </ul>
+    );
+    bullets = [];
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      flushParagraph();
+      flushBullets();
+      continue;
+    }
+
+    const bullet = line.match(/^[-*]\s+(.+)$/);
+    if (bullet) {
+      flushParagraph();
+      bullets.push(bullet[1]);
+      continue;
+    }
+
+    flushBullets();
+    paragraph.push(line);
+  }
+
+  flushParagraph();
+  flushBullets();
+
+  return blocks.length > 0 ? blocks : <p>{body}</p>;
+}
+
+function renderInlineMarkdown(text: string) {
+  const nodes: ReactNode[] = [];
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+
+  for (const part of parts) {
+    if (!part) continue;
+    if (part.startsWith("**") && part.endsWith("**")) {
+      nodes.push(<strong key={nodes.length}>{part.slice(2, -2)}</strong>);
+      continue;
+    }
+    nodes.push(part);
+  }
+
+  return nodes;
 }
 
 function mergeMembers(...memberGroups: ListMessagesResponse["members"][]) {

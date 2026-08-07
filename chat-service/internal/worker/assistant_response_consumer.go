@@ -10,6 +10,7 @@ import (
 
 	kafkago "github.com/segmentio/kafka-go"
 	"github.com/vucongthanh92/courier/chat-service/config"
+	"github.com/vucongthanh92/courier/chat-service/helper/constants"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 	"github.com/vucongthanh92/go-base-utils/logger"
@@ -117,6 +118,7 @@ func (c *AssistantResponseConsumer) handleMessage(ctx context.Context, body []by
 		}
 		_, _, errBuilder := c.messageService.CreateSystemMessage(ctx, &models.CreateSystemMessageRequest{
 			ConversationID: payload.ConversationID,
+			Type:           constants.MessageTypeText,
 			Body:           part.Body,
 			Metadata:       metadata,
 		})
