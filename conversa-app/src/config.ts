@@ -14,3 +14,16 @@ function toWebSocketUrl(httpUrl: string) {
 
 export const CHAT_WS_URL =
   import.meta.env.VITE_CHAT_WS_URL ?? toWebSocketUrl(CHAT_API_BASE_URL);
+
+export const GOOGLE_OAUTH_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID ?? "";
+
+export const GITHUB_OAUTH_CLIENT_ID = import.meta.env.VITE_GITHUB_OAUTH_CLIENT_ID ?? "";
+
+export const GOOGLE_OAUTH_REDIRECT_URI =
+  import.meta.env.VITE_GOOGLE_OAUTH_REDIRECT_URI ?? `${USER_API_BASE_URL}/auth/identity/google/callback`;
+
+export const GITHUB_OAUTH_REDIRECT_URI =
+  import.meta.env.VITE_GITHUB_OAUTH_REDIRECT_URI ?? `${USER_API_BASE_URL}/auth/identity/github/callback`;
+
+export const APP_OAUTH_CALLBACK_BASE_URL =
+  import.meta.env.VITE_APP_OAUTH_CALLBACK_BASE_URL ?? `${window.location.origin}/oauth/callback`;

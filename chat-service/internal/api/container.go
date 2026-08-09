@@ -12,6 +12,7 @@ type ApiContainer struct {
 	GrpcServer                *chatgrpc.Server
 	CronServer                *chatcron.Server
 	UserEventConsumer         *worker.UserEventConsumer
+	ChatEventConsumer         *worker.ChatEventConsumer
 	AssistantResponseConsumer *worker.AssistantResponseConsumer
 }
 
@@ -20,6 +21,7 @@ func NewApiContainer(
 	grpc *chatgrpc.Server,
 	cron *chatcron.Server,
 	userEventConsumer *worker.UserEventConsumer,
+	chatEventConsumer *worker.ChatEventConsumer,
 	assistantResponseConsumer *worker.AssistantResponseConsumer,
 ) *ApiContainer {
 	return &ApiContainer{
@@ -27,6 +29,7 @@ func NewApiContainer(
 		GrpcServer:                grpc,
 		CronServer:                cron,
 		UserEventConsumer:         userEventConsumer,
+		ChatEventConsumer:         chatEventConsumer,
 		AssistantResponseConsumer: assistantResponseConsumer,
 	}
 }

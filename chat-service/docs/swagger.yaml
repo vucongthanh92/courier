@@ -146,7 +146,7 @@ definitions:
       member_user_ids:
         items:
           type: integer
-        minItems: 2
+        minItems: 1
         type: array
       name:
         type: string
@@ -157,7 +157,6 @@ definitions:
         type: string
     required:
     - member_user_ids
-    - type
     type: object
   models.CreateConversationResponse:
     properties:

@@ -13,6 +13,7 @@ import (
 type UserQueryRepoI interface {
 	GetUserByIdOrEmail(ctx context.Context, req models.GetUserByIdOrEmailRequest) (res *entities.User, errRes *errHandler.ErrorBuilder)
 	GetUsersByIDs(ctx context.Context, userIDs []uint64) (res []entities.User, errRes *errHandler.ErrorBuilder)
+	SearchUsers(ctx context.Context, req models.SearchUsersRequest) (res []entities.User, errRes *errHandler.ErrorBuilder)
 	CheckExistingEmailOrPhone(ctx context.Context, email string, phoneNumber string) (res bool, errRes *errHandler.ErrorBuilder)
 }
 
@@ -29,4 +30,8 @@ type AuthServiceI interface {
 	ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder)
 	RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (*models.RenewTokenResponse, *errHandler.ErrorBuilder)
 	Logout(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder
+}
+
+type UserServiceI interface {
+	SearchUsers(ctx context.Context, req models.SearchUsersRequest) ([]models.SearchUserResponse, *errHandler.ErrorBuilder)
 }

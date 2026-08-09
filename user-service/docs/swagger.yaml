@@ -24,6 +24,19 @@ definitions:
       updated_at:
         type: string
     type: object
+  httpcommon.SuccessResponse-array_models_SearchUserResponse:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/models.SearchUserResponse'
+        type: array
+      errors:
+        items:
+          $ref: '#/definitions/models.ErrorDTO'
+        type: array
+      success:
+        type: boolean
+    type: object
   httpcommon.SuccessResponse-string:
     properties:
       data:
@@ -34,6 +47,16 @@ definitions:
         type: array
       success:
         type: boolean
+    type: object
+  models.AuthenticatedUserResponse:
+    properties:
+      avatar_url:
+        type: string
+      display_name:
+        type: string
+      id:
+        example: "0"
+        type: string
     type: object
   models.ErrorDTO:
     properties:
@@ -67,6 +90,8 @@ definitions:
         type: string
       token_type:
         type: string
+      user:
+        $ref: '#/definitions/models.AuthenticatedUserResponse'
     type: object
   models.LogoutResponse:
     properties:
@@ -124,6 +149,20 @@ definitions:
   models.ResendVerifyEmailResponse:
     properties:
       message:
+        type: string
+    type: object
+  models.SearchUserResponse:
+    properties:
+      avatar:
+        type: string
+      display_name:
+        type: string
+      email:
+        type: string
+      phone_number:
+        type: string
+      user_id:
+        example: "0"
         type: string
     type: object
   models.SignupRequest:
@@ -319,4 +358,30 @@ paths:
       summary: Generate password for user
       tags:
       - Credential
+  /api/v1/user/search:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: Search text for display name, phone number, or email
+        in: query
+        name: search_key
+        required: true
+        type: string
+      - description: Limit, default 10 and max 20
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpcommon.SuccessResponse-array_models_SearchUserResponse'
+      security:
+      - BearerAuth: []
+      summary: search verified users
+      tags:
+      - User
 swagger: "2.0"

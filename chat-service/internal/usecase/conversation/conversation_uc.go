@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/vucongthanh92/courier/chat-service/helper/constants"
@@ -14,6 +15,8 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/domain/models"
 	userGrpc "github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
+	"github.com/vucongthanh92/go-base-utils/logger"
+	"go.uber.org/zap"
 )
 
 type ConversationUseCaseImpl struct {
@@ -22,6 +25,7 @@ type ConversationUseCaseImpl struct {
 	memberCmdRepo        interfaces.MemberCmdRepoI
 	memberQueryRepo      interfaces.MemberQueryRepoI
 	userGrpcClient       userGrpc.UserGrpcClient
+	chatEventPublisher   interfaces.ChatEventPublisherI
 	txn                  *transaction.ManagerTxn
 }
 
@@ -32,13 +36,19 @@ func InitConversationUsecase(
 	memberQueryRepo interfaces.MemberQueryRepoI,
 	userGrpcClient userGrpc.UserGrpcClient,
 	txn *transaction.ManagerTxn,
+	chatEventPublishers ...interfaces.ChatEventPublisherI,
 ) interfaces.ConversationServiceI {
+	var chatEventPublisher interfaces.ChatEventPublisherI
+	if len(chatEventPublishers) > 0 {
+		chatEventPublisher = chatEventPublishers[0]
+	}
 	return &ConversationUseCaseImpl{
 		conversationReadRepo: conversationReadRepo,
 		conversationCmdRepo:  conversationCmdRepo,
 		memberCmdRepo:        memberCmdRepo,
 		memberQueryRepo:      memberQueryRepo,
 		userGrpcClient:       userGrpcClient,
+		chatEventPublisher:   chatEventPublisher,
 		txn:                  txn,
 	}
 }
@@ -52,16 +62,6 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 	// ctx, span := tracing.StartSpanFromContext(ctx, "CreateConversation")
 	// defer span.End()
 
-	// Normalize and validate member IDs
-	sortedMemberIDs, err := utils.NormalizeMemberIDs(req.MemberUserIDs)
-	if err != nil {
-		return nil, errHandler.InitErrorBuilder(context.Background()).SetStatus(400).
-			SetError(models.ErrorDTO{
-				Code:    "invalid_member_ids",
-				Message: err.Error(),
-			})
-	}
-
 	// Ensure the creator ID is provided and valid
 	if req.CreatorID == 0 {
 		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(401).SetError(models.ErrorDTO{
@@ -71,20 +71,29 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 	}
 	creatorID := req.CreatorID
 
+	memberIDs := append([]uint64{creatorID}, req.MemberIDs()...)
+	sortedMemberIDs, err := utils.NormalizeMemberIDs(memberIDs)
+	if err != nil {
+		return nil, errHandler.InitErrorBuilder(context.Background()).SetStatus(400).
+			SetError(models.ErrorDTO{
+				Code:    "invalid_member_ids",
+				Message: err.Error(),
+			})
+	}
+	if len(sortedMemberIDs) == 1 {
+		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
+			Code:    "invalid_member_ids",
+			Message: "conversation must include at least one other user",
+			Field:   "member_user_ids",
+		})
+	}
+
 	// Validate the conversation type and member count based on the request
 	err = req.ValidateConversationType(sortedMemberIDs)
 	if err != nil {
 		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
 			Code:    "invalid_conversation_type",
 			Message: err.Error(),
-		})
-	}
-
-	// Ensure the creator is included in the member IDs
-	if isExist := utils.Contains(sortedMemberIDs, creatorID); !isExist {
-		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
-			Code:    "invalid_members",
-			Message: "conversation creator must be included in member_user_ids",
 		})
 	}
 
@@ -98,13 +107,16 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 		})
 	}
 
-	// Generate a unique key for direct conversations based on member IDs
 	directKey := utils.GenerateConversationDirectKey(sortedMemberIDs)
-	if directKey == "" {
+	if req.Type == constants.ConversationTypeDirect && directKey == "" {
 		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
 			Code:    "invalid_direct_key",
 			Message: "failed to build conversation key",
 		})
+	}
+	conversationName, nameErr := s.resolveConversationName(ctx, req.Name, sortedMemberIDs)
+	if nameErr != nil {
+		return nil, nameErr
 	}
 
 	var (
@@ -113,19 +125,20 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 	)
 
 	// Initialize the conversation entity with the provided type, direct key, name, and creator ID.
-	conversationEntity.InitConversationEntity(req.Type, &directKey, *req.Name, creatorID)
+	conversationEntity.InitConversationEntity(req.Type, &directKey, conversationName, creatorID)
 
-	// Check if a direct conversation with the same key already exists to prevent duplicates
-	isExisted, txnErr := s.conversationReadRepo.GetDirectConversationByKey(ctx, directKey)
-	if txnErr != nil {
-		return nil, txnErr
-	}
+	if req.Type == constants.ConversationTypeDirect {
+		isExisted, txnErr := s.conversationReadRepo.GetDirectConversationByKey(ctx, directKey)
+		if txnErr != nil {
+			return nil, txnErr
+		}
 
-	if isExisted != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
-			Code:    "conversation_exists",
-			Message: "conversation already exists",
-		})
+		if isExisted != nil {
+			return nil, errHandler.InitErrorBuilder(ctx).SetStatus(400).SetError(models.ErrorDTO{
+				Code:    "conversation_exists",
+				Message: "conversation already exists",
+			})
+		}
 	}
 
 	// Execute the conversation creation logic within a transaction to ensure atomicity
@@ -156,7 +169,52 @@ func (s *ConversationUseCaseImpl) CreateConversation(ctx context.Context, req *m
 		return nil, errHandler.InitErrorBuilder(ctx).SetStatus(500).SetLogError(err)
 	}
 
+	// Publish a conversation created event if a chat event publisher is available, allowing other services to react to the new conversation.
+	if s.chatEventPublisher != nil {
+		if err := s.chatEventPublisher.PublishConversationCreated(ctx, models.ConversationCreatedPayload{
+			ConversationID:   resp.ID,
+			ConversationType: resp.Type,
+			CreatedBy:        creatorID,
+			MemberUserIDs:    sortedMemberIDs,
+		}); err != nil {
+			logger.Error("publish conversation created event failed", zap.Error(err), zap.Uint64("conversation_id", resp.ID))
+		}
+	}
+
 	return &resp, nil
+}
+
+// resolveConversationName determines the name of the conversation based on a custom name provided by the user or by concatenating the display names of the members.
+func (s *ConversationUseCaseImpl) resolveConversationName(ctx context.Context, customName *string, memberIDs []uint64) (string, *errHandler.ErrorBuilder) {
+	if customName != nil {
+		name := strings.TrimSpace(*customName)
+		if name != "" {
+			return name, nil
+		}
+	}
+
+	profiles, grpcErr := s.userGrpcClient.BatchGetUserProfiles(ctx, memberIDs)
+	if grpcErr != nil {
+		return "", grpcErr
+	}
+	profileNames := make(map[uint64]string, len(profiles))
+	for _, profile := range profiles {
+		name := strings.TrimSpace(profile.DisplayName)
+		if name != "" {
+			profileNames[profile.UserID] = name
+		}
+	}
+
+	names := make([]string, 0, len(memberIDs))
+	for _, memberID := range memberIDs {
+		if name := profileNames[memberID]; name != "" {
+			names = append(names, name)
+		}
+	}
+	if len(names) == 0 {
+		return "", nil
+	}
+	return strings.Join(names, ", "), nil
 }
 
 // func ListConversations retrieves a list of conversations for a user, applying pagination and returning relevant metadata about the result set.

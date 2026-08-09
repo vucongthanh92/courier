@@ -3,10 +3,13 @@ import type {
   ApiResponse,
   ListConversationMembersResponse,
   ConversationListResponse,
+  CreateConversationRequest,
   JwtTokenResponse,
   ListMessagesResponse,
   LoginRequest,
   Message,
+  OAuthProvider,
+  SearchUserResult,
   SignupRequest,
   VerifyEmailRequest
 } from "../types";
@@ -16,6 +19,8 @@ type RequestOptions = {
   method?: string;
   body?: unknown;
 };
+
+export const AUTH_UNAUTHORIZED_EVENT = "conversa:auth-unauthorized";
 
 async function request<T>(baseUrl: string, path: string, options: RequestOptions = {}): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
@@ -28,6 +33,9 @@ async function request<T>(baseUrl: string, path: string, options: RequestOptions
   });
 
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+  if (response.status === 401 && options.token) {
+    window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
+  }
   if (!response.ok || !payload?.success) {
     const message =
       payload?.errors?.map((error) => error.message || error.code).filter(Boolean).join(", ") ||
@@ -64,6 +72,10 @@ export const authApi = {
       method: "PUT",
       body: { email }
     });
+  },
+  oauthCallback(provider: OAuthProvider, code: string, redirectUri: string) {
+    const query = new URLSearchParams({ code, redirect_uri: redirectUri });
+    return request<JwtTokenResponse>(USER_API_BASE_URL, `/auth/identity/${provider}/callback?${query.toString()}`);
   }
 };
 
@@ -87,6 +99,13 @@ export const chatApi = {
       token
     });
   },
+  createConversation(token: string, body: CreateConversationRequest) {
+    return request<ConversationListResponse["conversations"][number]>(CHAT_API_BASE_URL, "/conversation/create", {
+      method: "POST",
+      token,
+      body
+    });
+  },
   createMessage(token: string, conversationId: string, body: string) {
     return request<Message>(CHAT_API_BASE_URL, `/conversation/${conversationId}/messages/create`, {
       method: "POST",
@@ -97,6 +116,15 @@ export const chatApi = {
         client_message_id: crypto.randomUUID(),
         metadata: { source: "conversa-app" }
       }
+    });
+  }
+};
+
+export const userApi = {
+  searchUsers(token: string, searchKey: string) {
+    const query = new URLSearchParams({ search_key: searchKey });
+    return request<SearchUserResult[]>(USER_API_BASE_URL, `/user/search?${query.toString()}`, {
+      token
     });
   }
 };

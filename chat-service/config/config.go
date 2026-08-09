@@ -92,6 +92,7 @@ type KafkaConfig struct {
 
 type KafkaTopicsConfig struct {
 	UserEvents         string `mapstructure:"userEvents"`
+	ChatEvents         string `mapstructure:"chatEvents"`
 	AssistantRequested string `mapstructure:"assistantRequested"`
 	AssistantResponded string `mapstructure:"assistantResponded"`
 }

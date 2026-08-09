@@ -19,6 +19,12 @@
       "description": "Dead-letter topic for user lifecycle integration events."
     },
     {
+      "name": "courier.chat.events.v1",
+      "partitions": 3,
+      "replicationFactor": 1,
+      "description": "Chat integration events published by chat-service."
+    },
+    {
       "name": "courier.assistant.requested.v1",
       "partitions": 3,
       "replicationFactor": 1,

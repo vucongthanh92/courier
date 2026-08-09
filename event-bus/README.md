@@ -15,6 +15,7 @@ RabbitMQ remains a possible alternative for command-like workflows that need sim
 - Main user event topic: `courier.user.events.v1`
 - Retry topic: `courier.user.events.retry.v1`
 - Dead-letter topic: `courier.user.events.dlq.v1`
+- Chat event topic: `courier.chat.events.v1`
 - Assistant request topic: `courier.assistant.requested.v1`
 - Assistant response topic: `courier.assistant.responded.v1`
 - Assistant retry topic: `courier.assistant.events.retry.v1`
@@ -24,6 +25,18 @@ RabbitMQ remains a possible alternative for command-like workflows that need sim
 - Producer message key: `aggregate_id` or `user_id` so events for the same user stay ordered within a partition.
 
 Consumers must commit offsets only after their database transaction succeeds.
+
+## Chat Events
+
+`courier.chat.events.v1` carries integration events owned by `chat-service`.
+
+Current contract:
+
+```text
+contracts/conversation.created.v1.json
+```
+
+`conversation.created.v1` is emitted after a conversation is created. `chat-service` consumes this event to create notification-system messages for every member in the new conversation. The event allows this system notification flow to stay asynchronous from the HTTP create-conversation request.
 
 ## Topic Definitions
 

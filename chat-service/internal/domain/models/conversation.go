@@ -2,8 +2,11 @@ package models
 
 import (
 	"database/sql"
+	"encoding"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,20 +16,52 @@ import (
 
 // CreateConversationRequest represents the request payload for creating a new conversation.
 type CreateConversationRequest struct {
-	Type          string   `json:"type" binding:"required,oneof=direct group"`
-	Name          *string  `json:"name,omitempty"`
-	MemberUserIDs []uint64 `json:"member_user_ids" binding:"required,min=2"`
+	Type          string       `json:"type,omitempty" binding:"omitempty,oneof=direct group"`
+	Name          *string      `json:"name,omitempty"`
+	MemberUserIDs []UserIDJSON `json:"member_user_ids" binding:"required,min=1"`
 	CreatorID     uint64
+}
+
+type UserIDJSON uint64
+
+var _ json.Unmarshaler = (*UserIDJSON)(nil)
+var _ encoding.TextUnmarshaler = (*UserIDJSON)(nil)
+
+func (id *UserIDJSON) UnmarshalJSON(data []byte) error {
+	raw := strings.TrimSpace(string(data))
+	raw = strings.Trim(raw, `"`)
+	return id.parse(raw)
+}
+
+func (id *UserIDJSON) UnmarshalText(text []byte) error {
+	return id.parse(string(text))
+}
+
+func (id *UserIDJSON) parse(raw string) error {
+	value, err := strconv.ParseUint(strings.TrimSpace(raw), 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid user id %q: %w", raw, err)
+	}
+	*id = UserIDJSON(value)
+	return nil
+}
+
+func (c *CreateConversationRequest) MemberIDs() []uint64 {
+	memberIDs := make([]uint64, 0, len(c.MemberUserIDs))
+	for _, userID := range c.MemberUserIDs {
+		memberIDs = append(memberIDs, uint64(userID))
+	}
+	return memberIDs
 }
 
 func (c *CreateConversationRequest) ValidateConversationType(sortedMemberIDs []uint64) error {
 	switch {
-	case len(sortedMemberIDs) < 1:
-		return errors.New("direct conversation must have exactly 2 members")
-	case c.Type == "direct" && len(sortedMemberIDs) > 2:
-		c.Type = "group" // Automatically convert to group if more than 2 members are provided
-	case c.Type == "group" && len(sortedMemberIDs) <= 2:
-		c.Type = "direct" // Automatically convert to direct if only 2 members are provided
+	case len(sortedMemberIDs) < 2:
+		return errors.New("conversation must have at least 2 members including creator")
+	case len(sortedMemberIDs) == 2:
+		c.Type = constants.ConversationTypeDirect
+	default:
+		c.Type = constants.ConversationTypeGroup
 	}
 	return nil
 }

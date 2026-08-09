@@ -2,6 +2,7 @@ package conversation
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -128,5 +129,36 @@ func TestListConversationsValidation(t *testing.T) {
 
 	if resultErr == nil || resultErr.Status != 400 || len(resultErr.Errors) == 0 || resultErr.Errors[0].Code != "unauthorized" {
 		t.Fatalf("error = %#v, want unauthorized", resultErr)
+	}
+}
+
+func TestCreateConversationRequestInfersConversationType(t *testing.T) {
+	directReq := models.CreateConversationRequest{}
+	if err := directReq.ValidateConversationType([]uint64{20, 21}); err != nil {
+		t.Fatalf("direct inference returned error: %v", err)
+	}
+	if directReq.Type != "direct" {
+		t.Fatalf("type = %q, want direct", directReq.Type)
+	}
+
+	groupReq := models.CreateConversationRequest{}
+	if err := groupReq.ValidateConversationType([]uint64{20, 21, 22}); err != nil {
+		t.Fatalf("group inference returned error: %v", err)
+	}
+	if groupReq.Type != "group" {
+		t.Fatalf("type = %q, want group", groupReq.Type)
+	}
+}
+
+func TestCreateConversationRequestAcceptsLargeUserIDsAsStrings(t *testing.T) {
+	var req models.CreateConversationRequest
+	body := []byte(`{"member_user_ids":["124397457160273920"]}`)
+
+	if err := json.Unmarshal(body, &req); err != nil {
+		t.Fatalf("unmarshal request: %v", err)
+	}
+	memberIDs := req.MemberIDs()
+	if len(memberIDs) != 1 || memberIDs[0] != 124397457160273920 {
+		t.Fatalf("member ids = %#v, want exact uint64 id", memberIDs)
 	}
 }

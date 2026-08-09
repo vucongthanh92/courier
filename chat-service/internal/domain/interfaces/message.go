@@ -18,6 +18,10 @@ type AssistantEventPublisherI interface {
 	PublishAssistantRequested(ctx context.Context, payload models.AssistantRequestedPayload) error
 }
 
+type ChatEventPublisherI interface {
+	PublishConversationCreated(ctx context.Context, payload models.ConversationCreatedPayload) error
+}
+
 type MessageQueryRepoI interface {
 	GetMessageByClientMessageID(ctx context.Context, conversationID uint64, clientMessageID string) (*entities.Message, *errHandler.ErrorBuilder)
 	ListMessages(ctx context.Context, conversationID uint64, req models.ListMessagesRequest) ([]entities.Message, *errHandler.ErrorBuilder)

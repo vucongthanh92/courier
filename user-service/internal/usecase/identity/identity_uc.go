@@ -209,7 +209,7 @@ func (s *IdentityUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAut
 	// which contains the user's profile info and is signed by Google.
 	case constants.GoogleProvider:
 		{
-			accessToken, err = s.googleClient.ExchangeCode(ctx, req.Code, "")
+			accessToken, err = s.googleClient.ExchangeCode(ctx, req.Code, req.RedirectURI)
 			if err != nil {
 				return nil, errHandler.InitErrorBuilder(ctx).
 					SetStatus(http.StatusUnauthorized).

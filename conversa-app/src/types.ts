@@ -37,6 +37,8 @@ export type VerifyEmailRequest = {
   token: string;
 };
 
+export type OAuthProvider = "google" | "github";
+
 export type Conversation = {
   id: string;
   type: "direct" | "group" | string;
@@ -59,6 +61,19 @@ export type ConversationListResponse = {
     next_before_last_message_at?: string;
     next_before_conversation_id?: string;
   };
+};
+
+export type CreateConversationRequest = {
+  name?: string;
+  member_user_ids: string[];
+};
+
+export type SearchUserResult = {
+  user_id: string;
+  display_name: string;
+  phone_number: string;
+  email: string;
+  avatar?: string;
 };
 
 export type Member = {
