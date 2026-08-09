@@ -6,8 +6,10 @@ import (
 )
 
 const (
-	MessageCreatedEventType = "message.created"
-	UserEmailVerifiedV1     = "user.email_verified.v1"
+	MessageCreatedEventType      = "message.created"
+	ConversationCreatedEventType = "conversation.created"
+	UserEmailVerifiedV1          = "user.email_verified.v1"
+	ConversationCreatedV1        = "conversation.created.v1"
 )
 
 type MessageCreatedEvent struct {
@@ -33,6 +35,13 @@ type UserEmailVerifiedPayload struct {
 	UserID uint64 `json:"user_id"`
 	Email  string `json:"email"`
 	Status string `json:"status"`
+}
+
+type ConversationCreatedPayload struct {
+	ConversationID   uint64   `json:"conversation_id,string"`
+	ConversationType string   `json:"conversation_type"`
+	CreatedBy        uint64   `json:"created_by,string"`
+	MemberUserIDs    []uint64 `json:"member_user_ids"`
 }
 
 type AssistantRequestedPayload struct {

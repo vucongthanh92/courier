@@ -92,6 +92,46 @@ func (repo *userQueryRepository) GetUsersByIDs(ctx context.Context, userIDs []ui
 	return res, nil
 }
 
+// SearchUsers finds verified users by display name, phone number, or email, excluding the requester.
+func (repo *userQueryRepository) SearchUsers(ctx context.Context, req models.SearchUsersRequest) (
+	res []entities.User, errRes *errHandler.ErrorBuilder) {
+
+	ctx, span := tracing.StartSpanFromContext(ctx, "SearchUsers")
+	defer span.End()
+
+	searchKey := strings.TrimSpace(req.SearchKey)
+	if searchKey == "" {
+		return []entities.User{}, nil
+	}
+
+	limit := req.Limit
+	if limit <= 0 || limit > 20 {
+		limit = 10
+	}
+
+	likePattern := "%" + strings.ToLower(searchKey) + "%"
+	runner := transaction.RunnerFromCtx(ctx, repo.readDb)
+	err := runner.Model(&entities.User{}).
+		Select("id, display_name, phone_number, email, avatar_url").
+		Where("deleted_at is null").
+		Where("status = ?", "verified").
+		Where("id <> ?", req.ExcludeUserID).
+		Where(
+			"LOWER(display_name) LIKE ? OR LOWER(phone_number) LIKE ? OR LOWER(email) LIKE ?",
+			likePattern,
+			likePattern,
+			likePattern,
+		).
+		Order("display_name ASC, id ASC").
+		Limit(limit).
+		Find(&res).Error
+	if err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
+
+	return res, nil
+}
+
 // CheckExistingEmailOrPhone implements interfaces.UserQueryRepoI
 // This method checks if a user with the given email or phone number already exists in the database.
 // It returns a boolean indicating existence and an error builder if any error occurs during the check.

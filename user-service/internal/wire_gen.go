@@ -21,7 +21,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/email_sender"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/jwt"
-	kafkaRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/kafka"
+	"github.com/vucongthanh92/courier/user-service/internal/repository/external/kafka"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	redis2 "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/user-service/internal/repository/persistent/audit_log"
@@ -39,6 +39,7 @@ import (
 	identity2 "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	outbox2 "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
 	"github.com/vucongthanh92/courier/user-service/internal/usecase/token"
+	user2 "github.com/vucongthanh92/courier/user-service/internal/usecase/user"
 	"github.com/vucongthanh92/courier/user-service/internal/worker"
 	"github.com/vucongthanh92/courier/user-service/redis"
 	"github.com/vucongthanh92/go-base-utils/logger"
@@ -77,15 +78,17 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	identityHandler := v1.InitIdentityHandler(identityUseCaseI)
 	authCredentialServiceI := credential.InitCredentialUseCase(managerTxn, auditLogServiceI, outboxServiceI, userQueryRepoI, userCommandRepoI, authCredentialCommandRepoI, authCredentialQueryRepoI, emailVerificationCommandRepoI, emailVerificationQueryRepoI, refreshTokenQueryRepoI, tokenUseCaseI)
 	credentialHandler := v1.InitCredentialHandler(authCredentialServiceI)
+	userServiceI := user2.InitUserUsecase(userQueryRepoI)
+	userHandler := v1.InitUserHandler(userServiceI)
 	jwkCacheRepo := redis2.InitJWKCacheRepo(redisClient)
-	server := http.NewServer(appCfg, authHandler, identityHandler, credentialHandler, jwkQueryRepoI, tokenDenylistI, jwkCacheRepo)
+	server := http.NewServer(appCfg, authHandler, identityHandler, credentialHandler, userHandler, jwkQueryRepoI, tokenDenylistI, jwkCacheRepo)
 	grpcServer := grpc.NewServer(appCfg, jwkQueryRepoI, userQueryRepoI, jwkCacheRepo)
 	cronJobServiceI := cronjob.NewCronJobService(refreshTokenCommandRepoI)
 	cronServer := cron.NewServer(appCfg, cronJobServiceI)
 	pool := newPgxPool(appCfg)
 	emailConfig := provideEmailConfig(appCfg)
 	emailSenderI := emailsender.InitSMTPSender(emailConfig, logger)
-	eventPublisher := kafkaRepo.InitEventPublisher(appCfg)
+	eventPublisher := kafka.InitEventPublisher(appCfg)
 	outboxWorker := worker.InitOutboxWorker(pool, outboxQueryRepoI, outboxCommandRepoI, auditLogServiceI, emailSenderI, eventPublisher, logger)
 	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, outboxWorker, eventPublisher)
 	return apiContainer
@@ -93,15 +96,15 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 
 // wire.go:
 
-var workerSet = wire.NewSet(worker.InitOutboxWorker, newPgxPool, kafkaRepo.InitEventPublisher, wire.Bind(new(interfaces.IntegrationEventPublisherI), new(*kafkaRepo.EventPublisher)))
+var workerSet = wire.NewSet(worker.InitOutboxWorker, newPgxPool, kafka.InitEventPublisher, wire.Bind(new(interfaces.IntegrationEventPublisherI), new(*kafka.EventPublisher)))
 
 var container = wire.NewSet(api.NewApiContainer)
 
 var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
-var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler, v1.InitCredentialHandler)
+var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler, v1.InitCredentialHandler, v1.InitUserHandler)
 
-var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, authen.InitAuthUseCase, identity2.InitIdentityUseCase, outbox2.InitOutboxUsecase, token.InitTokenUseCase, credential.InitCredentialUseCase)
+var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, authen.InitAuthUseCase, identity2.InitIdentityUseCase, outbox2.InitOutboxUsecase, token.InitTokenUseCase, credential.InitCredentialUseCase, user2.InitUserUsecase)
 
 var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, redis2.InitJWKCacheRepo, provideEmailConfig,
 	provideLogger,

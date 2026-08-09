@@ -17,7 +17,8 @@ import (
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/ws"
-	kafka2 "github.com/vucongthanh92/courier/chat-service/internal/repository/external/kafka"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
+	"github.com/vucongthanh92/courier/chat-service/internal/repository/external/kafka"
 	redis2 "github.com/vucongthanh92/courier/chat-service/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/external/user_grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/repository/persistent/conversation"
@@ -40,7 +41,8 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	memberQueryRepoI := member.InitMemberQueryRepo(readDb, writeDb)
 	userGrpcClient := user_grpc.NewGrpcClient(appCfg)
 	managerTxn := transaction.InitManagerTxn(writeDb)
-	conversationServiceI := conversation2.InitConversationUsecase(conversationQueryRepoI, conversationCommandRepoI, memberCmdRepoI, memberQueryRepoI, userGrpcClient, managerTxn)
+	chatEventPublisherI := kafka.InitChatEventPublisher(appCfg)
+	conversationServiceI := provideConversationUsecase(conversationQueryRepoI, conversationCommandRepoI, memberCmdRepoI, memberQueryRepoI, userGrpcClient, managerTxn, chatEventPublisherI)
 	conversationHandler := v1.InitConversationHandler(conversationServiceI)
 	userProfileCacheI := redis2.InitUserProfileCache(redisClient)
 	memberServiceI := member2.InitMemberUsecase(memberQueryRepoI, userProfileCacheI, userGrpcClient)
@@ -49,8 +51,8 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	messageCmdRepoI := message.InitMessageCmdRepo(readDb, writeDb)
 	messageListCacheI := redis2.InitMessageListCache(redisClient)
 	wsPublisherI := redis2.InitWsPublisher(redisClient)
-	assistantEventPublisherI := kafka2.InitAssistantEventPublisher(appCfg)
-	messageServiceI := message2.InitMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI, wsPublisherI, assistantEventPublisherI)
+	assistantEventPublisherI := kafka.InitAssistantEventPublisher(appCfg)
+	messageServiceI := provideMessageUsecase(conversationQueryRepoI, memberQueryRepoI, messageQueryRepoI, messageCmdRepoI, messageListCacheI, wsPublisherI, assistantEventPublisherI)
 	messageHandler := v1.InitMessageHandler(messageServiceI)
 	wsSubscriberI := redis2.InitWsSubscriber(redisClient)
 	hub := ws.NewHub(wsSubscriberI)
@@ -63,8 +65,10 @@ func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, 
 	userEventHandler := conversation2.InitUserEventHandler(conversationServiceI, messageServiceI)
 	logger := provideLogger(appCfg)
 	userEventConsumer := worker.InitUserEventConsumer(appCfg, userEventHandler, logger)
+	chatEventHandler := conversation2.InitChatEventHandler(conversationQueryRepoI, conversationCommandRepoI, messageServiceI)
+	chatEventConsumer := worker.InitChatEventConsumer(appCfg, chatEventHandler, logger)
 	assistantResponseConsumer := worker.InitAssistantResponseConsumer(appCfg, messageServiceI, logger)
-	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, userEventConsumer, assistantResponseConsumer)
+	apiContainer := api.NewApiContainer(server, grpcServer, cronServer, userEventConsumer, chatEventConsumer, assistantResponseConsumer)
 	return apiContainer
 }
 
@@ -76,12 +80,54 @@ var apiSet = wire.NewSet(cron.NewServer, grpc.NewServer, http.NewServer)
 
 var handlerSet = wire.NewSet(v1.InitConversationHandler, v1.InitMemberHandler, v1.InitMessageHandler)
 
-var serviceSet = wire.NewSet(conversation2.InitConversationUsecase, member2.InitMemberUsecase, message2.InitMessageUsecase, conversation2.InitUserEventHandler)
+var serviceSet = wire.NewSet(
+	provideConversationUsecase, member2.InitMemberUsecase, provideMessageUsecase, conversation2.InitUserEventHandler, conversation2.InitChatEventHandler,
+)
 
-var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitUserProfileCache, redis2.InitWsPublisher, redis2.InitWsSubscriber, kafka2.InitAssistantEventPublisher)
+var repoSet = wire.NewSet(conversation.InitConversationCommandRepo, conversation.InitConversationQueryRepo, member.InitMemberCommandRepo, member.InitMemberQueryRepo, message.InitMessageCmdRepo, message.InitMessageQueryRepo, redis2.InitJWKCacheRepo, redis2.InitRedisDenylist, redis2.InitMessageRateLimiter, redis2.InitMessageListCache, redis2.InitUserProfileCache, redis2.InitWsPublisher, redis2.InitWsSubscriber, kafka.InitAssistantEventPublisher, kafka.InitChatEventPublisher)
 
-var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn, ws.NewHub, worker.InitUserEventConsumer, worker.InitAssistantResponseConsumer, provideLogger)
+var providerSet = wire.NewSet(user_grpc.NewGrpcClient, transaction.InitManagerTxn, ws.NewHub, worker.InitUserEventConsumer, worker.InitChatEventConsumer, worker.InitAssistantResponseConsumer, provideLogger)
 
 func provideLogger(cfg *config.AppConfig) logger.Logger {
 	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}
+
+func provideMessageUsecase(
+	conversationQuery interfaces.ConversationQueryRepoI,
+	memberQuery interfaces.MemberQueryRepoI,
+	messageQuery interfaces.MessageQueryRepoI,
+	messageCommand interfaces.MessageCmdRepoI,
+	messageListCache interfaces.MessageListCacheI,
+	wsPublisher interfaces.WsPublisherI,
+	assistantPublisher interfaces.AssistantEventPublisherI,
+) interfaces.MessageServiceI {
+	return message2.InitMessageUsecase(
+		conversationQuery,
+		memberQuery,
+		messageQuery,
+		messageCommand,
+		messageListCache,
+		wsPublisher,
+		assistantPublisher,
+	)
+}
+
+func provideConversationUsecase(
+	conversationReadRepo interfaces.ConversationQueryRepoI,
+	conversationCmdRepo interfaces.ConversationCommandRepoI,
+	memberCmdRepo interfaces.MemberCmdRepoI,
+	memberQueryRepo interfaces.MemberQueryRepoI,
+	userGrpcClient user_grpc.UserGrpcClient,
+	txn *transaction.ManagerTxn,
+	chatEventPublisher interfaces.ChatEventPublisherI,
+) interfaces.ConversationServiceI {
+	return conversation2.InitConversationUsecase(
+		conversationReadRepo,
+		conversationCmdRepo,
+		memberCmdRepo,
+		memberQueryRepo,
+		userGrpcClient,
+		txn,
+		chatEventPublisher,
+	)
 }

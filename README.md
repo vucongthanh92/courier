@@ -53,6 +53,36 @@ Backend-generated system messages use `sender_id = 0`. Database triggers allow `
 
 Existing verified users are backfilled by migration `016_chat_service_core_and_system_conversations` with empty `notification` and `assistant` conversations.
 
+# Conversation Creation And OAuth Login
+
+Courier now supports creating direct and group conversations from `conversa-app`.
+
+Important flow:
+
+- `conversa-app` opens the "New Conversation" modal from the left rail plus button.
+- The app searches verified users through authenticated `GET /api/v1/user/search?search_key=...`.
+- `user-service` searches by `display_name`, `phone_number`, or `email`, excludes the current user, and returns only limited public profile fields.
+- `chat-service` creates conversations through `POST /api/v1/conversation/create`.
+- Conversation type is inferred by member count: one selected user creates a `direct` conversation, two or more selected users create a `group`.
+- A custom name is used when provided. Otherwise direct/group names are generated from participant display names.
+- After successful creation, `conversa-app` automatically opens the new conversation.
+
+`chat-service` also publishes a `conversation.created.v1` event to Kafka topic `courier.chat.events.v1`. Its consumer creates a system notification message for every member in each member's `notification` system conversation with this content:
+
+```text
+Bạn đã được thêm vào một cuộc trò chuyện mới
+```
+
+OAuth login is available from `conversa-app` for Google and GitHub:
+
+- The client redirects users to the provider using `VITE_GOOGLE_OAUTH_CLIENT_ID` or `VITE_GITHUB_OAUTH_CLIENT_ID`.
+- Providers redirect back to `user-service` callback routes.
+- `user-service` exchanges the provider code, creates or links the Courier user, issues Courier JWT tokens, then redirects back to `conversa-app` with the session payload in the URL fragment.
+- `conversa-app` saves the session and enters the chat app without a second login step.
+- Any authenticated API response with `401 Unauthorized` clears the local session and returns the user to the login screen.
+
+Local OAuth env values belong in `conversa-app/.env.local`, which is ignored by Git. Keep `.env.example` as a template only.
+
 # Agent Gateway And Qdrant Memory
 
 Courier uses `agent-gateway` as the service boundary for AI assistant work. The first implementation keeps two responsibilities in this service:

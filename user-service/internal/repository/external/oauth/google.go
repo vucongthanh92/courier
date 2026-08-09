@@ -58,8 +58,8 @@ func (c *GoogleClient) Verify(ctx context.Context, token string) (models.Provide
 	}, nil
 }
 
-// ExchangeCode: Exchanges the authorization code for an ID token by making a POST request to Google's token endpoint.
-func (c *GoogleClient) ExchangeCode(ctx context.Context, code, codeVerifier string) (string, error) {
+// ExchangeCode exchanges the authorization code for an ID token by making a POST request to Google's token endpoint.
+func (c *GoogleClient) ExchangeCode(ctx context.Context, code, redirectURI string) (string, error) {
 
 	form := url.Values{}
 	form.Set("client_id", c.clientID)
@@ -67,9 +67,8 @@ func (c *GoogleClient) ExchangeCode(ctx context.Context, code, codeVerifier stri
 	form.Set("code", code)
 	form.Set("grant_type", "authorization_code")
 	form.Set("redirect_uri", c.redirectURI)
-
-	if codeVerifier != "" {
-		form.Set("code_verifier", codeVerifier)
+	if redirectURI != "" {
+		form.Set("redirect_uri", redirectURI)
 	}
 
 	req, _ := http.NewRequestWithContext(ctx, "POST", "https://oauth2.googleapis.com/token", strings.NewReader(form.Encode()))

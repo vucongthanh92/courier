@@ -49,7 +49,7 @@ func registerDependencies(_ context.Context) (*api.ApiContainer, database.GormRe
 }
 
 func runServer(ctx context.Context, container *api.ApiContainer) {
-	wp := workerpool.New(4)
+	wp := workerpool.New(5)
 
 	wp.Submit(container.GrpcServer.Run)
 	wp.Submit(container.HttpServer.Run)
@@ -57,6 +57,11 @@ func runServer(ctx context.Context, container *api.ApiContainer) {
 	wp.Submit(func() {
 		if err := container.UserEventConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			logger.Error("user event consumer stopped", zap.Error(err))
+		}
+	})
+	wp.Submit(func() {
+		if err := container.ChatEventConsumer.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Error("chat event consumer stopped", zap.Error(err))
 		}
 	})
 	wp.Submit(func() {
@@ -68,6 +73,9 @@ func runServer(ctx context.Context, container *api.ApiContainer) {
 	wp.StopWait()
 	if container.UserEventConsumer != nil {
 		_ = container.UserEventConsumer.Close()
+	}
+	if container.ChatEventConsumer != nil {
+		_ = container.ChatEventConsumer.Close()
 	}
 	if container.AssistantResponseConsumer != nil {
 		_ = container.AssistantResponseConsumer.Close()

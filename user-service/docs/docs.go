@@ -269,6 +269,48 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/v1/user/search": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "User"
+                ],
+                "summary": "search verified users",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Search text for display name, phone number, or email",
+                        "name": "search_key",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Limit, default 10 and max 20",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpcommon.SuccessResponse-array_models_SearchUserResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -310,6 +352,26 @@ const docTemplate = `{
                 }
             }
         },
+        "httpcommon.SuccessResponse-array_models_SearchUserResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SearchUserResponse"
+                    }
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ErrorDTO"
+                    }
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "httpcommon.SuccessResponse-string": {
             "type": "object",
             "properties": {
@@ -324,6 +386,21 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "models.AuthenticatedUserResponse": {
+            "type": "object",
+            "properties": {
+                "avatar_url": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "0"
                 }
             }
         },
@@ -375,6 +452,9 @@ const docTemplate = `{
                 },
                 "token_type": {
                     "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/models.AuthenticatedUserResponse"
                 }
             }
         },
@@ -464,6 +544,27 @@ const docTemplate = `{
             "properties": {
                 "message": {
                     "type": "string"
+                }
+            }
+        },
+        "models.SearchUserResponse": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "display_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "0"
                 }
             }
         },

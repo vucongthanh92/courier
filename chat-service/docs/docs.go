@@ -534,8 +534,7 @@ const docTemplate = `{
         "models.CreateConversationRequest": {
             "type": "object",
             "required": [
-                "member_user_ids",
-                "type"
+                "member_user_ids"
             ],
             "properties": {
                 "creatorID": {
@@ -543,7 +542,7 @@ const docTemplate = `{
                 },
                 "member_user_ids": {
                     "type": "array",
-                    "minItems": 2,
+                    "minItems": 1,
                     "items": {
                         "type": "integer"
                     }

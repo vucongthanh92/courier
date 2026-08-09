@@ -12,7 +12,7 @@ type ProviderClient interface {
 
 type GoogleProviderClient interface {
 	Verify(ctx context.Context, token string) (models.ProviderProfile, error)
-	ExchangeCode(ctx context.Context, code, codeVerifier string) (string, error)
+	ExchangeCode(ctx context.Context, code, redirectURI string) (string, error)
 }
 
 type GithubProviderClient interface {

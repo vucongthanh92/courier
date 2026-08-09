@@ -13,6 +13,7 @@ import (
 	grpc "github.com/vucongthanh92/courier/chat-service/internal/api/grpc"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/http"
 	"github.com/vucongthanh92/courier/chat-service/internal/api/ws"
+	"github.com/vucongthanh92/courier/chat-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/chat-service/internal/worker"
 	"github.com/vucongthanh92/courier/chat-service/redis"
 
@@ -49,10 +50,11 @@ var handlerSet = wire.NewSet(
 )
 
 var serviceSet = wire.NewSet(
-	conversationUc.InitConversationUsecase,
+	provideConversationUsecase,
 	memberUc.InitMemberUsecase,
-	messageUc.InitMessageUsecase,
+	provideMessageUsecase,
 	conversationUc.InitUserEventHandler,
+	conversationUc.InitChatEventHandler,
 )
 
 var repoSet = wire.NewSet(
@@ -70,6 +72,7 @@ var repoSet = wire.NewSet(
 	cacheRepo.InitWsPublisher,
 	cacheRepo.InitWsSubscriber,
 	kafkaRepo.InitAssistantEventPublisher,
+	kafkaRepo.InitChatEventPublisher,
 )
 
 var providerSet = wire.NewSet(
@@ -77,6 +80,7 @@ var providerSet = wire.NewSet(
 	transaction.InitManagerTxn,
 	ws.NewHub,
 	worker.InitUserEventConsumer,
+	worker.InitChatEventConsumer,
 	worker.InitAssistantResponseConsumer,
 	provideLogger,
 )
@@ -101,4 +105,44 @@ func InitializeContainer(
 
 func provideLogger(cfg *config.AppConfig) logger.Logger {
 	return logger.NewZapLogger(cfg.Logger.LogLevel)
+}
+
+func provideMessageUsecase(
+	conversationQuery interfaces.ConversationQueryRepoI,
+	memberQuery interfaces.MemberQueryRepoI,
+	messageQuery interfaces.MessageQueryRepoI,
+	messageCommand interfaces.MessageCmdRepoI,
+	messageListCache interfaces.MessageListCacheI,
+	wsPublisher interfaces.WsPublisherI,
+	assistantPublisher interfaces.AssistantEventPublisherI,
+) interfaces.MessageServiceI {
+	return messageUc.InitMessageUsecase(
+		conversationQuery,
+		memberQuery,
+		messageQuery,
+		messageCommand,
+		messageListCache,
+		wsPublisher,
+		assistantPublisher,
+	)
+}
+
+func provideConversationUsecase(
+	conversationReadRepo interfaces.ConversationQueryRepoI,
+	conversationCmdRepo interfaces.ConversationCommandRepoI,
+	memberCmdRepo interfaces.MemberCmdRepoI,
+	memberQueryRepo interfaces.MemberQueryRepoI,
+	userGrpcClient user_grpc.UserGrpcClient,
+	txn *transaction.ManagerTxn,
+	chatEventPublisher interfaces.ChatEventPublisherI,
+) interfaces.ConversationServiceI {
+	return conversationUc.InitConversationUsecase(
+		conversationReadRepo,
+		conversationCmdRepo,
+		memberCmdRepo,
+		memberQueryRepo,
+		userGrpcClient,
+		txn,
+		chatEventPublisher,
+	)
 }
