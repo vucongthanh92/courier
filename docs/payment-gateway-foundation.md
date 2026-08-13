@@ -329,6 +329,213 @@ CREATE INDEX ON "payment-gateway".outbox_events (created_at) WHERE published_at 
 CREATE INDEX ON "payment-gateway".reconciliation_items (reconciliation_run_id, status);
 ```
 
+### ERD — payment-gateway schema
+
+```mermaid
+erDiagram
+    WALLETS ||--|| WALLET_BALANCES : projects
+    WALLETS ||--o| LEDGER_ACCOUNTS : owns_user_liability_account
+    WALLETS ||--o{ TOPUP_INTENTS : receives
+    LEDGER_ACCOUNTS ||--o{ LEDGER_ENTRIES : records
+    LEDGER_JOURNALS ||--o{ LEDGER_ENTRIES : contains
+    LEDGER_JOURNALS o|--o| LEDGER_JOURNALS : reverses
+    TOPUP_INTENTS ||--o| PROVIDER_TRANSACTIONS : confirmed_by
+    TOPUP_INTENTS ||--o{ RECONCILIATION_ITEMS : checked_in
+    RECONCILIATION_RUNS ||--o{ RECONCILIATION_ITEMS : contains
+```
+
+`user_id` is intentionally not drawn as a foreign key: it identifies a user
+owned by `user-service`, not a row owned by this schema. Provider events are
+also purposefully decoupled from a top-up foreign key: a received event must be
+stored—even when it is malformed, duplicated or cannot be matched—to support
+fraud investigation and reconciliation.
+
+### Data dictionary
+
+All IDs are application-generated positive `BIGINT`s. All VND amounts use
+`BIGINT` minor units, which for VND are whole đồng. `TIMESTAMPTZ` is stored in
+UTC. JSONB fields hold bounded, non-secret integration metadata only.
+
+#### `wallets` — one logical balance container per user and currency
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Internal immutable wallet identifier used by all payment tables. |
+| `user_id` | Opaque Courier user identifier from `user-service`; it is never a cross-service FK. |
+| `currency` | ISO 4217 wallet currency; phase 1 is always `VND`. |
+| `status` | `active` permits activity, `restricted` blocks selected activity, `closed` permanently prevents use. |
+| `created_at`, `updated_at` | Wallet creation and last metadata/status update timestamps. |
+| `closed_at` | Closure evidence; required only when status is `closed`. |
+
+The unique `(user_id, currency)` constraint enforces one VND wallet per user.
+
+#### `wallet_balances` — fast, rebuildable current-balance projection
+
+| Column | Definition and purpose |
+| --- | --- |
+| `wallet_id` | PK and FK to the single wallet represented by this projection. |
+| `currency` | Denormalized guard that must match the wallet/ledger currency. |
+| `available_minor` | Funds currently usable by the product; never negative in phase 1. |
+| `pending_minor` | Funds observed but not yet available, reserved for future delayed-capture flows. |
+| `held_minor` | Funds reserved for a future purchase/withdrawal/transfer; zero in the initial top-up-only scope. |
+| `version` | Optimistic-concurrency counter incremented with each projection update. |
+| `updated_at` | Time at which the projection was last recomputed/updated. |
+
+This table never replaces the ledger. It is row-locked while a posting changes
+the wallet, and can be rebuilt from posted entries.
+
+#### `ledger_accounts` — chart of accounts
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Immutable account identifier referenced by ledger entries. |
+| `account_code` | Stable human/operational code, e.g. `asset:sepay:clearing:vnd` or `liability:wallet:<wallet-id>:vnd`. |
+| `account_type` | Accounting class: `asset`, `liability`, `revenue` or `expense`. |
+| `currency` | Currency in which this account may receive entries. |
+| `wallet_id` | Present only for the user wallet liability account; NULL for system accounts. |
+| `normal_side` | Expected balance direction (`debit` for assets/expenses, `credit` for liabilities/revenue). |
+| `is_active` | Prevents new postings to retired accounts without deleting history. |
+| `created_at` | Account creation timestamp. |
+
+At minimum seed a SePay clearing asset account and create one liability account
+for each wallet. A top-up debits clearing and credits the wallet liability.
+
+#### `ledger_journals` — immutable business posting header
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Immutable journal identifier. |
+| `reference_type` | Origin kind, initially `topup`. Enables later `refund`, `transfer` and `settlement` without changing the ledger model. |
+| `reference_id` | Origin identifier, e.g. the top-up intent ID; unique with `reference_type` so one business action posts once. |
+| `status` | `posted` is valid accounting history; `reversed` means a compensating journal exists. |
+| `reversal_of_id` | References the original journal when this journal is a compensating reversal; unique prevents two independent reversals. |
+| `narrative` | Safe human-readable audit description, never provider secrets or card data. |
+| `created_at` | Journal creation timestamp. |
+| `posted_at` | Effective posting timestamp used for history/reconciliation ordering. |
+
+#### `ledger_entries` — immutable debit/credit lines
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Immutable line identifier. |
+| `journal_id` | Parent posting header. |
+| `account_id` | The chart-of-account member debited or credited by this line. |
+| `side` | `debit` or `credit`; used by the database invariant to prove balance. |
+| `amount_minor` | Strictly positive monetary amount; sign is represented only by `side`. |
+| `currency` | Currency for balance validation and future multi-currency safety. |
+| `created_at` | Line insertion timestamp. |
+
+A deferred database trigger must reject every journal for which debit total is
+not equal to credit total for each currency.
+
+#### `topup_intents` — user-requested, provider-initiated payment attempt
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Courier top-up identifier returned to the authenticated user. |
+| `user_id` | Owner snapshot for authorization and user-facing history. |
+| `wallet_id` | Destination wallet to credit after verified payment. |
+| `amount_minor`, `currency` | The exact expected payment; both must match SePay IPN. |
+| `provider` | Selected provider key, initially `sepay`; future rows can use `ninepay`. |
+| `method` | Provider-neutral method key such as `bank_transfer`, `napas_bank_transfer` or `card`. |
+| `status` | Lifecycle: `created`, `pending`, `succeeded`, `failed`, `expired`, `cancelled` or `reversed`. |
+| `provider_checkout_id` | Optional provider checkout/order identity when returned separately. |
+| `provider_payment_url` | Optional safe hosted payment URL; clients never receive provider secrets. |
+| `qr_payload` | Optional QR content/instruction for a direct-collection provider. |
+| `provider_invoice_number` | Server-generated unique SePay invoice; primary matching key for IPN. |
+| `payment_code` | Optional direct-bank-transfer code; not required by hosted SePay checkout. |
+| `receiving_account_key` | Optional configured receiving-account identifier; never store raw credentials. |
+| `expires_at` | Deadline after which payment must not credit this intent without manual review. |
+| `succeeded_at` | Time at which one valid provider confirmation posted the credit. |
+| `failure_code`, `failure_message` | Sanitized provider/internal failure details for support and client status. |
+| `metadata` | Bounded non-secret context such as requested locale or provider method configuration. |
+| `created_at`, `updated_at` | Lifecycle timestamps. |
+
+#### `provider_events` — immutable ingress/audit record of every webhook
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Internal event receipt identifier. |
+| `provider` | Provider that sent the event, initially `sepay`. |
+| `provider_event_id` | Provider-stable delivery/event key; uniqueness makes retries safe. |
+| `payload` | Original sanitized JSON evidence required to investigate decisions; redact/minimize card fields. |
+| `signature_valid` | Result of provider authentication before business processing. |
+| `status` | `received`, `processed`, `ignored` or `failed`; never silently discard a suspicious event. |
+| `received_at`, `processed_at` | Receipt and completed-processing timestamps. |
+| `error_code` | Sanitized reason when an event cannot be processed. |
+
+#### `provider_transactions` — normalized external money movement
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Internal normalized transaction identifier. |
+| `provider` | Provider source. |
+| `provider_transaction_id` | Provider's immutable payment transaction identity; globally unique per provider. |
+| `topup_intent_id` | The one matched top-up intent; one confirmed payment can credit only one intent. |
+| `amount_minor`, `currency` | Provider-confirmed payment amount/currency retained for reconciliation. |
+| `paid_at` | Provider payment time, distinct from local receipt/posting time. |
+| `receiving_account_key` | Optional merchant receiving-account reference for bank-transfer reconciliation. |
+| `source_metadata` | Masked payment method, card brand/last four or bank gateway; never PAN/CVV. |
+| `created_at` | Local normalization record timestamp. |
+
+#### `idempotency_keys` — public-write replay protection
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Internal record identifier. |
+| `scope` | Operation and owner boundary, e.g. `wallet-topup:<user-id>`. |
+| `idempotency_key` | Client-supplied opaque key required for create-top-up retries. |
+| `request_hash` | Hash of normalized request; same key with a changed request is rejected. |
+| `response_status`, `response_body` | Stored safe response replayed for a duplicate valid request. |
+| `created_at`, `expires_at` | Retention window for safe retry behavior. |
+
+#### `outbox_events` — reliable cross-service publication queue
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Immutable event ID used by consumers for idempotency. |
+| `aggregate_type`, `aggregate_id` | Source aggregate, initially a top-up/wallet transaction. |
+| `event_type` | Versioned contract name, e.g. `payment.wallet_credited.v1`. |
+| `payload` | Complete versioned event payload for the event bus. |
+| `created_at` | Same DB transaction timestamp as the ledger posting. |
+| `published_at` | Set only after broker acknowledgement. |
+| `attempts`, `last_error` | Retry/operational diagnostics for the publisher worker. |
+
+#### `audit_logs` — actor/action evidence, not financial truth
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Audit record ID. |
+| `actor_type`, `actor_id` | Actor class/identity such as `user`, `system` or `admin`; nullable ID allows automated actions. |
+| `action` | Auditable verb, e.g. `topup.created` or `wallet.restricted`. |
+| `resource_type`, `resource_id` | Affected entity identity. |
+| `ip` | Network source when known, for fraud/support analysis. |
+| `metadata` | Safe contextual evidence; no secrets, PAN/CVV or full personal data. |
+| `created_at` | Immutable occurrence time. |
+
+#### `reconciliation_runs` — one provider matching job
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Reconciliation run identifier. |
+| `provider` | Provider being compared, initially SePay. |
+| `period_start`, `period_end` | Closed time window being compared. |
+| `status` | `running`, `completed` or `failed`. |
+| `started_at`, `completed_at` | Worker execution timing. |
+| `summary` | Counts/totals/outcome summary for dashboards and support. |
+
+#### `reconciliation_items` — discrepancy or match within a run
+
+| Column | Definition and purpose |
+| --- | --- |
+| `id` | Item identifier. |
+| `reconciliation_run_id` | Parent reconciliation job. |
+| `provider_transaction_id` | External transaction being matched, if present. |
+| `topup_intent_id` | Local expected payment attempt, if present. |
+| `status` | `matched`, `missing_local`, `missing_provider`, `amount_mismatch` or `manual_review`. |
+| `detail` | Safe comparison evidence and remediation context. |
+| `created_at` | Detection timestamp. |
+
 The posting usecase must lock `topup_intents` and the target `wallet_balances`
 row (`SELECT … FOR UPDATE`), confirm all expected provider fields (amount,
 currency, merchant/channel and success code), insert one journal and balanced
