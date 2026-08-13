@@ -28,6 +28,9 @@
 - Commit messages: short, present-tense summaries with optional scope prefix (`api: add signup validation`); keep under 72 chars.
 - PRs should include: passing `make test`; regenerated Swagger if endpoints change; migrations when schemas change; concise description linking issues (`Fixes #123`); notes on config/env impacts; screenshots only when user-facing docs or flows change.
 
+## Branch Naming
+- When asked to create a new branch from `main` for a GitHub issue, use `issue/<issue-number>/<kebab-case-short-title>`; for example, `issue/68/payment-gateway-foundation`.
+
 ## Collaboration Workflow
 - Follow `docs/collaboration-workflow.md` for feature planning, GitHub issue creation, implementation checkpoints, and issue closure.
 - Before implementation work, read `docs/service-map.md` and the topic-specific docs that match the task, such as `docs/grpc-contracts.md`, `docs/dev-commands.md`, `docs/troubleshooting.md`, or `docs/codegraph.md`.
