@@ -5,6 +5,11 @@
 - Layers: `internal/api` (Gin handlers, Swagger annotations), `internal/usecase` (business rules), `internal/repository` (DB/Redis adapters), `internal/domain` (entities/DTOs), `internal/worker` (cron/async jobs), `startup/` (bootstrap), `helper/` (shared helpers).
 - Configuration per environment in `config/<env>/config.yaml`. Database migrations in `migrations/`; SQL/data assets in `resources/` and `database/`. Docker and compose files sit at the `user-service/` root.
 
+## New Service Baseline
+- When creating a new service that is requested to follow an existing Courier service (for example `chat-service` or `user-service`), preserve that service's baseline structure and bring over the relevant foundational components before implementing feature-specific flows.
+- The baseline normally includes `internal/api/http/{middleware,v1}`, versioned route mapping, request handlers, startup/container and Wire dependency wiring, configuration shape, read/write database setup, Redis/cache adapters, JWT/JWK authentication, logging/health checks, worker/outbox scaffolding, helpers, Makefile targets, and test conventions.
+- Do not omit or replace these foundations with ad-hoc shortcuts (such as header-based development identity) unless the user explicitly requests a different structure, architecture, or programming language.
+
 ## Build, Test, and Development Commands
 - `make install` — install local tooling (`migrate`, `swag`, `wire`, protoc plugins).
 - `make run-local` — run API with `config/local/config.yaml`; escape-analysis logging stays enabled for tuning.
