@@ -1,0 +1,33 @@
+serviceName: payment-gateway
+development: true
+http:
+  port: ":5003"
+  shutdownTimeout: 15
+healthcheck:
+  port: ":5103"
+database:
+  readDb:
+    connectionString: "${PAYMENT_GATEWAY_DATABASE_CONNECTION_STRING}"
+    dbType: postgres
+    migrationFilePath: ../shared/migrations
+    maxIdleConns: 100
+    maxOpenConns: 200
+    connMaxLifetime: 5
+  writeDb:
+    connectionString: "${PAYMENT_GATEWAY_DATABASE_CONNECTION_STRING}"
+    dbType: postgres
+    migrationFilePath: ../shared/migrations
+    maxIdleConns: 100
+    maxOpenConns: 200
+    connMaxLifetime: 5
+sepay:
+  environment: sandbox
+  merchantId: "${PAYMENT_GATEWAY_SEPAY_MERCHANT_ID}"
+  secretKey: "${PAYMENT_GATEWAY_SEPAY_SECRET_KEY}"
+  checkoutUrl: "https://pay-sandbox.sepay.vn/v1/checkout/init"
+  successUrl: "${PAYMENT_GATEWAY_SEPAY_SUCCESS_URL}"
+  errorUrl: "${PAYMENT_GATEWAY_SEPAY_ERROR_URL}"
+  cancelUrl: "${PAYMENT_GATEWAY_SEPAY_CANCEL_URL}"
+  webhookSecret: "${PAYMENT_GATEWAY_SEPAY_WEBHOOK_SECRET}"
+  receivingAccountNumbers: ["${PAYMENT_GATEWAY_SEPAY_RECEIVING_ACCOUNT_NUMBER}"]
+  timestampToleranceSec: 300

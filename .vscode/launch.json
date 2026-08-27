@@ -72,6 +72,40 @@
         "group": "services",
         "order": 4
       }
+    },
+    {
+      "name": "Debug Payment Gateway (local)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/payment-gateway",
+      "args": [
+        "--config=./config/local/config.yaml"
+      ],
+      "cwd": "${workspaceFolder}/payment-gateway",
+      "env": {},
+      "showLog": true,
+      "presentation": {
+        "group": "services",
+        "order": 5
+      }
+    },
+    {
+      "name": "Debug Payment Gateway (dev)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/payment-gateway",
+      "args": [
+        "--config=./config/dev/config.yaml"
+      ],
+      "cwd": "${workspaceFolder}/payment-gateway",
+      "env": {},
+      "showLog": true,
+      "presentation": {
+        "group": "services",
+        "order": 6
+      }
     }
   ]
 }

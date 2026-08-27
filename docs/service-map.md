@@ -8,6 +8,7 @@ This document is the quick entry point for understanding the courier repository 
 | --- | --- |
 | `user-service/` | Owns users, identities, credentials, JWT issuing, JWK keys, and user-facing auth flows. |
 | `chat-service/` | Owns conversations, members, chat APIs, JWT verification, and calls user-service through gRPC. |
+| `payment-gateway/` | Owns wallet balances, ledger records, top-up intents, and payment-provider integrations. |
 | `shared/` | Holds shared contracts and generated code, currently focused on gRPC protobuf contracts. |
 | `infra/` | Local infrastructure manifests such as kind and Argo CD setup. |
 | `.github/workflows/` | GitHub Actions workflows. |
@@ -59,6 +60,26 @@ Primary responsibilities:
 - conversation members
 - JWT verification using public keys from user-service
 - user status checks through user-service gRPC before creating conversations
+
+## payment-gateway
+
+| Area | Path |
+| --- | --- |
+| Entrypoint | `payment-gateway/main.go` |
+| HTTP API | `payment-gateway/internal/api/http/` |
+| Usecases | `payment-gateway/internal/usecase/` |
+| Provider adapters | `payment-gateway/internal/repository/external/` |
+| Domain models and entities | `payment-gateway/internal/domain/` |
+| Migrations | `shared/migrations/017_create_payment_gateway_core.*.sql` |
+| Config | `payment-gateway/config/<env>/config.yaml` |
+| Commands | `payment-gateway/Makefile` |
+
+Primary responsibilities:
+
+- one VND wallet per user, linked only by `user_id`
+- immutable double-entry ledger and materialized wallet balance projection
+- SePay Sandbox hosted-checkout top-up initiation
+- future signed IPN processing, provider reconciliation, and system notifications
 
 ## shared
 
