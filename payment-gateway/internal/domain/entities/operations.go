@@ -5,6 +5,7 @@ import "time"
 type IdempotencyKey struct {
 	ID             uint64    `gorm:"column:id;primaryKey"`
 	Scope          string    `gorm:"column:scope"`
+	UserID         *uint64   `gorm:"column:user_id"`
 	IdempotencyKey string    `gorm:"column:idempotency_key"`
 	RequestHash    string    `gorm:"column:request_hash"`
 	ResponseStatus *int16    `gorm:"column:response_status"`

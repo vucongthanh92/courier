@@ -16,14 +16,16 @@ type LedgerAccount struct {
 func (LedgerAccount) TableName() string { return `"payment-gateway".ledger_accounts` }
 
 type LedgerJournal struct {
-	ID            uint64    `gorm:"column:id;primaryKey"`
-	ReferenceType string    `gorm:"column:reference_type"`
-	ReferenceID   string    `gorm:"column:reference_id"`
-	Status        string    `gorm:"column:status"`
-	ReversalOfID  *uint64   `gorm:"column:reversal_of_id"`
-	Narrative     string    `gorm:"column:narrative"`
-	CreatedAt     time.Time `gorm:"column:created_at"`
-	PostedAt      time.Time `gorm:"column:posted_at"`
+	ID             uint64    `gorm:"column:id;primaryKey"`
+	ReferenceType  string    `gorm:"column:reference_type"`
+	ReferenceID    string    `gorm:"column:reference_id"`
+	SourceType     string    `gorm:"column:source_type"`
+	SourceProvider *string   `gorm:"column:source_provider"`
+	Status         string    `gorm:"column:status"`
+	ReversalOfID   *uint64   `gorm:"column:reversal_of_id"`
+	Narrative      string    `gorm:"column:narrative"`
+	CreatedAt      time.Time `gorm:"column:created_at"`
+	PostedAt       time.Time `gorm:"column:posted_at"`
 }
 
 func (LedgerJournal) TableName() string { return `"payment-gateway".ledger_journals` }

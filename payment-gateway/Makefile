@@ -13,6 +13,9 @@ migrate-down:
 test:
 	go test -v ./...
 
+wire:
+	wire ./internal
+
 run-local:
 	go run main.go --config=./config/local/config.yaml
 

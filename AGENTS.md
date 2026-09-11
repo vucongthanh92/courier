@@ -20,6 +20,7 @@
 
 ## Coding Style & Naming Conventions
 - Format with `gofmt`/`goimports`; tabs, no unused imports.
+- Match the established Courier Go presentation in `user-service` and `chat-service`: grouped imports, one declaration per line, multiline constructors and dependency structs, and readable guard/transaction branches. Do not compress production Go into semicolon-separated or single-line declarations merely because it passes `gofmt`.
 - Package/dir names lower_snake; exported Go names UpperCamel (e.g., `UserService`). Keep handler DTOs in `internal/domain`; pass `context.Context`.
 - Prefer structured logging via `zap` with typed fields; validate incoming data using `validator/v10`.
 - After adding providers or bindings, update `wire.go` and run `make wire`.

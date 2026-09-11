@@ -1,8 +1,10 @@
 package models
 
 type CreateTopUpRequest struct {
-	AmountMinor int64  `json:"amount_minor" validate:"required,gt=0"`
-	Method      string `json:"method" validate:"required,oneof=bank_transfer napas_bank_transfer card"`
+	AmountMinor    int64  `json:"amount_minor" validate:"required,gt=0"`
+	Method         string `json:"method" validate:"required,oneof=bank_transfer napas_bank_transfer card"`
+	UserID         uint64
+	IdempotencyKey string
 }
 
 type CheckoutInstruction struct {
