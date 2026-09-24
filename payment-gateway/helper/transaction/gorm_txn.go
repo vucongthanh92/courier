@@ -10,6 +10,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// Error carries the canonical Courier error through GORM's error-only
+// transaction callback without losing its HTTP/domain semantics.
+type Error struct {
+	Builder *errHandler.ErrorBuilder
+}
+
+func (e *Error) Error() string {
+	if e.Builder != nil && e.Builder.LogError != nil {
+		return e.Builder.LogError.Error()
+	}
+	return "transaction aborted by domain error"
+}
+
 var runnerKey = struct{}{}
 
 func RunnerFromCtx(ctx context.Context, db *gorm.DB) *gorm.DB {
@@ -59,7 +72,7 @@ func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) *errHa
 
 		if commonErr := fn(ctx); commonErr != nil {
 			_ = tx.RollbackTo(sp).Error
-			return commonErr.LogError
+			return &Error{Builder: commonErr}
 		}
 
 		return nil
@@ -77,7 +90,7 @@ func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) *errHa
 		txCtx := context.WithValue(ctx, runnerKey, tx)
 		commonErr := fn(txCtx)
 		if commonErr != nil {
-			return commonErr.LogError
+			return &Error{Builder: commonErr}
 		}
 		return nil
 	})

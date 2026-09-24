@@ -32,7 +32,7 @@ func InitConversationHandler(
 // @Accept json
 // @Produce json
 // @Param params body models.CreateConversationRequest true "CreateConversationRequest"
-// @Router /api/v1/conversation/create [post]
+// @Router /api/v1/wallet/top-up [post]
 // @Success	200 {object} models.CreateConversationResponse
 func (h *ConversationHandler) CreateConversation(c *gin.Context) {
 

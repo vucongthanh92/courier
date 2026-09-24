@@ -13,6 +13,9 @@ The initial integration is SePay Sandbox hosted checkout. Start locally with
 then run `make run-local`. The current top-up endpoint is documented in
 [`docs/sepay-topup-flow.md`](docs/sepay-topup-flow.md).
 
+For a complete SePay Sandbox API test, follow
+[`docs/sepay-sandbox-e2e-test.md`](docs/sepay-sandbox-e2e-test.md).
+
 The `X-User-ID` header is development scaffolding only. Before production, it is
 replaced by user-service/JWT authorization and the signed SePay IPN handler will
 be responsible for crediting the wallet ledger.

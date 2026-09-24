@@ -16,13 +16,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
 	mrand "math/rand"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt"
 	"github.com/spf13/viper"
 	httpreq "github.com/vucongthanh92/go-base-utils/http/request"
 	utils "github.com/vucongthanh92/go-base-utils/http/request"
@@ -245,10 +245,6 @@ func GetClientIP(ctx context.Context) string {
 // RandString generates a random string of the specified length using crypto/rand for better randomness.
 const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
-func init() {
-	mrand.Seed(time.Now().UnixNano())
-}
-
 func RandString(n int) string {
 	if n <= 0 {
 		return ""
@@ -342,7 +338,6 @@ func GenerateSystemConversationDirectKey(userID uint64, name string) string {
 
 // func NormalizeMemberIDs normalizes a slice of member IDs by removing duplicates and ensuring all IDs are greater than 0.
 func NormalizeMemberIDs(ids []uint64) ([]uint64, error) {
-
 	if len(ids) == 0 {
 		return nil, errors.New("member_user_ids is required")
 	}
@@ -367,4 +362,14 @@ func NormalizeMemberIDs(ids []uint64) ([]uint64, error) {
 	})
 
 	return out, nil
+}
+
+// ClaimsPayloadJWT extracts the JWT claims from the gin context and returns them as a jwt.MapClaims.
+func ClaimsPayloadJWT(c *gin.Context) jwt.MapClaims {
+	claimsValue, ok := c.Get("authClaims")
+	claims, claimsOK := claimsValue.(jwt.MapClaims)
+	if !ok || !claimsOK {
+		return nil
+	}
+	return claims
 }

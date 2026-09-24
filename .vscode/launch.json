@@ -83,6 +83,7 @@
         "--config=./config/local/config.yaml"
       ],
       "cwd": "${workspaceFolder}/payment-gateway",
+      "envFile": "${workspaceFolder}/payment-gateway/.env.local",
       "env": {},
       "showLog": true,
       "presentation": {
@@ -100,6 +101,7 @@
         "--config=./config/dev/config.yaml"
       ],
       "cwd": "${workspaceFolder}/payment-gateway",
+      "envFile": "${workspaceFolder}/payment-gateway/.env.local",
       "env": {},
       "showLog": true,
       "presentation": {

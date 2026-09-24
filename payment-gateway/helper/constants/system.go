@@ -2,6 +2,17 @@ package constants
 
 import "time"
 
+// Constants for system-wide configurations and values
+const (
+	DateTimeFormatYearMonthDay = "2006-01-02 15:04:05"
+)
+
+// Constants for time zones
+const (
+	GlobalTimeZoneHoChiMinh = "Asia/Ho_Chi_Minh"
+)
+
+// Time constants for caching and expiration
 const (
 	Time_Cache_5_minutes  = 5 * time.Minute
 	Time_Cache_1_day      = 24 * time.Hour
@@ -26,47 +37,13 @@ const (
 	Kafka              = "kafka"
 )
 
+// constants for provider
 const (
 	GithubProvider       = "github"
 	GithubAccessTokenURL = "https://github.com/login/oauth/access_token"
 
 	GoogleProvider = "google"
-)
-
-const (
-	ConversationTypeDirect = "direct"
-	ConversationTypeGroup  = "group"
-	ConversationTypeSystem = "system"
-)
-
-// conversation type system config
-const (
-	SystemConversationNotification = "notification"
-	SystemConversationAssistant    = "assistant"
-)
-
-const (
-	ConversationMemberRoleOwner  = "owner"
-	ConversationMemberRoleAdmin  = "admin"
-	ConversationMemberRoleMember = "member"
-)
-
-const (
-	ConversationMemberStatusActive  = "active"
-	ConversationMemberStatusLeft    = "left"
-	ConversationMemberStatusRemoved = "removed"
-)
-
-const (
-	MessageTypeText   = "text"
-	MessageTypeSystem = "system"
-)
-
-// Constants for message validation
-const (
-	MaxTextMessageRunes = 4000
-	MaxMetadataBytes    = 16 * 1024
-	MaxClientMessageID  = 64
+	SePayProvider  = "sepay"
 )
 
 // ws channels
@@ -80,4 +57,88 @@ const (
 	WsConfigPongWait       = 60 * time.Second
 	WsConfigPingPeriod     = 45 * time.Second
 	WsConfigSendBufferSize = 32
+)
+
+// Constants for Currency
+const (
+	CurrencyVND = "VND"
+	CurrencyUSD = "USD"
+)
+
+// wallet status
+const (
+	WalletStatusActive   = "active"
+	WalletStatusInactive = "inactive"
+)
+const ()
+
+// Constants for Idempotency
+const (
+	IdempotencyScope = "wallet-topup"
+)
+
+// provider event status
+const (
+	SepayEventStatusReceived = "received"
+)
+
+// Constants for TopUpIntent status
+const (
+	TopupIntentStatusSucceeded = "succeeded"
+	TopupIntentStatusFailed    = "failed"
+	TopupIntentStatusPending   = "pending"
+)
+
+// Constants for ReferenceType
+const (
+	SePayRefTypeBankTransaction = "sepay_bank_transaction"
+)
+
+// Constants for TransferType
+const (
+	TransferTypeIn  = "in"
+	TransferTypeOut = "out"
+)
+
+const (
+	SePayPaymentCodePrefix = "COUR"
+	SePayPaymentCodeLength = 8
+)
+
+const (
+	LedgerAccountTypeLiability = "liability"
+	LedgerAccountTypeAsset     = "asset"
+)
+
+const (
+	NormalSideCredit = "credit"
+	NormalSideDebit  = "debit"
+)
+
+const (
+	RiskLevelNormal = "normal"
+)
+
+const (
+	WalletTypePersonal = "personal"
+	WalletTypeBusiness = "business"
+)
+
+// Constants for error codes
+const (
+	LedgerJournalStatusPosted = "posted"
+)
+
+// Constants for source type
+const (
+	SourceTypeExternalProvider = "external_provider"
+)
+
+// Constants for outbox event types
+const (
+	// OutboxAggregateTypeWallet represents the aggregate type for wallet-related events in the outbox system
+	OutboxAggregateTypeWallet = "wallet"
+
+	// OutboxEventTypeCredit represents the event type for wallet credit events in the outbox system
+	OutboxEventTypeCredit = "payment.wallet_credited.v1"
 )
