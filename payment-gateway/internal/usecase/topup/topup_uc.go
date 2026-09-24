@@ -42,6 +42,7 @@ func InitTopUpUsecase(
 }
 
 // CreateTopUp creates a pending SePay top-up intent and returns the signed checkout form.
+// It ensures idempotency by checking for existing records with the same Idempotency-Key.
 func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRequest) (
 	response models.CheckoutInstruction, replayed bool, resErr *errHandler.ErrorBuilder) {
 
@@ -66,12 +67,13 @@ func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRe
 			if err := json.Unmarshal(claim.ResponseBody, &response); err != nil {
 				return errHandler.InitErrorBuilder(txCtx).ValidateError(err)
 			}
-
 			replayed = true
 			return nil
 		}
 
-		gateway, txnErr := u.resolver.Resolve(txCtx, req.ProviderName)
+		// Resolve the payment provider based on the requested provider name to handle the top-up operation
+		// This allows the system to support multiple payment providers dynamically
+		provider, txnErr := u.resolver.Resolve(txCtx, req.ProviderName)
 		if txnErr != nil {
 			return txnErr
 		}
@@ -108,7 +110,7 @@ func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRe
 		}
 
 		// Call the payment gateway to create a top-up checkout instruction with the generated invoice number and payment code
-		checkout, gatewayErr := gateway.CreateTopUp(txCtx, interfaces.CreateTopUpInput{
+		checkout, providerErr := provider.CreateTopUp(txCtx, interfaces.CreateTopUpInput{
 			InvoiceNumber: invoice,
 			AmountMinor:   req.AmountMinor,
 			Currency:      constants.CurrencyVND,
@@ -116,30 +118,31 @@ func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRe
 			CustomerID:    fmt.Sprint(req.UserID),
 			Description:   fmt.Sprintf("%s %s", constants.CourierWalletTopUpDescription, paymentCode),
 		})
-		if gatewayErr != nil {
+
+		// If the payment provider returns an error during the checkout creation, return an appropriate error response
+		if providerErr != nil {
 			return errHandler.InitErrorBuilder(txCtx).SetStatus(http.StatusUnprocessableEntity).
-				SetLogError(gatewayErr).SetError(models.ErrorDTO{
+				SetLogError(providerErr).SetError(models.ErrorDTO{
 				Code:    constants.PROVIDER_CHECKOUT_FAILED_CODE,
 				Message: constants.ErrProviderSepayCheckoutFailed,
 			})
 		}
 
 		// Create a new top-up intent in the database with the generated invoice number and checkout details
-		intent := &entities.TopUpIntent{
-			ID:                    topupID,
-			UserID:                req.UserID,
-			WalletID:              wallet.ID,
-			AmountMinor:           req.AmountMinor,
-			Currency:              constants.CurrencyVND,
-			Provider:              gateway.Name(),
-			Method:                req.Method,
-			Status:                constants.TopupIntentStatusPending,
-			ProviderInvoiceNumber: invoice,
-			PaymentCode:           &paymentCode,
-			ExpiresAt:             time.Now().UTC().Add(constants.Time_Cache_15_minutes),
-			Metadata:              []byte(`{}`),
-		}
-		if txnErr = u.topUpCmd.Create(txCtx, intent); txnErr != nil {
+		intent := entities.TopUpIntent{}
+		intent.Initialize(
+			topupID,
+			req.UserID,
+			wallet.ID,
+			req.AmountMinor,
+			constants.CurrencyVND,
+			provider.Name(),
+			req.Method,
+			invoice,
+			paymentCode,
+		)
+
+		if txnErr = u.topUpCmd.Create(txCtx, &intent); txnErr != nil {
 			return txnErr
 		}
 

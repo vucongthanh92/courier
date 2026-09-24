@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/vucongthanh92/courier/payment-gateway/helper/constants"
@@ -65,26 +64,21 @@ func (u *sePayWebhookUsecase) ProcessBankWebhook(ctx context.Context, req models
 		return models.WebhookIgnored, nil
 	}
 
+	// Generate a unique event ID for the webhook processing
 	eventID, e := utils.NewSnowflakeID()
 	if e != nil {
 		return result, errHandler.InitErrorBuilder(ctx).ValidateError(e)
 	}
 
 	// Create a new provider event for the webhook and check if it already exists
-	event := &entities.ProviderEvent{
-		ID:              eventID,
-		Provider:        constants.SePayProvider,
-		ProviderEventID: strconv.FormatInt(req.ID, 10),
-		Payload:         raw,
-		SignatureValid:  true,
-		Status:          constants.SepayEventStatusReceived,
-	}
+	event := entities.ProviderEvent{}
+	event.Initialize(eventID, constants.SePayProvider, req.ID, raw)
 
 	// Process the webhook within a transaction to ensure atomicity
 	err := u.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
 
 		// Create a new provider event for the webhook and check if it already exists
-		created, commonErr := u.events.CreateIfAbsent(txCtx, event)
+		created, commonErr := u.events.CreateIfAbsent(txCtx, &event)
 		if commonErr != nil {
 			return commonErr
 		}
@@ -108,17 +102,17 @@ func (u *sePayWebhookUsecase) ProcessBankWebhook(ctx context.Context, req models
 		}
 
 		// Check if the top-up intent has already been marked as succeeded or is not eligible for processing
-		if intent.Status == constants.TopupIntentStatusSucceeded {
+		if intent.CheckIsSucceeded() {
 			return u.ProcessIgnore(txCtx, eventID, constants.TOPUP_ALREADY_SUCCEEDED_CODE, &result)
 		}
 
 		// Validate the top-up intent's status and expiration before proceeding with the wallet crediting process
-		if intent.Status != constants.TopupIntentStatusPending || !intent.ExpiresAt.After(time.Now().UTC()) {
+		if intent.CheckStatusAndExpires() {
 			return u.ProcessIgnore(txCtx, eventID, "topup_not_payable", &result)
 		}
 
 		// Check if the transfer amount in the webhook matches the expected amount in the top-up intent
-		if intent.AmountMinor != req.TransferAmount {
+		if intent.CheckAmountMinor(req.TransferAmount) {
 			return u.ProcessIgnore(txCtx, eventID, constants.AMOUNT_MISMATCH_CODE, &result)
 		}
 
@@ -147,44 +141,105 @@ func (u *sePayWebhookUsecase) ProcessBankWebhook(ctx context.Context, req models
 		outboxID, _ := utils.NewSnowflakeID()
 		source := constants.SePayProvider
 
-		journal := &entities.LedgerJournal{
-			ID:             journalID,
-			ReferenceType:  constants.SePayRefTypeBankTransaction,
-			ReferenceID:    strconv.FormatInt(req.ID, 10),
-			SourceType:     "external_provider",
-			SourceProvider: &source,
-			Status:         "posted",
-			Narrative:      "SePay wallet top-up " + *req.Code,
-		}
+		journal := &entities.LedgerJournal{}
+		journal.Initialize(
+			journalID,
+			constants.SePayRefTypeBankTransaction,
+			req.ID,
+			constants.SourceTypeExternalProvider,
+			&source,
+			constants.LedgerJournalStatusPosted,
+			req.Code,
+		)
 
-		if commonErr = u.ledgerCmd.CreateJournalEntries(txCtx, journal, []entities.LedgerEntry{{ID: debitID, JournalID: journalID, AccountID: clearing.ID, Side: "debit", AmountMinor: req.TransferAmount, Currency: "VND"}, {ID: creditID, JournalID: journalID, AccountID: walletAccount.ID, Side: "credit", AmountMinor: req.TransferAmount, Currency: "VND"}}); commonErr != nil {
+		// Create ledger entries for the debit and credit sides of the top-up transaction
+		ledgerEntries := make([]entities.LedgerEntry, 2)
+		ledgerEntries[0].Initialize(debitID, journalID, clearing.ID, constants.NormalSideDebit, req.TransferAmount, constants.CurrencyVND)
+		ledgerEntries[1].Initialize(creditID, journalID, walletAccount.ID, constants.NormalSideCredit, req.TransferAmount, constants.CurrencyVND)
+
+		// Create the journal and ledger entries in the database to record the top-up transaction
+		if commonErr = u.ledgerCmd.CreateJournalEntries(txCtx, journal, ledgerEntries); commonErr != nil {
 			return commonErr
 		}
 
-		paidAt, parseErr := time.ParseInLocation("2006-01-02 15:04:05", req.TransactionDate, time.FixedZone("Asia/Ho_Chi_Minh", 7*3600))
+		// Parse the transaction date from the webhook and create a provider transaction record in the database
+		paidAt, parseErr := time.ParseInLocation(
+			constants.DateTimeFormatYearMonthDay,
+			req.TransactionDate,
+			time.FixedZone(constants.GlobalTimeZoneHoChiMinh, 7*3600),
+		)
 		if parseErr != nil {
-			return errHandler.InitErrorBuilder(txCtx).SetStatus(http.StatusBadRequest).SetLogError(parseErr).SetError(models.ErrorDTO{Code: "invalid_provider_date", Message: "invalid SePay transaction date"})
+			return errHandler.InitErrorBuilder(txCtx).
+				SetStatus(http.StatusBadRequest).SetLogError(parseErr).
+				SetError(models.ErrorDTO{
+					Code:    "invalid_provider_date",
+					Message: "invalid SePay transaction date"},
+				)
 		}
+
+		// Create a provider transaction record in the database to track the top-up transaction with SePay
 		metadata, _ := json.Marshal(req)
-		if commonErr = u.ledgerCmd.CreateProviderTransaction(txCtx, &entities.ProviderTransaction{ID: providerTxnID, Provider: "sepay", ProviderTransactionID: strconv.FormatInt(req.ID, 10), TopUpIntentID: intent.ID, AmountMinor: req.TransferAmount, Currency: "VND", PaidAt: &paidAt, ReceivingAccountKey: &req.AccountNumber, SourceMetadata: metadata}); commonErr != nil {
+		providerTxn := &entities.ProviderTransaction{}
+		providerTxn.Initialize(
+			providerTxnID,
+			constants.SePayProvider,
+			req.ID,
+			intent.ID,
+			req.TransferAmount,
+			constants.CurrencyVND,
+			&paidAt,
+			&req.AccountNumber,
+			metadata,
+		)
+
+		// Create the provider transaction record in the database to track the top-up transaction with SePay
+		if commonErr = u.ledgerCmd.CreateProviderTransaction(txCtx, providerTxn); commonErr != nil {
 			return commonErr
 		}
+
+		// Mark the top-up intent as succeeded, credit the user's wallet, and create an outbox event for further processing
 		if commonErr = u.topupCmd.MarkSucceeded(txCtx, intent.ID, req.AccountNumber); commonErr != nil {
 			return commonErr
 		}
+
+		// Credit the user's wallet with the transfer amount from the top-up intent
 		if commonErr = u.wallets.CreditAvailable(txCtx, intent.WalletID, req.TransferAmount); commonErr != nil {
 			return commonErr
 		}
-		eventPayload, _ := json.Marshal(map[string]any{"user_id": intent.UserID, "wallet_id": intent.WalletID, "topup_intent_id": intent.ID, "amount_minor": req.TransferAmount, "currency": "VND", "provider": "sepay"})
-		if commonErr = u.outbox.Create(txCtx, &entities.OutboxEvent{ID: outboxID, AggregateType: "wallet", AggregateID: strconv.FormatUint(intent.WalletID, 10), EventType: "payment.wallet_credited.v1", Payload: eventPayload}); commonErr != nil {
+
+		// Create an outbox event to notify other services of the wallet crediting operation
+		eventPayload, _ := json.Marshal(map[string]any{
+			"user_id":         intent.UserID,
+			"wallet_id":       intent.WalletID,
+			"topup_intent_id": intent.ID,
+			"amount_minor":    req.TransferAmount,
+			"currency":        constants.CurrencyVND,
+			"provider":        constants.SePayProvider,
+		})
+
+		outbox := &entities.OutboxEvent{}
+		outbox.Initialize(
+			outboxID,
+			constants.OutboxAggregateTypeWallet,
+			intent.WalletID,
+			constants.OutboxEventTypeCredit,
+			eventPayload,
+		)
+
+		// Create the outbox event in the database to notify other services of the wallet crediting operation
+		if commonErr = u.outbox.Create(txCtx, outbox); commonErr != nil {
 			return commonErr
 		}
+
+		// Mark the provider event as processed to prevent duplicate processing of the same webhook
 		if commonErr = u.events.MarkProcessed(txCtx, eventID); commonErr != nil {
 			return commonErr
 		}
+
 		result = models.WebhookCredited
 		return nil
 	})
+
 	if err != nil {
 		var transactionErr *transaction.Error
 		if errors.As(err, &transactionErr) && transactionErr.Builder != nil {
@@ -192,6 +247,7 @@ func (u *sePayWebhookUsecase) ProcessBankWebhook(ctx context.Context, req models
 		}
 		return result, errHandler.InitErrorBuilder(ctx).ValidateError(err)
 	}
+
 	return result, nil
 }
 

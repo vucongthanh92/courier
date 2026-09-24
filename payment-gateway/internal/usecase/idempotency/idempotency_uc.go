@@ -20,7 +20,9 @@ type idempotencyUsecase struct {
 }
 
 func InitIdempotencyUsecase(commandRepo interfaces.IdempotencyCommandRepoI) interfaces.IdempotencyServiceI {
-	return &idempotencyUsecase{commandRepo: commandRepo}
+	return &idempotencyUsecase{
+		commandRepo: commandRepo,
+	}
 }
 
 // Claim reserves the request key or returns the previously completed response.
@@ -41,6 +43,7 @@ func (u *idempotencyUsecase) Claim(ctx context.Context, req models.IdempotencyCl
 		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
 	}
 
+	// Create a new idempotency key record with the provided scope, user ID, key, request hash, and expiration time.
 	record := &entities.IdempotencyKey{
 		ID:             recordID,
 		Scope:          req.Scope,
@@ -70,7 +73,9 @@ func (u *idempotencyUsecase) Claim(ctx context.Context, req models.IdempotencyCl
 	}, nil
 }
 
-// Complete updates the status and response of an idempotency key record in the database. It takes the context, the ID of the idempotency key, the status to set, and the response body as parameters. If the update is successful, it returns nil; otherwise, it returns an error builder with details about the failure.
+// Complete updates the status and response of an idempotency key record in the database.
+// It takes the context, the ID of the idempotency key, the status to set, and the response body as parameters.
+// If the update is successful, it returns nil; otherwise, it returns an error builder with details about the failure.
 func (u *idempotencyUsecase) Complete(ctx context.Context, recordID uint64, status int16, response any) *errHandler.ErrorBuilder {
 	responseBody, err := json.Marshal(response)
 	if err != nil {

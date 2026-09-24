@@ -2,6 +2,16 @@ package constants
 
 import "time"
 
+// Constants for system-wide configurations and values
+const (
+	DateTimeFormatYearMonthDay = "2006-01-02 15:04:05"
+)
+
+// Constants for time zones
+const (
+	GlobalTimeZoneHoChiMinh = "Asia/Ho_Chi_Minh"
+)
+
 // Time constants for caching and expiration
 const (
 	Time_Cache_5_minutes  = 5 * time.Minute
@@ -93,4 +103,42 @@ const (
 const (
 	SePayPaymentCodePrefix = "COUR"
 	SePayPaymentCodeLength = 8
+)
+
+const (
+	LedgerAccountTypeLiability = "liability"
+	LedgerAccountTypeAsset     = "asset"
+)
+
+const (
+	NormalSideCredit = "credit"
+	NormalSideDebit  = "debit"
+)
+
+const (
+	RiskLevelNormal = "normal"
+)
+
+const (
+	WalletTypePersonal = "personal"
+	WalletTypeBusiness = "business"
+)
+
+// Constants for error codes
+const (
+	LedgerJournalStatusPosted = "posted"
+)
+
+// Constants for source type
+const (
+	SourceTypeExternalProvider = "external_provider"
+)
+
+// Constants for outbox event types
+const (
+	// OutboxAggregateTypeWallet represents the aggregate type for wallet-related events in the outbox system
+	OutboxAggregateTypeWallet = "wallet"
+
+	// OutboxEventTypeCredit represents the event type for wallet credit events in the outbox system
+	OutboxEventTypeCredit = "payment.wallet_credited.v1"
 )

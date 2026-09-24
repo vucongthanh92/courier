@@ -1,6 +1,10 @@
 package entities
 
-import "time"
+import (
+	"time"
+
+	"github.com/vucongthanh92/courier/payment-gateway/helper/constants"
+)
 
 type TopUpIntent struct {
 	ID                    uint64     `gorm:"column:id;primaryKey"`
@@ -26,4 +30,43 @@ type TopUpIntent struct {
 	UpdatedAt             time.Time  `gorm:"column:updated_at"`
 }
 
-func (TopUpIntent) TableName() string { return `"payment-gateway".topup_intents` }
+func (TopUpIntent) TableName() string {
+	return `"payment-gateway".topup_intents`
+}
+
+func (e *TopUpIntent) Initialize(
+	topupID uint64,
+	userID uint64,
+	walletID uint64,
+	amountMinor int64,
+	currency string,
+	provider string,
+	method string,
+	providerInvoiceNumber string,
+	paymentCode string,
+) {
+	e.ID = topupID
+	e.UserID = userID
+	e.WalletID = walletID
+	e.AmountMinor = amountMinor
+	e.Currency = currency
+	e.Provider = provider
+	e.Method = method
+	e.Status = constants.TopupIntentStatusPending
+	e.ProviderInvoiceNumber = providerInvoiceNumber
+	e.PaymentCode = &paymentCode
+	e.ExpiresAt = time.Now().UTC().Add(constants.Time_Cache_15_minutes)
+	e.Metadata = []byte(`{}`)
+}
+
+func (e *TopUpIntent) CheckAmountMinor(transferAmount int64) bool {
+	return e.AmountMinor != transferAmount
+}
+
+func (e *TopUpIntent) CheckStatusAndExpires() bool {
+	return e.Status != constants.TopupIntentStatusPending || !e.ExpiresAt.After(time.Now().UTC())
+}
+
+func (e *TopUpIntent) CheckIsSucceeded() bool {
+	return e.Status == constants.TopupIntentStatusSucceeded
+}
