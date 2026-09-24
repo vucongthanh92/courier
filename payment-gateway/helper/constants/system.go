@@ -89,3 +89,8 @@ const (
 	TransferTypeIn  = "in"
 	TransferTypeOut = "out"
 )
+
+const (
+	SePayPaymentCodePrefix = "COUR"
+	SePayPaymentCodeLength = 8
+)

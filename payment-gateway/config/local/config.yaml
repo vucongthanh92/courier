@@ -67,10 +67,10 @@ sepay:
   environment: sandbox
   merchantId: "${PAYMENT_GATEWAY_SEPAY_MERCHANT_ID}"
   secretKey: "${PAYMENT_GATEWAY_SEPAY_SECRET_KEY}"
-  checkoutUrl: "https://pay-sandbox.sepay.vn/v1/checkout/init"
-  successUrl: "http://localhost:8080/payment/success"
-  errorUrl: "http://localhost:8080/payment/error"
-  cancelUrl: "http://localhost:8080/payment/cancel"
   webhookSecret: "${PAYMENT_GATEWAY_SEPAY_WEBHOOK_SECRET}"
+  checkoutUrl: "${PAYMENT_GATEWAY_SEPAY_CHECKOUT_URL}"
+  successUrl: "${PAYMENT_GATEWAY_SEPAY_SUCCESS_URL}"
+  errorUrl: "${PAYMENT_GATEWAY_SEPAY_ERROR_URL}"
+  cancelUrl: "${PAYMENT_GATEWAY_SEPAY_CANCEL_URL}"
   receivingAccountNumbers: ["0000000001"]
   timestampToleranceSec: 300

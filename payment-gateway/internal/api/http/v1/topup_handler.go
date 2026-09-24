@@ -17,6 +17,7 @@ type TopUpHandler struct {
 	usecase interfaces.TopUpServiceI
 }
 
+// InitTopUpHandler initializes a new TopUpHandler with the provided use case.
 func InitTopUpHandler(usecase interfaces.TopUpServiceI) *TopUpHandler {
 	return &TopUpHandler{
 		usecase: usecase,
@@ -25,7 +26,7 @@ func InitTopUpHandler(usecase interfaces.TopUpServiceI) *TopUpHandler {
 
 // API Create TopUp godoc
 // @Tags TopUp
-// @Summary creates a pending SePay top-up intent and returns the signed checkout form.
+// @Summary creates a pending top-up intent for the requested payment provider.
 // @Accept json
 // @Produce json
 // @Param params body models.CreateTopUpRequest true "CreateTopUpRequest"

@@ -15,7 +15,7 @@ import (
 	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/entities"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/models"
-	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/sepay"
+	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/providers/sepay"
 )
 
 type sePayWebhookUsecase struct {

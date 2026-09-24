@@ -49,6 +49,7 @@ func (p *Provider) VerifyBankWebhook(rawBody []byte, signature, timestamp string
 	return nil
 }
 
+// IsReceivingAccount checks if the provided account number is in the list of allowed receiving accounts.
 func (p *Provider) IsReceivingAccount(accountNumber string) bool {
 	for _, allowed := range p.cfg.ReceivingAccountNumbers {
 		if allowed != "" && allowed == accountNumber {
@@ -58,6 +59,7 @@ func (p *Provider) IsReceivingAccount(accountNumber string) bool {
 	return false
 }
 
+// CreateTopUp creates a pending SePay top-up intent and returns the signed checkout form.
 func (p *Provider) CreateTopUp(_ context.Context, in interfaces.CreateTopUpInput) (interfaces.CheckoutInstruction, error) {
 	if p.cfg.MerchantID == "" || p.cfg.SecretKey == "" {
 		return interfaces.CheckoutInstruction{}, fmt.Errorf("sepay sandbox merchant credentials are not configured")
@@ -76,6 +78,7 @@ func (p *Provider) CreateTopUp(_ context.Context, in interfaces.CreateTopUpInput
 	return interfaces.CheckoutInstruction{Action: p.cfg.CheckoutURL, Fields: fields}, nil
 }
 
+// sepayMethod maps the provided method string to the corresponding SePay payment method.
 func sepayMethod(method string) (string, error) {
 	switch method {
 	case "bank_transfer":
@@ -89,14 +92,29 @@ func sepayMethod(method string) (string, error) {
 	}
 }
 
+// sign generates a HMAC-SHA256 signature for the provided fields using the given secret key.
 func sign(fields map[string]string, secret string) string {
-	ordered := []string{"order_amount", "merchant", "currency", "operation", "order_description", "order_invoice_number", "customer_id", "payment_method", "success_url", "error_url", "cancel_url"}
+	ordered := []string{
+		"order_amount",
+		"merchant",
+		"currency",
+		"operation",
+		"order_description",
+		"order_invoice_number",
+		"customer_id",
+		"payment_method",
+		"success_url",
+		"error_url",
+		"cancel_url",
+	}
+
 	parts := make([]string, 0, len(ordered))
 	for _, key := range ordered {
 		if value, ok := fields[key]; ok {
 			parts = append(parts, key+"="+value)
 		}
 	}
+
 	mac := hmac.New(sha256.New, []byte(secret))
 	_, _ = mac.Write([]byte(strings.Join(parts, ",")))
 	return base64.StdEncoding.EncodeToString(mac.Sum(nil))

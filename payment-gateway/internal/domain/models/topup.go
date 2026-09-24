@@ -3,6 +3,7 @@ package models
 type CreateTopUpRequest struct {
 	AmountMinor    int64  `json:"amount_minor" validate:"required,gt=0"`
 	Method         string `json:"method" validate:"required,oneof=bank_transfer napas_bank_transfer card"`
+	ProviderName   string `json:"provider_name" validate:"required,oneof=sepay vnpay"`
 	UserID         uint64
 	IdempotencyKey string
 }
@@ -10,6 +11,7 @@ type CreateTopUpRequest struct {
 type CheckoutInstruction struct {
 	TopUpID        string            `json:"topup_id"`
 	InvoiceNumber  string            `json:"invoice_number"`
+	PaymentCode    string            `json:"payment_code"`
 	ExpiresAt      string            `json:"expires_at"`
 	CheckoutAction string            `json:"checkout_action"`
 	CheckoutFields map[string]string `json:"checkout_fields"`

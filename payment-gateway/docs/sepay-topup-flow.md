@@ -11,7 +11,7 @@ sequenceDiagram
     Note right of Client: Bearer JWT and Idempotency-Key
     PG->>DB: Find/create VND wallet, balance projection and liability account
     PG->>PG: Build ordered SePay fields and HMAC-SHA256 signature
-    PG->>DB: Create pending topup_intent with unique CRTOP invoice
+    PG->>DB: Create pending intent with CRTOP invoice and COUR payment code
     PG-->>Client: checkout_action + signed checkout_fields
     Client->>SP: POST checkout form
     SP-->>Client: Hosted Sandbox payment page
@@ -21,15 +21,40 @@ sequenceDiagram
 
 ## Current scope
 
-The basic implementation creates the wallet, builds a server-signed SePay Sandbox
+The create-top-up request requires `provider-name`. The basic implementation currently
+registers `sepay`, creates the wallet, builds a server-signed SePay Sandbox
 checkout form, then persists the pending intent. The client must POST the returned
 fields to `checkout_action`; the secret key never leaves the service.
+
+`provider-name: "vnpay"` is reserved in the API contract but currently returns
+`provider_not_available` until the VNPAY adapter is implemented and registered.
 
 The SePay bank-webhook crediting path validates the HMAC signature and timestamp,
 deduplicates the SePay transaction `id`, matches the payment code and exact
 amount, then atomically persists provider evidence, posts a balanced double-entry
 journal, updates the wallet projection and writes an outbox event. Redirect
 success is never proof of payment.
+
+## Courier business invoice prefixes
+
+`provider_invoice_number` is Courier's stable business identifier for a payment
+request. It is distinct from `payment_code`, which is a provider-facing value
+used to match an incoming transfer. New payment flows must use one of the
+following prefixes:
+
+| Prefix | Business flow |
+| --- | --- |
+| `TOPUP_<id>` | Wallet top-up |
+| `SUBSC_<id>` | Subscription registration or renewal |
+| `XFER_<id>` | Transfer between users |
+| `PAY_<id>` | Service or order payment |
+| `REFUND_<id>` | Refund |
+| `REVERSAL_<id>` | Accounting reversal |
+
+Prefixes are an internal Courier registry: do not reuse a prefix for a different
+business meaning and do not change the prefix of an already-issued invoice. For
+the current SePay Test mode flow, `payment_code` remains separate and follows
+SePay's required `COUR[A-Za-z0-9]{6,8}` format.
 
 ## SePay Sandbox bank webhook contract (captured 2026-08-20)
 
@@ -75,9 +100,11 @@ SePay can retry failed deliveries up to seven times. During local development,
 run `make ngrok`, then update the SePay webhook URL with the public tunnel URL
 displayed by ngrok (or use a reserved ngrok domain).
 
-Before testing, configure SePay's payment-code prefix as `CRTOP_`. The top-up
-API returns that exact payment code as `invoice_number`; simulate an incoming
-transfer with the same code and amount. Set
+Before testing, use the `payment_code` returned by the top-up API. Courier
+generates it in SePay Test mode's accepted format: `COUR` followed by eight
+uppercase alphanumeric characters, for example `COUR5WTAA89W`. `invoice_number`
+remains a separate Courier checkout invoice in the form `CRTOP_<id>`. Simulate
+an incoming transfer with the returned `payment_code` and the same amount. Set
 `PAYMENT_GATEWAY_SEPAY_WEBHOOK_SECRET` to the HMAC secret configured in SePay,
 and list the test receiving account under `sepay.receivingAccountNumbers`.
 
@@ -95,3 +122,17 @@ Set `PAYMENT_GATEWAY_SEPAY_MERCHANT_ID` and
 `PAYMENT_GATEWAY_SEPAY_SECRET_KEY` in the environment before invoking the API.
 Then run `make ngrok` and configure the SePay bank-webhook URL as
 `/api/v1/webhooks/sepay` on the reserved ngrok domain.
+
+## Ignored webhook events
+
+Courier acknowledges ignored events with HTTP 200 so SePay does not retry a
+transaction that cannot become a wallet credit. Inspect
+`"payment-gateway".provider_events.error_code` to identify the reason.
+
+| Error code | Meaning |
+| --- | --- |
+| `topup_intent_not_found` | SePay `code` does not match any `payment_code`. |
+| `amount_mismatch` | SePay transfer amount differs from `amount_minor`. |
+| `topup_not_payable` | Intent is no longer `pending` or is past `expires_at`. |
+| `topup_already_succeeded` | The intent was already credited. |
+| `transaction_not_eligible` | Transaction is not an incoming transfer or does not include a code. |

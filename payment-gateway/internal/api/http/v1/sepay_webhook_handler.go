@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/models"
-	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/sepay"
+	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/providers/sepay"
 )
 
 type SePayWebhookHandler struct {

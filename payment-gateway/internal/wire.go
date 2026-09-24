@@ -12,9 +12,9 @@ import (
 	grpcapi "github.com/vucongthanh92/courier/payment-gateway/internal/api/grpc"
 	httpapi "github.com/vucongthanh92/courier/payment-gateway/internal/api/http"
 	v1 "github.com/vucongthanh92/courier/payment-gateway/internal/api/http/v1"
-	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/interfaces"
+	providers "github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/providers"
+	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/providers/sepay"
 	redisrepo "github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/redis"
-	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/sepay"
 	usergrpc "github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/user_grpc"
 	idempotency "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/idempotency"
 	ledger "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/ledger"
@@ -37,7 +37,7 @@ var repoSet = wire.NewSet(
 	providerEvent.InitProviderEventCmdRepository,
 	ledger.InitLedgerCmdRepository, ledger.InitLedgerQueryRepository,
 	outbox.InitOutboxCmdRepository,
-	sepay.New, wire.Bind(new(interfaces.PaymentGateway), new(*sepay.Provider)),
+	sepay.New, providers.InitPaymentGatewayResolver,
 	redisrepo.InitRedisDenylist, redisrepo.InitJWKCacheRepo, usergrpc.NewGrpcClient,
 )
 var serviceSet = wire.NewSet(

@@ -22,7 +22,7 @@ type topUpUsecase struct {
 	wallet      interfaces.WalletServiceI
 	topUpCmd    interfaces.TopUpCommandRepoI
 	idempotency interfaces.IdempotencyServiceI
-	gateway     interfaces.PaymentGateway
+	resolver    interfaces.PaymentGatewayResolverI
 }
 
 func InitTopUpUsecase(
@@ -30,14 +30,14 @@ func InitTopUpUsecase(
 	wallet interfaces.WalletServiceI,
 	topUpCmd interfaces.TopUpCommandRepoI,
 	idempotency interfaces.IdempotencyServiceI,
-	gateway interfaces.PaymentGateway,
+	resolver interfaces.PaymentGatewayResolverI,
 ) interfaces.TopUpServiceI {
 	return &topUpUsecase{
 		txn:         txn,
 		wallet:      wallet,
 		topUpCmd:    topUpCmd,
 		idempotency: idempotency,
-		gateway:     gateway,
+		resolver:    resolver,
 	}
 }
 
@@ -71,6 +71,11 @@ func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRe
 			return nil
 		}
 
+		gateway, txnErr := u.resolver.Resolve(txCtx, req.ProviderName)
+		if txnErr != nil {
+			return txnErr
+		}
+
 		// Get or create the user's wallet for the top-up operation
 		wallet, txnErr := u.wallet.GetOrCreateWallet(txCtx, req.UserID)
 		if txnErr != nil {
@@ -94,13 +99,22 @@ func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRe
 
 		// Create a unique invoice number for the top-up operation and create a checkout with the payment gateway
 		invoice := fmt.Sprintf("CRTOP_%d", topupID)
-		checkout, gatewayErr := u.gateway.CreateTopUp(txCtx, interfaces.CreateTopUpInput{
+		paymentCode, paymentCodeErr := utils.NewSePayPaymentCode(
+			constants.SePayPaymentCodePrefix,
+			constants.SePayPaymentCodeLength,
+		)
+		if paymentCodeErr != nil {
+			return errHandler.InitErrorBuilder(txCtx).ValidateError(paymentCodeErr)
+		}
+
+		// Call the payment gateway to create a top-up checkout instruction with the generated invoice number and payment code
+		checkout, gatewayErr := gateway.CreateTopUp(txCtx, interfaces.CreateTopUpInput{
 			InvoiceNumber: invoice,
 			AmountMinor:   req.AmountMinor,
 			Currency:      constants.CurrencyVND,
 			Method:        req.Method,
 			CustomerID:    fmt.Sprint(req.UserID),
-			Description:   constants.CourierWalletTopUpDescription,
+			Description:   fmt.Sprintf("%s %s", constants.CourierWalletTopUpDescription, paymentCode),
 		})
 		if gatewayErr != nil {
 			return errHandler.InitErrorBuilder(txCtx).SetStatus(http.StatusUnprocessableEntity).
@@ -117,11 +131,11 @@ func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRe
 			WalletID:              wallet.ID,
 			AmountMinor:           req.AmountMinor,
 			Currency:              constants.CurrencyVND,
-			Provider:              u.gateway.Name(),
+			Provider:              gateway.Name(),
 			Method:                req.Method,
 			Status:                constants.TopupIntentStatusPending,
 			ProviderInvoiceNumber: invoice,
-			PaymentCode:           &invoice,
+			PaymentCode:           &paymentCode,
 			ExpiresAt:             time.Now().UTC().Add(constants.Time_Cache_15_minutes),
 			Metadata:              []byte(`{}`),
 		}
@@ -129,8 +143,9 @@ func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRe
 			return txnErr
 		}
 
+		// Prepare the response with the checkout instruction and top-up details to be returned to the client
 		response = models.CheckoutInstruction{
-			TopUpID: fmt.Sprint(topupID), InvoiceNumber: invoice,
+			TopUpID: fmt.Sprint(topupID), InvoiceNumber: invoice, PaymentCode: paymentCode,
 			ExpiresAt:      intent.ExpiresAt.Format(time.RFC3339),
 			CheckoutAction: checkout.Action, CheckoutFields: checkout.Fields,
 		}
