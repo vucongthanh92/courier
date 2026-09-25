@@ -17,3 +17,26 @@ type AuditLog struct {
 func (AuditLog) TableName() string {
 	return `"payment-gateway".audit_logs`
 }
+
+func NewAuditLog(
+	id uint64,
+	actorType string,
+	actorID *string,
+	action string,
+	resourceType string,
+	resourceID string,
+	ip *string,
+	metadata []byte,
+) *AuditLog {
+	return &AuditLog{
+		ID:           id,
+		ActorType:    actorType,
+		ActorID:      actorID,
+		Action:       action,
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		IP:           ip,
+		Metadata:     metadata,
+		CreatedAt:    time.Now().UTC(),
+	}
+}

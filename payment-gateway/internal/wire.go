@@ -16,12 +16,14 @@ import (
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/providers/sepay"
 	redisrepo "github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/redis"
 	usergrpc "github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/user_grpc"
+	auditlog "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/audit_log"
 	idempotency "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/idempotency"
 	ledger "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/ledger"
 	outbox "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/outbox"
 	providerEvent "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/provider_event"
 	topuprepo "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/topup"
 	wallet "github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/wallet"
+	auditloguc "github.com/vucongthanh92/courier/payment-gateway/internal/usecase/audit_log"
 	idempotencyuc "github.com/vucongthanh92/courier/payment-gateway/internal/usecase/idempotency"
 	topup "github.com/vucongthanh92/courier/payment-gateway/internal/usecase/topup"
 	walletuc "github.com/vucongthanh92/courier/payment-gateway/internal/usecase/wallet"
@@ -34,6 +36,7 @@ var repoSet = wire.NewSet(
 	wallet.InitWalletCmdRepository, wallet.InitWalletQueryRepository,
 	topuprepo.InitTopUpCmdRepository, topuprepo.InitTopUpQueryRepository,
 	idempotency.InitIdempotencyCmdRepository,
+	auditlog.InitAuditLogCmdRepository,
 	providerEvent.InitProviderEventCmdRepository,
 	ledger.InitLedgerCmdRepository, ledger.InitLedgerQueryRepository,
 	outbox.InitOutboxCmdRepository,
@@ -42,11 +45,12 @@ var repoSet = wire.NewSet(
 )
 var serviceSet = wire.NewSet(
 	idempotencyuc.InitIdempotencyUsecase,
+	auditloguc.InitAuditLogUsecase,
 	walletuc.InitWalletUsecase,
 	topup.InitTopUpUsecase,
 	webhook.InitSePayWebhookUsecase,
 )
-var handlerSet = wire.NewSet(v1.InitTopUpHandler, v1.InitSePayWebhookHandler)
+var handlerSet = wire.NewSet(v1.InitTopUpHandler, v1.InitWalletHandler, v1.InitSePayWebhookHandler)
 var apiSet = wire.NewSet(httpapi.NewServer, grpcapi.NewServer, api.NewApiContainer)
 
 func provideSePayConfig(cfg *config.AppConfig) config.SePayConfig { return cfg.SePay }

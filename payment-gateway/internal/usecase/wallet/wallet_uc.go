@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/vucongthanh92/courier/payment-gateway/helper/constants"
@@ -9,11 +10,38 @@ import (
 	"github.com/vucongthanh92/courier/payment-gateway/helper/utils"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/entities"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/interfaces"
+	"github.com/vucongthanh92/courier/payment-gateway/internal/domain/models"
 )
 
 type walletUsecase struct {
 	walletQuery interfaces.WalletQueryRepoI
 	walletCmd   interfaces.WalletCommandRepoI
+}
+
+func (u *walletUsecase) GetBalance(ctx context.Context, userID uint64) (models.WalletBalanceResponse, *errHandler.ErrorBuilder) {
+	snapshot, commonErr := u.walletQuery.GetBalanceByUserAndCurrency(ctx, userID, constants.CurrencyVND)
+	if commonErr != nil {
+		if commonErr.Status == http.StatusNotFound {
+			return models.WalletBalanceResponse{
+				Currency: constants.CurrencyVND,
+				Status:   "not_created",
+			}, nil
+		}
+
+		return models.WalletBalanceResponse{}, commonErr
+	}
+
+	walletID := fmt.Sprint(snapshot.WalletID)
+
+	return models.WalletBalanceResponse{
+		WalletID:       &walletID,
+		Currency:       snapshot.Currency,
+		Status:         snapshot.Status,
+		AvailableMinor: snapshot.AvailableMinor,
+		PendingMinor:   snapshot.PendingMinor,
+		HeldMinor:      snapshot.HeldMinor,
+		UpdatedAt:      &snapshot.UpdatedAt,
+	}, nil
 }
 
 func InitWalletUsecase(

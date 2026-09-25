@@ -18,6 +18,7 @@ import (
 type Server struct {
 	cfg                 *config.AppConfig
 	topUpHandler        *v1.TopUpHandler
+	walletHandler       *v1.WalletHandler
 	sePayWebhookHandler *v1.SePayWebhookHandler
 	jwkCache            cacheRepo.JWKCacheRepo
 	userGrpc            usergrpc.UserGrpcClient
@@ -27,6 +28,7 @@ type Server struct {
 func NewServer(
 	cfg *config.AppConfig,
 	topUpHandler *v1.TopUpHandler,
+	walletHandler *v1.WalletHandler,
 	sePayWebhookHandler *v1.SePayWebhookHandler,
 	jwkCache cacheRepo.JWKCacheRepo,
 	userGrpc usergrpc.UserGrpcClient,
@@ -35,6 +37,7 @@ func NewServer(
 	return &Server{
 		cfg:                 cfg,
 		topUpHandler:        topUpHandler,
+		walletHandler:       walletHandler,
 		sePayWebhookHandler: sePayWebhookHandler,
 		jwkCache:            jwkCache,
 		userGrpc:            userGrpc,
@@ -63,6 +66,7 @@ func (s *Server) Run() {
 	v1.MapRoutes(
 		router,
 		s.topUpHandler,
+		s.walletHandler,
 		s.sePayWebhookHandler,
 		authMW,
 	)

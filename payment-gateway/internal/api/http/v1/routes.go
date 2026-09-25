@@ -9,6 +9,7 @@ import (
 func MapRoutes(
 	router *gin.Engine,
 	topUpHandler *TopUpHandler,
+	walletHandler *WalletHandler,
 	sePayWebhookHandler *SePayWebhookHandler,
 	authMiddleWare gin.HandlerFunc,
 ) {
@@ -26,6 +27,7 @@ func MapRoutes(
 	v1HasAuth.Use(authMiddleWare)
 	{
 		v1HasAuth.POST("/wallet/top-up", topUpHandler.CreateTopUp)
+		v1HasAuth.GET("/wallet/balance", walletHandler.GetBalance)
 	}
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))

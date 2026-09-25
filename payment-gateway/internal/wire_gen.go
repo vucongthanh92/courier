@@ -19,12 +19,14 @@ import (
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/providers/sepay"
 	redis2 "github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/redis"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/external/user_grpc"
+	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/audit_log"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/idempotency"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/ledger"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/outbox"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/provider_event"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/topup"
 	"github.com/vucongthanh92/courier/payment-gateway/internal/repository/persistent/wallet"
+	auditlog2 "github.com/vucongthanh92/courier/payment-gateway/internal/usecase/audit_log"
 	idempotency2 "github.com/vucongthanh92/courier/payment-gateway/internal/usecase/idempotency"
 	topup2 "github.com/vucongthanh92/courier/payment-gateway/internal/usecase/topup"
 	wallet2 "github.com/vucongthanh92/courier/payment-gateway/internal/usecase/wallet"
@@ -45,19 +47,22 @@ func InitializeContainer(cfg *config.AppConfig, readDB *database.GormReadDb, wri
 	sePayConfig := provideSePayConfig(cfg)
 	provider := sepay.New(sePayConfig)
 	paymentGatewayResolverI := providers.InitPaymentGatewayResolver(provider)
-	topUpServiceI := topup2.InitTopUpUsecase(managerTxn, walletServiceI, topUpCommandRepoI, idempotencyServiceI, paymentGatewayResolverI)
+	auditLogCommandRepoI := auditlog.InitAuditLogCmdRepository(writeDB)
+	auditLogServiceI := auditlog2.InitAuditLogUsecase(auditLogCommandRepoI)
+	topUpServiceI := topup2.InitTopUpUsecase(managerTxn, walletServiceI, topUpCommandRepoI, idempotencyServiceI, paymentGatewayResolverI, auditLogServiceI)
 	topUpHandler := v1.InitTopUpHandler(topUpServiceI)
+	walletHandler := v1.InitWalletHandler(walletServiceI)
 	providerEventCommandRepoI := provider_event.InitProviderEventCmdRepository(writeDB)
 	topUpQueryRepoI := topup.InitTopUpQueryRepository(readDB)
 	ledgerQueryRepoI := ledger.InitLedgerQueryRepository(readDB)
 	ledgerCommandRepoI := ledger.InitLedgerCmdRepository(writeDB)
 	outboxCommandRepoI := outbox.InitOutboxCmdRepository(writeDB)
-	sePayWebhookServiceI := webhook.InitSePayWebhookUsecase(managerTxn, provider, providerEventCommandRepoI, topUpQueryRepoI, topUpCommandRepoI, walletCommandRepoI, ledgerQueryRepoI, ledgerCommandRepoI, outboxCommandRepoI)
+	sePayWebhookServiceI := webhook.InitSePayWebhookUsecase(managerTxn, provider, providerEventCommandRepoI, topUpQueryRepoI, topUpCommandRepoI, walletCommandRepoI, ledgerQueryRepoI, ledgerCommandRepoI, outboxCommandRepoI, auditLogServiceI)
 	sePayWebhookHandler := v1.InitSePayWebhookHandler(provider, sePayWebhookServiceI)
 	jwkCacheRepo := redis2.InitJWKCacheRepo(redisClient)
 	userGrpcClient := user_grpc.NewGrpcClient(cfg)
 	tokenDenylistI := redis2.InitRedisDenylist(redisClient)
-	server := http.NewServer(cfg, topUpHandler, sePayWebhookHandler, jwkCacheRepo, userGrpcClient, tokenDenylistI)
+	server := http.NewServer(cfg, topUpHandler, walletHandler, sePayWebhookHandler, jwkCacheRepo, userGrpcClient, tokenDenylistI)
 	grpcServer := grpc.NewServer(cfg)
 	apiContainer := api.NewApiContainer(server, grpcServer)
 	return apiContainer
@@ -65,11 +70,11 @@ func InitializeContainer(cfg *config.AppConfig, readDB *database.GormReadDb, wri
 
 // wire.go:
 
-var repoSet = wire.NewSet(transaction.InitManagerTxn, wallet.InitWalletCmdRepository, wallet.InitWalletQueryRepository, topup.InitTopUpCmdRepository, topup.InitTopUpQueryRepository, idempotency.InitIdempotencyCmdRepository, provider_event.InitProviderEventCmdRepository, ledger.InitLedgerCmdRepository, ledger.InitLedgerQueryRepository, outbox.InitOutboxCmdRepository, sepay.New, providers.InitPaymentGatewayResolver, redis2.InitRedisDenylist, redis2.InitJWKCacheRepo, user_grpc.NewGrpcClient)
+var repoSet = wire.NewSet(transaction.InitManagerTxn, wallet.InitWalletCmdRepository, wallet.InitWalletQueryRepository, topup.InitTopUpCmdRepository, topup.InitTopUpQueryRepository, idempotency.InitIdempotencyCmdRepository, auditlog.InitAuditLogCmdRepository, provider_event.InitProviderEventCmdRepository, ledger.InitLedgerCmdRepository, ledger.InitLedgerQueryRepository, outbox.InitOutboxCmdRepository, sepay.New, providers.InitPaymentGatewayResolver, redis2.InitRedisDenylist, redis2.InitJWKCacheRepo, user_grpc.NewGrpcClient)
 
-var serviceSet = wire.NewSet(idempotency2.InitIdempotencyUsecase, wallet2.InitWalletUsecase, topup2.InitTopUpUsecase, webhook.InitSePayWebhookUsecase)
+var serviceSet = wire.NewSet(idempotency2.InitIdempotencyUsecase, auditlog2.InitAuditLogUsecase, wallet2.InitWalletUsecase, topup2.InitTopUpUsecase, webhook.InitSePayWebhookUsecase)
 
-var handlerSet = wire.NewSet(v1.InitTopUpHandler, v1.InitSePayWebhookHandler)
+var handlerSet = wire.NewSet(v1.InitTopUpHandler, v1.InitWalletHandler, v1.InitSePayWebhookHandler)
 
 var apiSet = wire.NewSet(http.NewServer, grpc.NewServer, api.NewApiContainer)
 
