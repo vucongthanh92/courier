@@ -7,7 +7,7 @@ sequenceDiagram
     participant DB as payment-gateway DB
     participant SP as SePay Sandbox
 
-    Client->>PG: POST /api/v1/wallet/top-ups
+    Client->>PG: POST /api/v1/wallet/top-up
     Note right of Client: Bearer JWT and Idempotency-Key
     PG->>DB: Find/create VND wallet, balance projection and liability account
     PG->>PG: Build ordered SePay fields and HMAC-SHA256 signature
@@ -16,17 +16,17 @@ sequenceDiagram
     Client->>SP: POST checkout form
     SP-->>Client: Hosted Sandbox payment page
     SP->>PG: Bank webhook for matching incoming transfer
-    PG->>DB: Verify, deduplicate, post balanced journal, update balance and outbox
+    PG->>DB: Verify, deduplicate, post journal, update balance, outbox and audit
 ```
 
 ## Current scope
 
-The create-top-up request requires `provider-name`. The basic implementation currently
+The create-top-up request requires `provider_name`. The basic implementation currently
 registers `sepay`, creates the wallet, builds a server-signed SePay Sandbox
 checkout form, then persists the pending intent. The client must POST the returned
 fields to `checkout_action`; the secret key never leaves the service.
 
-`provider-name: "vnpay"` is reserved in the API contract but currently returns
+`provider_name: "vnpay"` is reserved in the API contract but currently returns
 `provider_not_available` until the VNPAY adapter is implemented and registered.
 
 The SePay bank-webhook crediting path validates the HMAC signature and timestamp,
@@ -34,6 +34,10 @@ deduplicates the SePay transaction `id`, matches the payment code and exact
 amount, then atomically persists provider evidence, posts a balanced double-entry
 journal, updates the wallet projection and writes an outbox event. Redirect
 success is never proof of payment.
+
+The authenticated user can retrieve the current projected wallet balance through
+`GET /api/v1/wallet/balance`. The endpoint is read-only; if no VND wallet exists,
+it returns a zero balance with `status: "not_created"`.
 
 ## Courier business invoice prefixes
 
@@ -111,11 +115,11 @@ and list the test receiving account under `sepay.receivingAccountNumbers`.
 ## Local test request
 
 ```bash
-curl -X POST http://localhost:5003/api/v1/wallet/top-ups \
+curl -X POST http://localhost:5003/api/v1/wallet/top-up \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer <courier-jwt>' \
   -H 'Idempotency-Key: 5e6c8b72-9c1c-4b32-a5a1-000000000001' \
-  -d '{"amount_minor":100000,"method":"bank_transfer"}'
+  -d '{"amount_minor":100000,"method":"bank_transfer","provider_name":"sepay"}'
 ```
 
 Set `PAYMENT_GATEWAY_SEPAY_MERCHANT_ID` and

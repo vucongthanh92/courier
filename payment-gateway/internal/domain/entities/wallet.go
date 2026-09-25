@@ -32,3 +32,13 @@ type WalletBalance struct {
 }
 
 func (WalletBalance) TableName() string { return `"payment-gateway".wallet_balances` }
+
+type WalletBalanceSnapshot struct {
+	WalletID       uint64    `gorm:"column:wallet_id"`
+	Currency       string    `gorm:"column:currency"`
+	Status         string    `gorm:"column:status"`
+	AvailableMinor int64     `gorm:"column:available_minor"`
+	PendingMinor   int64     `gorm:"column:pending_minor"`
+	HeldMinor      int64     `gorm:"column:held_minor"`
+	UpdatedAt      time.Time `gorm:"column:updated_at"`
+}

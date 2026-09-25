@@ -363,6 +363,67 @@ input::placeholder {
   margin-top: auto;
 }
 
+.wallet-rail-action {
+  color: #103346;
+  background: linear-gradient(135deg, #a8f8e8, #67cfdd);
+  font-family: Georgia, serif;
+  font-size: 21px;
+  font-style: italic;
+  font-weight: 900;
+}
+
+.wallet-glance {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid rgba(159, 247, 225, 0.27);
+  border-radius: 8px;
+  color: #f7fbff;
+  background: linear-gradient(135deg, rgba(89, 211, 187, 0.19), rgba(73, 122, 233, 0.12));
+  text-align: left;
+}
+
+.wallet-glance:hover {
+  background: linear-gradient(135deg, rgba(89, 211, 187, 0.29), rgba(73, 122, 233, 0.19));
+}
+
+.wallet-glance-mark {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #113547;
+  background: linear-gradient(135deg, #a8f8e8, #67cfdd);
+  font-family: Georgia, serif;
+  font-size: 21px;
+  font-style: italic;
+  font-weight: 900;
+}
+
+.wallet-glance > span:nth-child(2) {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+}
+
+.wallet-glance small {
+  color: rgba(229, 255, 249, 0.66);
+  font-size: 10px;
+}
+
+.wallet-glance strong {
+  font-size: 12px;
+}
+
+.wallet-glance i {
+  color: #a4f6e2;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .conversation-panel,
 .chat-panel,
 .inspector-panel {

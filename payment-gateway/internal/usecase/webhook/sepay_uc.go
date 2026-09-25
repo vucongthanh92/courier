@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -27,6 +28,7 @@ type sePayWebhookUsecase struct {
 	ledgerQuery interfaces.LedgerQueryRepoI
 	ledgerCmd   interfaces.LedgerCommandRepoI
 	outbox      interfaces.OutboxCommandRepoI
+	auditLog    interfaces.AuditLogServiceI
 }
 
 func InitSePayWebhookUsecase(
@@ -39,6 +41,7 @@ func InitSePayWebhookUsecase(
 	ledgerQuery interfaces.LedgerQueryRepoI,
 	ledgerCmd interfaces.LedgerCommandRepoI,
 	outbox interfaces.OutboxCommandRepoI,
+	auditLog interfaces.AuditLogServiceI,
 ) interfaces.SePayWebhookServiceI {
 	return &sePayWebhookUsecase{
 		txn:         txn,
@@ -50,6 +53,7 @@ func InitSePayWebhookUsecase(
 		ledgerQuery: ledgerQuery,
 		ledgerCmd:   ledgerCmd,
 		outbox:      outbox,
+		auditLog:    auditLog,
 	}
 }
 
@@ -231,6 +235,32 @@ func (u *sePayWebhookUsecase) ProcessBankWebhook(ctx context.Context, req models
 			return commonErr
 		}
 
+		auditMetadata, marshalErr := json.Marshal(map[string]any{
+			"amount_minor":            req.TransferAmount,
+			"currency":                constants.CurrencyVND,
+			"journal_id":              journalID,
+			"payment_code":            req.Code,
+			"provider":                constants.SePayProvider,
+			"provider_event_id":       req.ID,
+			"provider_transaction_id": providerTxn.ID,
+			"reference_code":          req.ReferenceCode,
+		})
+		if marshalErr != nil {
+			return errHandler.InitErrorBuilder(txCtx).ValidateError(marshalErr)
+		}
+
+		providerActorID := constants.SePayProvider
+		if commonErr = u.auditLog.Write(txCtx, models.AuditLogInput{
+			ActorType:    "provider",
+			ActorID:      &providerActorID,
+			Action:       "wallet.topup.succeeded",
+			ResourceType: "topup_intent",
+			ResourceID:   fmt.Sprint(intent.ID),
+			Metadata:     auditMetadata,
+		}); commonErr != nil {
+			return commonErr
+		}
+
 		// Mark the provider event as processed to prevent duplicate processing of the same webhook
 		if commonErr = u.events.MarkProcessed(txCtx, eventID); commonErr != nil {
 			return commonErr
@@ -256,6 +286,27 @@ func (u *sePayWebhookUsecase) ProcessIgnore(ctx context.Context, eventID uint64,
 	if err := u.events.MarkIgnored(ctx, eventID, code); err != nil {
 		return err
 	}
+
+	metadata, marshalErr := json.Marshal(map[string]string{
+		"error_code": code,
+		"provider":   constants.SePayProvider,
+	})
+	if marshalErr != nil {
+		return errHandler.InitErrorBuilder(ctx).ValidateError(marshalErr)
+	}
+
+	providerActorID := constants.SePayProvider
+	if err := u.auditLog.Write(ctx, models.AuditLogInput{
+		ActorType:    "provider",
+		ActorID:      &providerActorID,
+		Action:       "wallet.topup.ignored",
+		ResourceType: "provider_event",
+		ResourceID:   fmt.Sprint(eventID),
+		Metadata:     metadata,
+	}); err != nil {
+		return err
+	}
+
 	*result = models.WebhookIgnored
 	return nil
 }

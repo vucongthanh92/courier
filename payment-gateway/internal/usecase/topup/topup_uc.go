@@ -23,6 +23,7 @@ type topUpUsecase struct {
 	topUpCmd    interfaces.TopUpCommandRepoI
 	idempotency interfaces.IdempotencyServiceI
 	resolver    interfaces.PaymentGatewayResolverI
+	auditLog    interfaces.AuditLogServiceI
 }
 
 func InitTopUpUsecase(
@@ -31,6 +32,7 @@ func InitTopUpUsecase(
 	topUpCmd interfaces.TopUpCommandRepoI,
 	idempotency interfaces.IdempotencyServiceI,
 	resolver interfaces.PaymentGatewayResolverI,
+	auditLog interfaces.AuditLogServiceI,
 ) interfaces.TopUpServiceI {
 	return &topUpUsecase{
 		txn:         txn,
@@ -38,6 +40,7 @@ func InitTopUpUsecase(
 		topUpCmd:    topUpCmd,
 		idempotency: idempotency,
 		resolver:    resolver,
+		auditLog:    auditLog,
 	}
 }
 
@@ -143,6 +146,30 @@ func (u *topUpUsecase) CreateTopUp(ctx context.Context, req models.CreateTopUpRe
 		)
 
 		if txnErr = u.topUpCmd.Create(txCtx, &intent); txnErr != nil {
+			return txnErr
+		}
+
+		auditMetadata, marshalErr := json.Marshal(map[string]any{
+			"amount_minor":            req.AmountMinor,
+			"currency":                constants.CurrencyVND,
+			"method":                  req.Method,
+			"payment_code":            paymentCode,
+			"provider":                provider.Name(),
+			"provider_invoice_number": invoice,
+		})
+		if marshalErr != nil {
+			return errHandler.InitErrorBuilder(txCtx).ValidateError(marshalErr)
+		}
+
+		actorID := fmt.Sprint(req.UserID)
+		if txnErr = u.auditLog.Write(txCtx, models.AuditLogInput{
+			ActorType:    "user",
+			ActorID:      &actorID,
+			Action:       "wallet.topup.created",
+			ResourceType: "topup_intent",
+			ResourceID:   fmt.Sprint(intent.ID),
+			Metadata:     auditMetadata,
+		}); txnErr != nil {
 			return txnErr
 		}
 

@@ -69,7 +69,7 @@ curl -sS -X POST http://localhost:5003/api/v1/wallet/top-ups \
   -H "Authorization: Bearer ${COURIER_JWT}" \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: 11111111-2222-4333-8444-555555555555' \
-  -d '{"amount_minor":1000,"method":"bank_transfer"}'
+  -d '{"amount_minor":1000,"method":"bank_transfer","provider_name":"sepay"}'
 ```
 
 Expected response: `201 Created` with a payload like:
@@ -137,9 +137,20 @@ one balanced journal, two ledger entries, one wallet balance update and one
 outbox event. A replay of the same SePay transaction `id` is acknowledged but
 does not credit the wallet again.
 
-## 6. Verify persisted state
+## 6. Verify wallet balance
 
-Until wallet read APIs are added, verify directly in PostgreSQL:
+Read the authenticated user's balance after the successful webhook:
+
+```bash
+curl -sS http://localhost:5003/api/v1/wallet/balance \
+  -H 'Authorization: Bearer <courier-jwt>'
+```
+
+For a credited wallet, `available_minor` increases by the top-up amount. A user
+without a wallet receives `200` with `status: "not_created"` and a zero VND
+balance; this read endpoint never creates a wallet.
+
+For detailed reconciliation, inspect PostgreSQL:
 
 ```sql
 SELECT id, status, amount_minor, payment_code, succeeded_at
@@ -165,6 +176,8 @@ Success criteria:
 - `available_minor` increased by `1000` exactly once.
 - Journal has `source_type = external_provider` and `source_provider = sepay`.
 - Ledger contains equal debit and credit entries of `1000` VND.
+- Audit logs include `wallet.topup.created` and `wallet.topup.succeeded` for a
+  successful flow, or `wallet.topup.ignored` for an acknowledged invalid event.
 
 ## Negative checks
 

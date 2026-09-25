@@ -4,6 +4,8 @@ export const USER_API_BASE_URL =
 export const CHAT_API_BASE_URL =
   import.meta.env.VITE_CHAT_API_BASE_URL ?? "http://localhost:5002/api/v1";
 
+export const FLIKK_APP_URL = import.meta.env.VITE_FLIKK_APP_URL ?? "http://localhost:8081";
+
 function toWebSocketUrl(httpUrl: string) {
   const url = new URL(httpUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";

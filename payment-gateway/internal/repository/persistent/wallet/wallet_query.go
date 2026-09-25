@@ -25,3 +25,19 @@ func (r *walletQueryRepository) GetByUserAndCurrency(ctx context.Context, userID
 	}
 	return &e, nil
 }
+
+func (r *walletQueryRepository) GetBalanceByUserAndCurrency(ctx context.Context, userID uint64, currency string) (*entities.WalletBalanceSnapshot, *errHandler.ErrorBuilder) {
+	var snapshot entities.WalletBalanceSnapshot
+
+	err := transaction.RunnerFromCtx(ctx, r.readDB).
+		Table(`"payment-gateway".wallets AS wallets`).
+		Select(`wallets.id AS wallet_id, wallets.currency, wallets.status, balances.available_minor, balances.pending_minor, balances.held_minor, balances.updated_at`).
+		Joins(`JOIN "payment-gateway".wallet_balances AS balances ON balances.wallet_id = wallets.id`).
+		Where("wallets.user_id = ? AND wallets.currency = ?", userID, currency).
+		Take(&snapshot).Error
+	if err != nil {
+		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+	}
+
+	return &snapshot, nil
+}

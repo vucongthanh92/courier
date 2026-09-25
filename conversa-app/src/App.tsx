@@ -1,6 +1,7 @@
 import { FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   APP_OAUTH_CALLBACK_BASE_URL,
+  FLIKK_APP_URL,
   GITHUB_OAUTH_CLIENT_ID,
   GITHUB_OAUTH_REDIRECT_URI,
   GOOGLE_OAUTH_CLIENT_ID,
@@ -643,6 +644,12 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
     });
   }
 
+  function openFlikkWallet() {
+    const destination = new URL(FLIKK_APP_URL);
+    destination.searchParams.set("return_to", window.location.href);
+    window.location.assign(destination.toString());
+  }
+
   return (
     <main className={`messenger-shell ${inspectorVisible ? "" : "inspector-collapsed"}`}>
       <div className="aurora aurora-a" />
@@ -655,6 +662,7 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
         <button className="rail-action" title="Friends">+</button>
         <button className="rail-action" title="Groups">#</button>
         <button className="rail-action" title="Notifications">.</button>
+        <button className="rail-action wallet-rail-action" title="Open Flikk wallet" onClick={openFlikkWallet}>f</button>
         <button className="rail-action bottom" title="Logout" onClick={onLogout}>
           Q
         </button>
@@ -677,6 +685,15 @@ function MessengerShell({ session, onLogout }: { session: Session; onLogout: () 
           </div>
           <span className={`live-dot status-${realtimeStatus}`} />
         </section>
+
+        <button className="wallet-glance" type="button" onClick={openFlikkWallet}>
+          <span className="wallet-glance-mark">f</span>
+          <span>
+            <small>Courier wallet</small>
+            <strong>Open Flikk</strong>
+          </span>
+          <i>↗</i>
+        </button>
 
         <label className="space-search">
           <span>Search</span>
