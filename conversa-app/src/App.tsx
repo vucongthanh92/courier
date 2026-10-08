@@ -5,7 +5,9 @@ import {
   GITHUB_OAUTH_CLIENT_ID,
   GITHUB_OAUTH_REDIRECT_URI,
   GOOGLE_OAUTH_CLIENT_ID,
-  GOOGLE_OAUTH_REDIRECT_URI
+  GOOGLE_OAUTH_REDIRECT_URI,
+  SSO_CLIENT_ID,
+  SSO_REDIRECT_URI
 } from "./config";
 import { AUTH_UNAUTHORIZED_EVENT, authApi, chatApi, userApi } from "./lib/api";
 import { RealtimeClient, type RealtimeStatus } from "./lib/realtime";
@@ -15,6 +17,8 @@ import type { Conversation, ListMessagesResponse, Message, OAuthProvider, Realti
 
 type AuthMode = "login" | "signup" | "verify";
 const OAUTH_STATE_KEY = "conversa.oauth.state";
+const SSO_STATE_KEY = "conversa.sso.state";
+const SSO_VERIFIER_KEY = "conversa.sso.verifier";
 
 export function App() {
   const [session, setSession] = useState<Session | null>(() => readSession());
@@ -59,6 +63,39 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Session) =
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const isSsoCallback = window.location.pathname === new URL(SSO_REDIRECT_URI).pathname;
+    const ssoCode = params.get("code");
+    const ssoState = params.get("state");
+    const storedSsoState = sessionStorage.getItem(SSO_STATE_KEY) ?? localStorage.getItem(SSO_STATE_KEY);
+    const codeVerifier = sessionStorage.getItem(SSO_VERIFIER_KEY) ?? localStorage.getItem(SSO_VERIFIER_KEY);
+
+    if (isSsoCallback && ssoCode) {
+      if (!ssoState || !storedSsoState || ssoState !== storedSsoState || !codeVerifier) {
+        setError("SSO session is invalid. Please try again.");
+        return;
+      }
+
+      setLoading(true);
+      authApi.ssoToken({
+        grant_type: "authorization_code",
+        client_id: SSO_CLIENT_ID,
+        code: ssoCode,
+        redirect_uri: SSO_REDIRECT_URI,
+        code_verifier: codeVerifier
+      })
+        .then((response) => {
+          clearSsoState();
+          onAuthenticated(saveSession(response));
+          window.history.replaceState({}, document.title, "/");
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : "SSO login failed");
+          window.history.replaceState({}, document.title, "/");
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
+
     const providerFromPath = window.location.pathname.match(/\/oauth\/callback\/(google|github)$/)?.[1] as OAuthProvider | undefined;
     const provider = providerFromPath ?? (params.get("provider") as OAuthProvider | null);
     const code = params.get("code");
@@ -118,8 +155,13 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Session) =
 
     try {
       if (mode === "login") {
-        const response = await authApi.login({ email, password });
-        onAuthenticated(saveSession(response));
+        const authorizeQuery = await createSsoAuthorizeQuery();
+        const response = await authApi.ssoLogin({
+          email,
+          password,
+          authorize_query: authorizeQuery
+        });
+        window.location.assign(response.redirect_uri);
         return;
       }
       if (mode === "signup") {
@@ -296,6 +338,60 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Session) =
 
 function getOAuthRedirectUri(provider: OAuthProvider) {
   return provider === "google" ? GOOGLE_OAUTH_REDIRECT_URI : GITHUB_OAUTH_REDIRECT_URI;
+}
+
+async function createSsoAuthorizeQuery() {
+  const state = crypto.randomUUID();
+  const nonce = crypto.randomUUID();
+  const verifier = createCodeVerifier();
+  const challenge = await createCodeChallenge(verifier);
+  saveSsoState(state, verifier);
+
+  const query = new URLSearchParams({
+    client_id: SSO_CLIENT_ID,
+    redirect_uri: SSO_REDIRECT_URI,
+    response_type: "code",
+    scope: "openid profile email",
+    state,
+    nonce,
+    code_challenge: challenge,
+    code_challenge_method: "S256"
+  });
+  return query.toString();
+}
+
+function createCodeVerifier() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return base64UrlEncode(bytes);
+}
+
+async function createCodeChallenge(verifier: string) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+function base64UrlEncode(bytes: Uint8Array) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return window.btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function saveSsoState(state: string, verifier: string) {
+  sessionStorage.setItem(SSO_STATE_KEY, state);
+  sessionStorage.setItem(SSO_VERIFIER_KEY, verifier);
+  localStorage.setItem(SSO_STATE_KEY, state);
+  localStorage.setItem(SSO_VERIFIER_KEY, verifier);
+}
+
+function clearSsoState() {
+  sessionStorage.removeItem(SSO_STATE_KEY);
+  sessionStorage.removeItem(SSO_VERIFIER_KEY);
+  localStorage.removeItem(SSO_STATE_KEY);
+  localStorage.removeItem(SSO_VERIFIER_KEY);
 }
 
 function saveOAuthState(state: string) {

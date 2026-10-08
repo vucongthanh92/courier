@@ -66,18 +66,6 @@ func LowerInitial(fields []string) (results []string) {
 	return results
 }
 
-// https://play.golang.org/p/Qg_uv_inCek
-// contains checks if a string is present in a slice
-func Contains[T comparable](s []T, str T) bool {
-	for _, v := range s {
-		if v == str {
-			return true
-		}
-	}
-
-	return false
-}
-
 func RemoveNanoMilisecondTime(val time.Time) time.Time {
 	result := val.Format(time.RFC3339)
 	value, _ := time.Parse(time.RFC3339, result)

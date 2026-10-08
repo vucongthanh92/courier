@@ -22,6 +22,8 @@ import (
 	"go.uber.org/zap"
 )
 
+type clientIPContextKey struct{}
+
 func SafeGo(f func()) {
 	go func() {
 		defer HandlePanic()
@@ -69,6 +71,17 @@ func GetUserAgent(ctx context.Context) string {
 // GetClientIP retrieves the client's IP address from the context, checking common proxy headers.
 // It checks the following headers in order: X-Forwarded-For, X-Real-IP, True-Client-IP.
 func GetClientIP(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+
+	if ginCtx, ok := ctx.(*gin.Context); ok {
+		return strings.TrimSpace(ginCtx.ClientIP())
+	}
+
+	if clientIP, ok := ctx.Value(clientIPContextKey{}).(string); ok && clientIP != "" {
+		return strings.TrimSpace(clientIP)
+	}
 
 	// Common proxy headers, ordered by trust/preference
 	if xff := GetHeaderFromKey(ctx, "headers", "X-Forwarded-For"); xff != "" {
@@ -85,11 +98,6 @@ func GetClientIP(ctx context.Context) string {
 
 	if tcip := GetHeaderFromKey(ctx, "headers", "True-Client-IP"); tcip != "" {
 		return strings.TrimSpace(tcip)
-	}
-
-	headers := httpreq.GetHeaderFromContext(ctx, "headers")
-	if ua := headers["X-Request-Id"]; len(ua) > 0 {
-		return ua[0]
 	}
 
 	return ""
@@ -153,7 +161,8 @@ func StrValue(s *string) string {
 
 // SetHeaderByKey sets the header from the gin context to a new context with the specified key.
 func SetHeaderByKey(c *gin.Context, key string) context.Context {
-	return utils.SetHeaderToContext(c, key)
+	ctx := utils.SetHeaderToContext(c, key)
+	return context.WithValue(ctx, clientIPContextKey{}, c.ClientIP())
 }
 
 // ParseUserID converts the sub claim to uint64 safely.
@@ -170,4 +179,14 @@ func ParseUserID(sub any) uint64 {
 	default:
 		return 0
 	}
+}
+
+func Contains[T comparable](values []T, target T) bool {
+	for _, v := range values {
+		if v == target {
+			return true
+		}
+	}
+
+	return false
 }

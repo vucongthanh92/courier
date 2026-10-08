@@ -43,6 +43,25 @@ Flow:
 - `user-service` exchanges the code and redirects back to `conversa-app` with the Courier JWT session in the URL fragment.
 - The app saves the session and enters the chat shell.
 
+## Courier SSO Login
+
+Email/password login now uses the Courier SSO foundation:
+
+- `conversa-app` generates a PKCE verifier/challenge and state.
+- The app calls `POST /api/v1/sso/login` with the login form values and encoded authorize request.
+- `user-service` validates the user, creates an HttpOnly SSO cookie, and returns a redirect URI with an authorization code.
+- `conversa-app` opens the callback URI and exchanges the code through `POST /api/v1/sso/token`.
+- The token response includes `access_token`, `refresh_token`, and OIDC `id_token`.
+
+Additional env values:
+
+```env
+VITE_SSO_CLIENT_ID=conversa-web
+VITE_SSO_REDIRECT_URI=http://localhost:8080/oauth/callback/courier
+```
+
+This SSO session is what lets a future `flikk-app` redirect through `user-service` and obtain its own app tokens without asking the user to log in again.
+
 ## New Conversation Modal
 
 The plus button in the left rail opens the "New Conversation" modal.

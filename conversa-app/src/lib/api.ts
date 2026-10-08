@@ -10,6 +10,9 @@ import type {
   Message,
   OAuthProvider,
   SearchUserResult,
+  SsoLoginRequest,
+  SsoLoginResponse,
+  SsoTokenRequest,
   SignupRequest,
   VerifyEmailRequest
 } from "../types";
@@ -18,6 +21,7 @@ type RequestOptions = {
   token?: string;
   method?: string;
   body?: unknown;
+  credentials?: RequestCredentials;
 };
 
 export const AUTH_UNAUTHORIZED_EVENT = "conversa:auth-unauthorized";
@@ -29,6 +33,7 @@ async function request<T>(baseUrl: string, path: string, options: RequestOptions
       "Content-Type": "application/json",
       ...(options.token ? { Authorization: `Bearer ${options.token}` } : {})
     },
+    credentials: options.credentials,
     body: options.body ? JSON.stringify(options.body) : undefined
   });
 
@@ -76,6 +81,19 @@ export const authApi = {
   oauthCallback(provider: OAuthProvider, code: string, redirectUri: string) {
     const query = new URLSearchParams({ code, redirect_uri: redirectUri });
     return request<JwtTokenResponse>(USER_API_BASE_URL, `/auth/identity/${provider}/callback?${query.toString()}`);
+  },
+  ssoLogin(body: SsoLoginRequest) {
+    return request<SsoLoginResponse>(USER_API_BASE_URL, "/sso/login", {
+      method: "POST",
+      body,
+      credentials: "include"
+    });
+  },
+  ssoToken(body: SsoTokenRequest) {
+    return request<JwtTokenResponse>(USER_API_BASE_URL, "/sso/token", {
+      method: "POST",
+      body
+    });
   }
 };
 

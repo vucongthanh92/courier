@@ -115,3 +115,29 @@ oauth:
     client_id: ${OAUTH_GITHUB_CLIENT_ID}
     client_secret: ${OAUTH_GITHUB_CLIENT_SECRET}
     api_base: "https://api.github.com"
+sso:
+  cookie_name: courier_sso
+  cookie_domain: ""
+  cookie_secure: false
+  cookie_same_site: lax
+  session_ttl_minutes: 43200
+  code_ttl_seconds: 120
+  id_token_ttl_minutes: 30
+  login_url: "http://localhost:8080/login"
+  clients:
+    - client_id: conversa-web
+      name: Conversa Web
+      redirect_uris:
+        - "http://localhost:8080/oauth/callback/courier"
+      scopes:
+        - openid
+        - profile
+        - email
+    - client_id: flikk-web
+      name: Flikk Web
+      redirect_uris:
+        - "http://localhost:8082/oauth/callback/courier"
+      scopes:
+        - openid
+        - profile
+        - email

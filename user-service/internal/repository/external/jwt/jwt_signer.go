@@ -35,15 +35,37 @@ func InitJWTSigner(jwk entities.JWKKey, log logger.Logger) (interfaces.JWTSigner
 
 // SignAccessToken implements interfaces.JWTSignerI
 func (s *jwtSigner) SignAccessToken(user entities.User, now time.Time, ttl time.Duration) (string, *errHandler.ErrorBuilder) {
+	return s.SignAccessTokenForClient(user, now, ttl, "", "", "user")
+}
+
+func (s *jwtSigner) SignAccessTokenForClient(
+	user entities.User,
+	now time.Time,
+	ttl time.Duration,
+	clientID string,
+	sessionID string,
+	scope string,
+) (string, *errHandler.ErrorBuilder) {
 	jti, _ := utils.NewSnowflakeID()
+	if scope == "" {
+		scope = "user"
+	}
+
 	claims := jwt.MapClaims{
 		"sub":   fmt.Sprintf("%d", user.ID),
 		"email": user.Email,
-		"scope": "user",
+		"scope": scope,
 		"iat":   now.Unix(),
 		"exp":   now.Add(ttl).Unix(),
 		"jti":   fmt.Sprintf("%d", jti),
 		"iss":   s.issuer,
+	}
+	if clientID != "" {
+		claims["aud"] = clientID
+		claims["client_id"] = clientID
+	}
+	if sessionID != "" {
+		claims["sid"] = sessionID
 	}
 
 	// Sign the token with the RSA private key
@@ -53,6 +75,50 @@ func (s *jwtSigner) SignAccessToken(user entities.User, now time.Time, ttl time.
 	}
 
 	// Sign the token and return the signed string
+	signed, err := token.SignedString(s.privateKey)
+	if err != nil {
+		return "", errHandler.InitErrorBuilder(nil).SetLogError(err).SetStatus(500)
+	}
+
+	return signed, nil
+}
+
+func (s *jwtSigner) SignIDToken(
+	user entities.User,
+	now time.Time,
+	ttl time.Duration,
+	audience string,
+	nonce string,
+	authTime time.Time,
+	sessionID string,
+) (string, *errHandler.ErrorBuilder) {
+	jti, _ := utils.NewSnowflakeID()
+	claims := jwt.MapClaims{
+		"iss":                s.issuer,
+		"sub":                fmt.Sprintf("%d", user.ID),
+		"aud":                audience,
+		"email":              user.Email,
+		"email_verified":     user.EmailVerified,
+		"name":               user.DisplayName,
+		"preferred_username": user.DisplayName,
+		"picture":            user.AvatarURL,
+		"auth_time":          authTime.Unix(),
+		"iat":                now.Unix(),
+		"exp":                now.Add(ttl).Unix(),
+		"jti":                fmt.Sprintf("%d", jti),
+	}
+	if nonce != "" {
+		claims["nonce"] = nonce
+	}
+	if sessionID != "" {
+		claims["sid"] = sessionID
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	if s.kid != "" {
+		token.Header["kid"] = s.kid
+	}
+
 	signed, err := token.SignedString(s.privateKey)
 	if err != nil {
 		return "", errHandler.InitErrorBuilder(nil).SetLogError(err).SetStatus(500)

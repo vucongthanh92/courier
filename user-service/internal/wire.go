@@ -21,6 +21,7 @@ import (
 	credentialUc "github.com/vucongthanh92/courier/user-service/internal/usecase/credential"
 	identityUc "github.com/vucongthanh92/courier/user-service/internal/usecase/identity"
 	outboxUc "github.com/vucongthanh92/courier/user-service/internal/usecase/outbox"
+	ssoUc "github.com/vucongthanh92/courier/user-service/internal/usecase/sso"
 	tokenUc "github.com/vucongthanh92/courier/user-service/internal/usecase/token"
 	userUc "github.com/vucongthanh92/courier/user-service/internal/usecase/user"
 
@@ -32,6 +33,7 @@ import (
 	jwkRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/jwk"
 	outboxRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/outbox"
 	refreshTokenRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/refresh_token"
+	ssoRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/sso"
 	userRepo "github.com/vucongthanh92/courier/user-service/internal/repository/persistent/user"
 
 	// external repositories
@@ -79,6 +81,7 @@ var handlerSet = wire.NewSet(
 	v1.InitAuthHandler,
 	v1.InitCredentialHandler,
 	v1.InitUserHandler,
+	v1.InitSsoHandler,
 )
 
 var serviceSet = wire.NewSet(
@@ -89,6 +92,7 @@ var serviceSet = wire.NewSet(
 	outboxUc.InitOutboxUsecase,
 	tokenUc.InitTokenUseCase,
 	credentialUc.InitCredentialUseCase,
+	ssoUc.InitSsoUseCase,
 	userUc.InitUserUsecase,
 )
 
@@ -109,6 +113,10 @@ var repoSet = wire.NewSet(
 	outboxRepo.InitOutboxQueryRepository,
 	refreshTokenRepo.InitRefreshTokenCmdRepository,
 	refreshTokenRepo.InitRefreshTokenQueryRepository,
+	ssoRepo.InitSsoSessionCommandRepo,
+	ssoRepo.InitSsoSessionQueryRepo,
+	ssoRepo.InitSsoAuthorizationCodeCommandRepo,
+	ssoRepo.InitSsoAuthorizationCodeQueryRepo,
 	jwkRepo.InitJWKQueryRepository,
 
 	// external repo

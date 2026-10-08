@@ -25,6 +25,7 @@ type AppConfig struct {
 	Email          *EmailConfig          `mapstructure:"email"`
 	Loki           *LokiConfig           `mapstructure:"loki"`
 	OAuth          *OAuthConfig          `mapstructure:"oauth"`
+	SSO            *SSOConfig            `mapstructure:"sso"`
 }
 
 // GrpcClientConfig holds the configuration for gRPC clients that this service will call,
@@ -261,4 +262,23 @@ type OAuthConfig struct {
 		ClientSecret string `mapstructure:"client_secret"`
 		APIBase      string `mapstructure:"api_base"`
 	} `mapstructure:"github"`
+}
+
+type SSOConfig struct {
+	CookieName        string            `mapstructure:"cookie_name"`
+	CookieDomain      string            `mapstructure:"cookie_domain"`
+	CookieSecure      bool              `mapstructure:"cookie_secure"`
+	CookieSameSite    string            `mapstructure:"cookie_same_site"`
+	SessionTTLMinutes int               `mapstructure:"session_ttl_minutes"`
+	CodeTTLSeconds    int               `mapstructure:"code_ttl_seconds"`
+	IDTokenTTLMinutes int               `mapstructure:"id_token_ttl_minutes"`
+	LoginURL          string            `mapstructure:"login_url"`
+	Clients           []SSOClientConfig `mapstructure:"clients"`
+}
+
+type SSOClientConfig struct {
+	ClientID     string   `mapstructure:"client_id"`
+	Name         string   `mapstructure:"name"`
+	RedirectURIs []string `mapstructure:"redirect_uris"`
+	Scopes       []string `mapstructure:"scopes"`
 }
