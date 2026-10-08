@@ -6,11 +6,11 @@ IMAGE_TAG ?= dev
 COURIER_GO_SERVICES ?= user-service chat-service agent-gateway
 # COURIER_GO_SERVICES ?= user-service
 
-COURIER_FRONTEND_APPS ?= conversa-app
+COURIER_FRONTEND_APPS ?= conversa-app flikk-app
 COURIER_RUNTIME_DIR ?= .courier
 COURIER_PID_FILE ?= $(COURIER_RUNTIME_DIR)/pids
 
-.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up kafka-up kafka-init kafka-topics run-user-service run-chat-service run-agent-gateway run-conversa-app start-courier stop-courier
+.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up kafka-up kafka-init kafka-topics run-user-service run-chat-service run-agent-gateway run-conversa-app run-flikk-app start-courier stop-courier
 
 kind-create:
 	kind create cluster --name $(KIND_CLUSTER) --config infra/kind/courier-dev.yaml
@@ -57,6 +57,9 @@ run-agent-gateway:
 
 run-conversa-app:
 	pnpm --dir conversa-app dev
+
+run-flikk-app:
+	pnpm --dir flikk-app dev
 
 start-courier:
 	@echo "Starting Courier local apps..."

@@ -20,7 +20,7 @@ http:
   development: true
   shutdownTimeout: 15
   resources: ["pkg/lang/en.json",	"pkg/lang/fr.json",	"pkg/lang/vi.json"]
-  allowOrigins: [ "http://localhost:8080" ]
+  allowOrigins: [ "http://localhost:8080", "http://localhost:8081" ]
 grpc:
   port: :6001
   development: true
@@ -136,7 +136,7 @@ sso:
     - client_id: flikk-web
       name: Flikk Web
       redirect_uris:
-        - "http://localhost:8082/oauth/callback/courier"
+        - "http://localhost:8081/oauth/callback/courier"
       scopes:
         - openid
         - profile

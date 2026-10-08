@@ -3,6 +3,7 @@ development: true
 http:
   port: ":5003"
   shutdownTimeout: 15
+  allowOrigins: [ "http://localhost:8080", "http://localhost:8081" ]
 healthcheck:
   port: ":5103"
 database:

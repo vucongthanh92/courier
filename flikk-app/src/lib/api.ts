@@ -1,5 +1,15 @@
-import { PAYMENT_GATEWAY_API_BASE_URL } from "../config";
-import type { ApiResponse, CheckoutInstruction, WalletBalance } from "../types";
+import { PAYMENT_GATEWAY_API_BASE_URL, USER_API_BASE_URL } from "../config";
+import type { ApiResponse, CheckoutInstruction, JwtTokenResponse, SsoTokenRequest, WalletBalance } from "../types";
+
+export class ApiRequestError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+  }
+}
 
 async function request<T>(path: string, token: string, init: RequestInit = {}) {
   const response = await fetch(`${PAYMENT_GATEWAY_API_BASE_URL}${path}`, {
@@ -14,7 +24,26 @@ async function request<T>(path: string, token: string, init: RequestInit = {}) {
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
   if (!response.ok || !payload?.success || payload.data === null) {
     const message = payload?.errors?.map((error) => error.message).filter(Boolean).join(", ");
-    throw new Error(message || `Request failed with status ${response.status}`);
+    throw new ApiRequestError(message || `Request failed with status ${response.status}`, response.status);
+  }
+
+  return payload.data;
+}
+
+async function userRequest<T>(path: string, init: RequestInit = {}) {
+  const response = await fetch(`${USER_API_BASE_URL}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...init.headers
+    },
+    body: init.body
+  });
+
+  const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+  if (!response.ok || !payload?.success || payload.data === null) {
+    const message = payload?.errors?.map((error) => error.message).filter(Boolean).join(", ");
+    throw new ApiRequestError(message || `Request failed with status ${response.status}`, response.status);
   }
 
   return payload.data;
@@ -33,6 +62,15 @@ export const walletApi = {
         method: "bank_transfer",
         provider_name: "sepay"
       })
+    });
+  }
+};
+
+export const authApi = {
+  ssoToken(body: SsoTokenRequest) {
+    return userRequest<JwtTokenResponse>("/sso/token", {
+      method: "POST",
+      body: JSON.stringify(body)
     });
   }
 };

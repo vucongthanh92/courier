@@ -1,9 +1,17 @@
 export const PAYMENT_GATEWAY_API_BASE_URL =
   import.meta.env.VITE_PAYMENT_GATEWAY_API_BASE_URL ?? "http://localhost:5003/api/v1";
 
+export const USER_API_BASE_URL =
+  import.meta.env.VITE_USER_API_BASE_URL ?? "http://localhost:5001/api/v1";
+
 export const STANDALONE_ACCESS_TOKEN = import.meta.env.VITE_COURIER_ACCESS_TOKEN ?? "";
 
 export const CONVERSA_APP_URL = import.meta.env.VITE_CONVERSA_APP_URL ?? "http://localhost:8080";
+
+export const SSO_CLIENT_ID = import.meta.env.VITE_SSO_CLIENT_ID ?? "flikk-web";
+
+export const SSO_REDIRECT_URI =
+  import.meta.env.VITE_SSO_REDIRECT_URI ?? `${window.location.origin}/oauth/callback/courier`;
 
 export function conversaDestination() {
   const configured = new URL(CONVERSA_APP_URL);

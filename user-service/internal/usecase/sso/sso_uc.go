@@ -76,7 +76,21 @@ func (s *SsoUseCase) Authorize(
 
 	// Check for an active SSO session using the provided session token
 	if sessionToken == "" {
-		return nil, badRequest(ctx, "missing_sso_session", "Missing SSO session")
+		if req.Prompt == "none" {
+			return &models.SsoAuthorizeResponse{RedirectURI: s.oauthErrorRedirect(req.RedirectURI, req.State, "login_required")}, nil
+		}
+
+		return &models.SsoAuthorizeResponse{RedirectURI: utils.LoginRedirect(
+			s.cfg.LoginURL,
+			req.ClientID,
+			req.RedirectURI,
+			req.ResponseType,
+			req.Scope,
+			req.State,
+			req.Nonce,
+			req.CodeChallenge,
+			req.CodeChallengeMethod,
+		)}, nil
 	}
 	session, commonErr := s.sessionQuery.GetActiveByHash(ctx, utils.HashSecret(sessionToken), time.Now())
 	if commonErr != nil {

@@ -155,7 +155,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (session: Session) =
 
     try {
       if (mode === "login") {
-        const authorizeQuery = await createSsoAuthorizeQuery();
+        const authorizeQuery = await getLoginAuthorizeQuery();
         const response = await authApi.ssoLogin({
           email,
           password,
@@ -358,6 +358,15 @@ async function createSsoAuthorizeQuery() {
     code_challenge_method: "S256"
   });
   return query.toString();
+}
+
+async function getLoginAuthorizeQuery() {
+  const existingAuthorizeQuery = new URLSearchParams(window.location.search).get("sso_authorize");
+  if (existingAuthorizeQuery) {
+    return existingAuthorizeQuery;
+  }
+
+  return createSsoAuthorizeQuery();
 }
 
 function createCodeVerifier() {
