@@ -29,3 +29,8 @@ export const GITHUB_OAUTH_REDIRECT_URI =
 
 export const APP_OAUTH_CALLBACK_BASE_URL =
   import.meta.env.VITE_APP_OAUTH_CALLBACK_BASE_URL ?? `${window.location.origin}/oauth/callback`;
+
+export const SSO_CLIENT_ID = import.meta.env.VITE_SSO_CLIENT_ID ?? "conversa-web";
+
+export const SSO_REDIRECT_URI =
+  import.meta.env.VITE_SSO_REDIRECT_URI ?? `${window.location.origin}/oauth/callback/courier`;

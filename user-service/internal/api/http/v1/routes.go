@@ -12,6 +12,7 @@ func MapRoutes(
 	credentialHandler *CredentialHandler,
 	identityHandler *IdentityHandler,
 	userHandler *UserHandler,
+	ssoHandler *SsoHandler,
 	authMiddleWare gin.HandlerFunc,
 ) {
 
@@ -27,6 +28,15 @@ func MapRoutes(
 		// Routes for 3rd party OAuth login
 		auth.POST("/identity/:provider", identityHandler.OAuthLogin)
 		auth.GET("/identity/:provider/callback", identityHandler.OAuthCallback)
+	}
+
+	sso := router.Group("/api/v1/sso")
+	{
+		sso.GET("/authorize", ssoHandler.Authorize)
+		sso.POST("/login", ssoHandler.Login)
+		sso.POST("/token", ssoHandler.Token)
+		sso.GET("/session", ssoHandler.Session)
+		sso.POST("/logout", ssoHandler.Logout)
 	}
 
 	// Protected routes

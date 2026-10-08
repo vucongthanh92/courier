@@ -10,6 +10,7 @@ type JwtTokenResponse struct {
 	ExpiresIn         int64                      `json:"expires_in"`
 	RefreshToken      string                     `json:"refresh_token"`
 	RefreshExpiresIn  int64                      `json:"refresh_expires_in"`
+	IDToken           string                     `json:"id_token,omitempty"`
 	TokenType         string                     `json:"token_type"`
 	NeedPasswordSetup bool                       `json:"need_password_setup,omitempty"`
 	User              *AuthenticatedUserResponse `json:"user,omitempty"`

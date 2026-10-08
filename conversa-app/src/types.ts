@@ -9,6 +9,7 @@ export type JwtTokenResponse = {
   expires_in: number;
   refresh_token: string;
   refresh_expires_in: number;
+  id_token?: string;
   token_type: string;
   need_password_setup?: boolean;
   user?: AuthenticatedUser;
@@ -38,6 +39,24 @@ export type VerifyEmailRequest = {
 };
 
 export type OAuthProvider = "google" | "github";
+
+export type SsoLoginRequest = {
+  email: string;
+  password: string;
+  authorize_query: string;
+};
+
+export type SsoLoginResponse = {
+  redirect_uri: string;
+};
+
+export type SsoTokenRequest = {
+  grant_type: "authorization_code";
+  client_id: string;
+  code: string;
+  redirect_uri: string;
+  code_verifier: string;
+};
 
 export type Conversation = {
   id: string;

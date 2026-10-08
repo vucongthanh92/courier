@@ -62,3 +62,46 @@ VITE_GOOGLE_OAUTH_REDIRECT_URI=http://localhost:5001/api/v1/auth/identity/google
 VITE_GITHUB_OAUTH_REDIRECT_URI=http://localhost:5001/api/v1/auth/identity/github/callback
 VITE_APP_OAUTH_CALLBACK_BASE_URL=http://localhost:8080/oauth/callback
 ```
+
+## SSO / OIDC Foundation
+
+`user-service` also exposes a Courier-owned SSO flow for first-party apps such as `conversa-app` and `flikk-app`.
+
+Phase-1 decisions:
+
+- Browser apps use Authorization Code + PKCE.
+- `user-service` stores an HttpOnly `courier_sso` cookie for the shared SSO browser session.
+- Token exchange returns `access_token`, `refresh_token`, and OIDC `id_token`.
+- Global logout revokes the SSO session and all refresh tokens for the user.
+- The login UI remains in `conversa-app` for now.
+
+Endpoints:
+
+```text
+GET  /api/v1/sso/authorize
+POST /api/v1/sso/login
+POST /api/v1/sso/token
+GET  /api/v1/sso/session
+POST /api/v1/sso/logout
+```
+
+Local clients are configured under `sso.clients` in `config/<env>/config.yaml`.
+
+Example local clients:
+
+```yaml
+sso:
+  cookie_name: courier_sso
+  login_url: "http://localhost:8080/login"
+  clients:
+    - client_id: conversa-web
+      redirect_uris:
+        - "http://localhost:8080/oauth/callback/courier"
+      scopes: [openid, profile, email]
+    - client_id: flikk-web
+      redirect_uris:
+        - "http://localhost:8082/oauth/callback/courier"
+      scopes: [openid, profile, email]
+```
+
+The full flow diagrams are documented in `docs/sso-login-flow.md`.

@@ -23,6 +23,7 @@ type Server struct {
 	identityHandler   *v1.IdentityHandler
 	credentialHandler *v1.CredentialHandler
 	userHandler       *v1.UserHandler
+	ssoHandler        *v1.SsoHandler
 	jwkRepo           interfaces.JWKQueryRepoI
 	tokenDeny         interfaces.TokenDenylistI
 	jwkCache          cacheRepo.JWKCacheRepo
@@ -34,6 +35,7 @@ func NewServer(
 	identityHandler *v1.IdentityHandler,
 	credentialHandler *v1.CredentialHandler,
 	userHandler *v1.UserHandler,
+	ssoHandler *v1.SsoHandler,
 	jwkRepo interfaces.JWKQueryRepoI,
 	tokenDeny interfaces.TokenDenylistI,
 	jwkCache cacheRepo.JWKCacheRepo,
@@ -44,6 +46,7 @@ func NewServer(
 		identityHandler:   identityHandler,
 		credentialHandler: credentialHandler,
 		userHandler:       userHandler,
+		ssoHandler:        ssoHandler,
 		jwkRepo:           jwkRepo,
 		tokenDeny:         tokenDeny,
 		jwkCache:          jwkCache,
@@ -87,6 +90,7 @@ func (s *Server) Run() {
 		s.credentialHandler,
 		s.identityHandler,
 		s.userHandler,
+		s.ssoHandler,
 		authMW,
 	)
 	httpServer.Run()

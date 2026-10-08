@@ -83,6 +83,27 @@ OAuth login is available from `conversa-app` for Google and GitHub:
 
 Local OAuth env values belong in `conversa-app/.env.local`, which is ignored by Git. Keep `.env.example` as a template only.
 
+# Courier SSO Foundation
+
+Courier has a first-party SSO foundation in `user-service` for sharing login state across apps such as `conversa-app` and `flikk-app`.
+
+Phase-1 SSO uses:
+
+- Authorization Code + PKCE for browser apps
+- `user-service` as the Courier authorization server
+- an HttpOnly SSO cookie named `courier_sso`
+- per-app token exchange through `/api/v1/sso/token`
+- OIDC `id_token` alongside Courier access and refresh tokens
+- global logout that revokes the SSO session and all refresh tokens for the user
+
+The initial login UI remains in `conversa-app`. Future work can move the login UI into a dedicated auth app without changing the core SSO contract.
+
+Flow diagrams are stored in:
+
+```text
+docs/sso-login-flow.md
+```
+
 # Agent Gateway And Qdrant Memory
 
 Courier uses `agent-gateway` as the service boundary for AI assistant work. The first implementation keeps two responsibilities in this service:

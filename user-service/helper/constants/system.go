@@ -43,3 +43,8 @@ const (
 	JwkCacheKeyPrefix = "auth:jwk:kid:"
 	DenylistKeyPrefix = "deny:jti:"
 )
+
+const (
+	DefaultSsoCookieName = "courier_sso"
+	DefaultLoginURL      = "http://localhost:8080/login"
+)
