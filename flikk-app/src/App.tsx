@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { conversaDestination } from "./config";
-import { submitCheckout, walletApi } from "./lib/api";
-import { readAccessToken, readDisplayName } from "./lib/session";
+import { conversaDestination, SSO_CLIENT_ID, SSO_REDIRECT_URI, USER_API_BASE_URL } from "./config";
+import { ApiRequestError, authApi, submitCheckout, walletApi } from "./lib/api";
+import { clearSession, readSession, saveSession, type FlikkSession } from "./lib/session";
 import type { CheckoutInstruction, NavigationItem, WalletBalance } from "./types";
+
+const SSO_STATE_KEY = "flikk.sso.state";
+const SSO_VERIFIER_KEY = "flikk.sso.verifier";
+let ssoAuthorizeInFlight = false;
+let ssoTokenExchangeInFlight = false;
 
 const DEMO_BALANCE: WalletBalance = {
   wallet_id: "FLK-08A3",
@@ -28,14 +33,68 @@ const navItems: Array<{ id: NavigationItem; label: string; icon: string }> = [
 ];
 
 export function App() {
-  const [token] = useState(readAccessToken);
-  const [name] = useState(readDisplayName);
+  const [session, setSession] = useState<FlikkSession | null>(() => readSession());
   const [activeNav, setActiveNav] = useState<NavigationItem>("home");
-  const [balance, setBalance] = useState<WalletBalance | null>(token ? null : DEMO_BALANCE);
-  const [loading, setLoading] = useState(Boolean(token));
+  const [balance, setBalance] = useState<WalletBalance | null>(session ? null : DEMO_BALANCE);
+  const [loading, setLoading] = useState(Boolean(session));
+  const [authLoading, setAuthLoading] = useState(!session);
   const [error, setError] = useState("");
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [roadmapOpen, setRoadmapOpen] = useState<"transfer" | "withdraw" | null>(null);
+  const token = session?.access_token ?? "";
+  const name = session?.display_name ?? "Courier member";
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isSsoCallback = window.location.pathname === new URL(SSO_REDIRECT_URI).pathname;
+    const code = params.get("code");
+    const state = params.get("state");
+    const storedState = sessionStorage.getItem(SSO_STATE_KEY) ?? localStorage.getItem(SSO_STATE_KEY);
+    const codeVerifier = sessionStorage.getItem(SSO_VERIFIER_KEY) ?? localStorage.getItem(SSO_VERIFIER_KEY);
+
+    if (isSsoCallback && code) {
+      if (ssoTokenExchangeInFlight) {
+        return;
+      }
+
+      if (!state || !storedState || state !== storedState || !codeVerifier) {
+        clearSsoState();
+        setError("SSO session is invalid. Please sign in again.");
+        setAuthLoading(false);
+        return;
+      }
+
+      ssoTokenExchangeInFlight = true;
+      setAuthLoading(true);
+      authApi.ssoToken({
+        grant_type: "authorization_code",
+        client_id: SSO_CLIENT_ID,
+        code,
+        redirect_uri: SSO_REDIRECT_URI,
+        code_verifier: codeVerifier
+      })
+        .then((tokens) => {
+          clearSsoState();
+          setSession(saveSession(tokens));
+          window.history.replaceState({}, document.title, "/");
+        })
+        .catch((exchangeError) => {
+          clearSsoState();
+          clearSession();
+          setError(exchangeError instanceof Error ? exchangeError.message : "SSO login failed. Please sign in again.");
+          window.history.replaceState({}, document.title, "/");
+        })
+        .finally(() => setAuthLoading(false));
+      return;
+    }
+
+    if (!session) {
+      void beginSsoAuthorize();
+      return;
+    }
+
+    setAuthLoading(false);
+  }, [session]);
 
   const refreshBalance = useCallback(async () => {
     if (!token) return;
@@ -44,11 +103,21 @@ export function App() {
     try {
       setBalance(await walletApi.getBalance(token));
     } catch (requestError) {
+      if (requestError instanceof ApiRequestError && requestError.status === 401) {
+        clearSession();
+        if (session && Date.now() - session.saved_at < 30_000) {
+          setError("Your Courier session was accepted, but the wallet API rejected the new token.");
+          return;
+        }
+        setSession(null);
+        void beginSsoAuthorize();
+        return;
+      }
       setError(requestError instanceof Error ? requestError.message : "Could not load your wallet.");
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [session, token]);
 
   useEffect(() => {
     void refreshBalance();
@@ -61,6 +130,18 @@ export function App() {
 
   function openConversa() {
     window.location.assign(conversaDestination());
+  }
+
+  if (authLoading && !session) {
+    return (
+      <main className="flikk-shell auth-loading-shell">
+        <section className="auth-loading-card glass-panel">
+          <div className="brand-mark">f</div>
+          <p className="eyebrow">Courier SSO</p>
+          <h1>Checking your session...</h1>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -118,7 +199,7 @@ export function App() {
           </div>
         </header>
 
-        {!token && <div className="demo-notice">Demo preview · Sign in through Conversa or set <code>VITE_COURIER_ACCESS_TOKEN</code> to connect your live wallet.</div>}
+        {!token && <div className="demo-notice">Connecting to your Courier session...</div>}
         {error && <div className="error-notice"><span>!</span>{error}<button type="button" onClick={() => void refreshBalance()}>Try again</button></div>}
 
         {activeNav === "home" ? (
@@ -261,6 +342,66 @@ function RoadmapPage({ page }: { page: NavigationItem }) {
     settings: "Wallet limits, security controls and notification preferences will live here."
   };
   return <section className="empty-page glass-panel"><div className="roadmap-orbit">✦</div><p className="eyebrow">Flikk template</p><h2>Designed for the next money flow.</h2><p>{labels[page as Exclude<NavigationItem, "home">]}</p></section>;
+}
+
+async function beginSsoAuthorize() {
+  if (ssoAuthorizeInFlight) {
+    return;
+  }
+  ssoAuthorizeInFlight = true;
+
+  const state = crypto.randomUUID();
+  const nonce = crypto.randomUUID();
+  const verifier = createCodeVerifier();
+  const challenge = await createCodeChallenge(verifier);
+  saveSsoState(state, verifier);
+
+  const query = new URLSearchParams({
+    client_id: SSO_CLIENT_ID,
+    redirect_uri: SSO_REDIRECT_URI,
+    response_type: "code",
+    scope: "openid profile email",
+    state,
+    nonce,
+    code_challenge: challenge,
+    code_challenge_method: "S256"
+  });
+
+  window.location.assign(`${USER_API_BASE_URL}/sso/authorize?${query.toString()}`);
+}
+
+function createCodeVerifier() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return base64UrlEncode(bytes);
+}
+
+async function createCodeChallenge(verifier: string) {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+function base64UrlEncode(bytes: Uint8Array) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function saveSsoState(state: string, verifier: string) {
+  sessionStorage.setItem(SSO_STATE_KEY, state);
+  sessionStorage.setItem(SSO_VERIFIER_KEY, verifier);
+  localStorage.setItem(SSO_STATE_KEY, state);
+  localStorage.setItem(SSO_VERIFIER_KEY, verifier);
+}
+
+function clearSsoState() {
+  sessionStorage.removeItem(SSO_STATE_KEY);
+  sessionStorage.removeItem(SSO_VERIFIER_KEY);
+  localStorage.removeItem(SSO_STATE_KEY);
+  localStorage.removeItem(SSO_VERIFIER_KEY);
 }
 
 function formatVnd(value: number) {
