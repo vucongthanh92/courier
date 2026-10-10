@@ -6,12 +6,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 )
 
 type UserHandler struct {
@@ -52,7 +52,7 @@ func (h *UserHandler) SearchUsers(c *gin.Context) {
 		return
 	}
 	claims := claimsValue.(jwt.MapClaims)
-	req.ExcludeUserID = utils.ParseUserID(claims["sub"])
+	req.ExcludeUserID = baseUtils.ParseUserID(claims["sub"])
 
 	res, resErr := h.userService.SearchUsers(c.Request.Context(), req)
 	if resErr != nil {

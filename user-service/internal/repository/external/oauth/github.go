@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
 )
 
 type GitHubClient struct {

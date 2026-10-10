@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 
@@ -25,7 +25,7 @@ func InitIdentityCmdRepository(writeDb *database.GormWriteDb) interfaces.Identit
 }
 
 // InserIdentity inserts a new identity record into the database and returns the created entity along with any potential error.
-func (repo *identityCmdRepository) InserIdentity(ctx context.Context, entity *entities.Identity) *errHandler.ErrorBuilder {
+func (repo *identityCmdRepository) InserIdentity(ctx context.Context, entity *entities.Identity) *utilsError.ErrorBuilder {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "InserIdentity")
@@ -35,7 +35,7 @@ func (repo *identityCmdRepository) InserIdentity(ctx context.Context, entity *en
 	// Insert identity record
 	err := run.Model(entities.Identity{}).Create(entity).Error
 	if err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		resErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return resErr
 	}
 

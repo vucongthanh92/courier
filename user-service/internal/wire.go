@@ -49,9 +49,9 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 
 	// helper
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 
 	// third-party
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -100,6 +100,7 @@ var serviceSet = wire.NewSet(
 var repoSet = wire.NewSet(
 
 	// internal repo
+	provideTransactionWriteDB,
 	transaction.InitManagerTxn,
 	userRepo.InitUserCmdRepository,
 	userRepo.InitUserQueryRepository,
@@ -174,6 +175,11 @@ func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) inter
 		log.Fatal("init jwt signer failed", zap.Error(err2))
 	}
 	return s
+}
+
+func provideTransactionWriteDB(writeDb *database.GormWriteDb) *transaction.GormWriteDb {
+	converted := transaction.GormWriteDb(*writeDb)
+	return &converted
 }
 
 // provideGoogleClient initializes the Google OAuth client with credentials from config.

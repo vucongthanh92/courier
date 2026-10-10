@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 
@@ -21,7 +21,7 @@ func InitAuthCredentialQueryRepository(readDb *database.GormReadDb) interfaces.A
 	return &authCredQueryRepo{readDb: *readDb}
 }
 
-func (repo *authCredQueryRepo) GetByUserID(ctx context.Context, userID uint64) (entities.AuthCredential, *errHandler.ErrorBuilder) {
+func (repo *authCredQueryRepo) GetByUserID(ctx context.Context, userID uint64) (entities.AuthCredential, *utilsError.ErrorBuilder) {
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetAuthCredentialByUserID")
 	defer span.End()
 	run := transaction.RunnerFromCtx(ctx, repo.readDb)
@@ -29,7 +29,7 @@ func (repo *authCredQueryRepo) GetByUserID(ctx context.Context, userID uint64) (
 	var res entities.AuthCredential
 	err := run.Model(&entities.AuthCredential{}).Where("user_id = ?", userID).Take(&res).Error
 	if err != nil {
-		return res, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return res, utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return res, nil
 }

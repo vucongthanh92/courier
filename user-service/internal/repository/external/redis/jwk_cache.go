@@ -7,9 +7,9 @@ import (
 	"time"
 
 	goredis "github.com/redis/go-redis/v9"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 	redisclient "github.com/vucongthanh92/courier/user-service/redis"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
 )
 
 type JWKCacheRepo interface {

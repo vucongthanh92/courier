@@ -5,11 +5,11 @@ import (
 
 	userprofilepb "github.com/vucongthanh92/courier/shared/grpc/user-service/user_profile/gen"
 	userstatuspb "github.com/vucongthanh92/courier/shared/grpc/user-service/user_status/gen"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 	cacheRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 	jwkpb "github.com/vucongthanh92/courier/user-service/pkg/grpc/gen"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
 )
 
 type GrpcUsecase struct {

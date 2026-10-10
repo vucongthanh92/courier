@@ -7,9 +7,9 @@ import (
 	"github.com/golang-jwt/jwt"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 )
 
 type CredentialHandler struct {
@@ -49,10 +49,10 @@ func (h *CredentialHandler) GeneratePassword(c *gin.Context) {
 
 	// step 2. get userID from token and set to request struct
 	claims := c.Value("authClaims").(jwt.MapClaims)
-	req.UserID = utils.ParseUserID(claims["sub"])
+	req.UserID = baseUtils.ParseUserID(claims["sub"])
 
 	// step 3. call use case to generate password
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	if resErr := h.credentialService.SetPassword(ctx, req); resErr != nil {
 		resErr.ExposeHttpError(c)
 		return

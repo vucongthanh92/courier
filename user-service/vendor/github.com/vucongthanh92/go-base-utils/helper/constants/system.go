@@ -2,6 +2,7 @@ package constants
 
 import "time"
 
+// System constants cache time
 const (
 	Time_Cache_5_minutes = 5 * time.Minute
 	Time_Cache_1_day     = 24 * time.Hour

@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 )
@@ -23,7 +23,7 @@ func InitRefreshTokenCmdRepository(writeDb *database.GormWriteDb) interfaces.Ref
 
 // UpsertByUserAgent will upsert refresh token by user_id and user_agent,
 // if exist then update expires_at, otherwise insert new record
-func (r *refreshTokenCmdRepo) UpsertByUserAgent(ctx context.Context, entity *entities.RefreshToken) *errHandler.ErrorBuilder {
+func (r *refreshTokenCmdRepo) UpsertByUserAgent(ctx context.Context, entity *entities.RefreshToken) *utilsError.ErrorBuilder {
 
 	// Start tracing span for upsert operation
 	ctx, span := tracing.StartSpanFromContext(ctx, "UpsertRefreshTokenByUserAgent")
@@ -44,7 +44,7 @@ func (r *refreshTokenCmdRepo) UpsertByUserAgent(ctx context.Context, entity *ent
 			"expires_at": entity.ExpiresAt,
 		})
 	if res.Error != nil {
-		return errHandler.InitErrorBuilder(ctx).ValidateError(res.Error)
+		return utilsError.InitErrorBuilder(ctx).ValidateError(res.Error)
 	}
 
 	// If existing record found and updated,
@@ -55,7 +55,7 @@ func (r *refreshTokenCmdRepo) UpsertByUserAgent(ctx context.Context, entity *ent
 
 	// No existing record, insert new one
 	if err := run.Model(&entities.RefreshToken{}).Create(entity).Error; err != nil {
-		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 
 	// Inserted new record successfully
@@ -63,19 +63,19 @@ func (r *refreshTokenCmdRepo) UpsertByUserAgent(ctx context.Context, entity *ent
 }
 
 // RevokeByID will set revoked_at by id to revoke refresh token
-func (r *refreshTokenCmdRepo) RevokeByID(ctx context.Context, id uint64, revokedAt time.Time) *errHandler.ErrorBuilder {
+func (r *refreshTokenCmdRepo) RevokeByID(ctx context.Context, id uint64, revokedAt time.Time) *utilsError.ErrorBuilder {
 	ctx, span := tracing.StartSpanFromContext(ctx, "RevokeRefreshToken")
 	defer span.End()
 	run := transaction.RunnerFromCtx(ctx, r.writeDb)
 	err := run.Model(&entities.RefreshToken{}).Where("id = ?", id).Update("revoked_at", revokedAt).Error
 	if err != nil {
-		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return nil
 }
 
 // RevokeByUser will set revoked_at by user_id to revoke all refresh tokens of user (optional for logout-all)
-func (r *refreshTokenCmdRepo) RevokeByUser(ctx context.Context, userID uint64, revokedAt time.Time) *errHandler.ErrorBuilder {
+func (r *refreshTokenCmdRepo) RevokeByUser(ctx context.Context, userID uint64, revokedAt time.Time) *utilsError.ErrorBuilder {
 	ctx, span := tracing.StartSpanFromContext(ctx, "RevokeRefreshTokenByUser")
 	defer span.End()
 	run := transaction.RunnerFromCtx(ctx, r.writeDb)
@@ -83,13 +83,13 @@ func (r *refreshTokenCmdRepo) RevokeByUser(ctx context.Context, userID uint64, r
 		Where("user_id = ? AND revoked_at IS NULL", userID).
 		Update("revoked_at", revokedAt).Error
 	if err != nil {
-		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return nil
 }
 
 // Rotate will revoke old refresh token and insert new refresh token in one transaction to ensure atomicity
-func (r *refreshTokenCmdRepo) Rotate(ctx context.Context, oldID uint64, newEntity *entities.RefreshToken) (*entities.RefreshToken, *errHandler.ErrorBuilder) {
+func (r *refreshTokenCmdRepo) Rotate(ctx context.Context, oldID uint64, newEntity *entities.RefreshToken) (*entities.RefreshToken, *utilsError.ErrorBuilder) {
 	ctx, span := tracing.StartSpanFromContext(ctx, "RotateRefreshToken")
 	defer span.End()
 	run := transaction.RunnerFromCtx(ctx, r.writeDb)
@@ -101,7 +101,7 @@ func (r *refreshTokenCmdRepo) Rotate(ctx context.Context, oldID uint64, newEntit
 		}
 		return tx.Model(&entities.RefreshToken{}).Create(newEntity).Error
 	}); err != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return nil, utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return newEntity, nil
 }

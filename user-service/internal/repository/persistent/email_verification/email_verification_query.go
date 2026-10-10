@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 
@@ -21,7 +21,7 @@ func InitEmailVerificationQueryRepository(readDb *database.GormReadDb) interface
 	return &emailVerificationQueryRepository{readDb: *readDb}
 }
 
-func (repo *emailVerificationQueryRepository) GetOneByEmail(ctx context.Context, email string) (entities.EmailVerification, *errHandler.ErrorBuilder) {
+func (repo *emailVerificationQueryRepository) GetOneByEmail(ctx context.Context, email string) (entities.EmailVerification, *utilsError.ErrorBuilder) {
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetOneByEmail")
 	defer span.End()
 	run := transaction.RunnerFromCtx(ctx, repo.readDb)
@@ -31,7 +31,7 @@ func (repo *emailVerificationQueryRepository) GetOneByEmail(ctx context.Context,
 		Order("created_at DESC").
 		Take(&res).Error
 	if err != nil {
-		return res, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return res, utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return res, nil
 }

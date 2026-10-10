@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"strings"
 
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	utilsModels "github.com/vucongthanh92/go-base-utils/models"
 )
 
 type userUsecase struct {
@@ -18,12 +20,12 @@ func InitUserUsecase(userQueryRepo interfaces.UserQueryRepoI) interfaces.UserSer
 	return &userUsecase{userQueryRepo: userQueryRepo}
 }
 
-func (s *userUsecase) SearchUsers(ctx context.Context, req models.SearchUsersRequest) ([]models.SearchUserResponse, *errHandler.ErrorBuilder) {
+func (s *userUsecase) SearchUsers(ctx context.Context, req models.SearchUsersRequest) ([]models.SearchUserResponse, *utilsError.ErrorBuilder) {
 	req.SearchKey = strings.TrimSpace(req.SearchKey)
 	if req.SearchKey == "" {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusBadRequest).
-			SetError(models.ErrorDTO{Code: "invalid_search_key", Field: "search_key", Message: "search_key is required"})
+			SetError(utilsModels.ErrorDTO{Code: "invalid_search_key", Field: "search_key", Message: "search_key is required"})
 	}
 
 	users, repoErr := s.userQueryRepo.SearchUsers(ctx, req)

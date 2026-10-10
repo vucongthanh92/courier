@@ -2,7 +2,7 @@ package httperror
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/vucongthanh92/go-base-utils/helper/common"
+	httpcommon "github.com/vucongthanh92/go-base-utils/helper/http_common"
 	"github.com/vucongthanh92/go-base-utils/helper/utils"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"github.com/vucongthanh92/go-base-utils/models"
@@ -19,7 +19,7 @@ func (b *ErrorBuilder) ExposeHttpError(c *gin.Context) {
 		errors = append(errors, err)
 	})
 
-	response := common.SuccessResponse[any]{
+	response := httpcommon.SuccessResponse[any]{
 		Success: false,
 		Data:    nil,
 		Errors:  errors,

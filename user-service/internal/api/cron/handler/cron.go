@@ -8,8 +8,8 @@ import (
 
 	"github.com/jasonlvhit/gocron"
 	"github.com/vucongthanh92/courier/user-service/config"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 	"github.com/vucongthanh92/go-base-utils/logger"
 )
 
@@ -31,7 +31,7 @@ func Crawl(
 		cancel()
 	}()
 
-	utils.SafeGo(func() {
+	baseUtils.SafeGo(func() {
 		StartServices(cronService)
 	})
 

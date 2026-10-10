@@ -7,10 +7,10 @@ import (
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 )
 
 type identityQueryRepository struct {
@@ -24,7 +24,7 @@ func InitIdentityQueryRepository(readDb *database.GormReadDb) interfaces.Identit
 }
 
 func (repo *identityQueryRepository) GetIdentityByID(ctx context.Context, id uint64) (
-	res entities.Identity, errRes *errHandler.ErrorBuilder) {
+	res entities.Identity, errRes *utilsError.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetIdentityByID")
@@ -39,7 +39,7 @@ func (repo *identityQueryRepository) GetIdentityByID(ctx context.Context, id uin
 
 	// Handle potential errors
 	if err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		resErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return res, resErr
 	}
 
@@ -48,7 +48,7 @@ func (repo *identityQueryRepository) GetIdentityByID(ctx context.Context, id uin
 
 // GetByProviderUID retrieves an identity based on the provider and provider UID.
 func (repo *identityQueryRepository) GetByProviderUID(ctx context.Context, provider, providerUID string) (
-	*entities.Identity, *errHandler.ErrorBuilder) {
+	*entities.Identity, *utilsError.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetByProviderUID")
@@ -61,7 +61,7 @@ func (repo *identityQueryRepository) GetByProviderUID(ctx context.Context, provi
 		Where("deleted_at is null").
 		Take(&identity).Error
 	if err != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return nil, utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return &identity, nil
 }

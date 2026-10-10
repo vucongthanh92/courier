@@ -10,9 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
 )
@@ -63,7 +63,7 @@ func (h *IdentityHandler) OAuthCallback(c *gin.Context) {
 	}
 
 	// Call usecase
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.identityService.OAuthCallback(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -73,7 +73,7 @@ func (h *IdentityHandler) OAuthCallback(c *gin.Context) {
 	if redirectURL := oauthReturnURL(req.State, res); redirectURL != "" {
 		logger.Info("OAuth callback redirecting to app",
 			zap.String("provider", req.Provider),
-			zap.String("redirect_url", utils.SanitizedOAuthRedirectURL(redirectURL)),
+			zap.String("redirect_url", baseUtils.SanitizedOAuthRedirectURL(redirectURL)),
 		)
 		c.Redirect(http.StatusFound, redirectURL)
 		return
@@ -142,7 +142,7 @@ func (h *IdentityHandler) OAuthLogin(c *gin.Context) {
 	}
 
 	// Call usecase
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.identityService.OAuthLogin(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)

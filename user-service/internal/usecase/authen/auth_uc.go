@@ -8,15 +8,17 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/datatypes"
+
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
+	utilsModels "github.com/vucongthanh92/go-base-utils/models"
 )
 
 type AuthUseCaseImpl struct {
@@ -63,7 +65,7 @@ func InitAuthUseCase(
 
 // Signup implements interfaces.AuthServiceI
 func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) (
-	*entities.User, *errHandler.ErrorBuilder) {
+	*entities.User, *utilsError.ErrorBuilder) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "Signup")
 	defer span.End()
@@ -87,10 +89,10 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 	}
 
 	if existed {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetLogError(nil).
 			SetStatus(400).
-			SetError(models.ErrorDTO{
+			SetError(utilsModels.ErrorDTO{
 				Code:    constants.USER_ALREADY_EXISTS,
 				Message: constants.UserAlreadyExistsMessage,
 				Field:   "email or phone_number",
@@ -99,7 +101,7 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 
 	// step 3. init transaction to create user with
 	// table users, email_verification, auth_credentials, outbox, ...
-	err := s.txn.Do(ctx, func(txCtx context.Context) (txnErr *errHandler.ErrorBuilder) {
+	err := s.txn.Do(ctx, func(txCtx context.Context) (txnErr *utilsError.ErrorBuilder) {
 
 		// create user
 		txnErr = s.userWriteRepo.InsertUser(txCtx, &userEntity)
@@ -144,7 +146,7 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 
 	// handle error when create user failed
 	if err != nil {
-		commonErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		commonErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return nil, commonErr
 	}
 
@@ -153,8 +155,8 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 		models.AuditLogRequest{
 			CreatorID: userEntity.ID,
 			Action:    constants.AuditLogActionSignup,
-			IP:        utils.GetClientIP(ctx),
-			UserAgent: utils.GetUserAgent(ctx),
+			IP:        baseUtils.GetClientIP(ctx),
+			UserAgent: baseUtils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
 				"user": userEntity,
 			},
@@ -167,7 +169,7 @@ func (s *AuthUseCaseImpl) Signup(ctx context.Context, req models.SignupRequest) 
 // VerifyEmail implements interfaces.UserServiceI
 // this API will check token valid or not, if valid then mark email verified and token used in transaction
 func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmailRequest) (
-	*models.VerifyEmailResponse, *errHandler.ErrorBuilder) {
+	*models.VerifyEmailResponse, *utilsError.ErrorBuilder) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "VerifyEmail")
 	defer span.End()
@@ -179,9 +181,9 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 
 	// check token valid or not (should check token match, expiry and not used before)
 	if verEmail.ExpiresAt.Before(time.Now()) {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusBadRequest).
-			SetError(models.ErrorDTO{
+			SetError(utilsModels.ErrorDTO{
 				Code:    "token_expired",
 				Message: "Token is expired",
 				Field:   "token",
@@ -189,18 +191,18 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 	}
 
 	if verEmail.TokenHash != req.Token {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusBadRequest).
-			SetError(models.ErrorDTO{Code: "invalid_token", Message: "Token is invalid"})
+			SetError(utilsModels.ErrorDTO{Code: "invalid_token", Message: "Token is invalid"})
 	}
 	if time.Now().After(verEmail.ExpiresAt) {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusBadRequest).
-			SetError(models.ErrorDTO{Code: "token_expired", Message: "Token is expired"})
+			SetError(utilsModels.ErrorDTO{Code: "token_expired", Message: "Token is expired"})
 	}
 
 	// mark token used and update user email_verified status in transaction
-	err := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
+	err := s.txn.Do(ctx, func(txCtx context.Context) *utilsError.ErrorBuilder {
 		if txnErr := s.emailVerificationWriteRepo.MarkUsed(txCtx, verEmail.ID, time.Now()); txnErr != nil {
 			return txnErr
 		}
@@ -225,7 +227,7 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 		return nil
 	})
 	if err != nil {
-		commonErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		commonErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return nil, commonErr
 	}
 
@@ -236,19 +238,19 @@ func (s *AuthUseCaseImpl) VerifyEmail(ctx context.Context, req models.VerifyEmai
 // this API will generate new token and expiry,
 // then update to email_verification table, and publish outbox event for sending email
 func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.ResendVerifyEmailRequest) (
-	*models.ResendVerifyEmailResponse, *errHandler.ErrorBuilder) {
+	*models.ResendVerifyEmailResponse, *utilsError.ErrorBuilder) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "ResendVerifyEmail")
 	defer span.End()
 
 	// generate new token and expiry
-	token := utils.RandString(7)
+	token := baseUtils.RandString(7)
 	expiresAt := time.Now().Add(24 * time.Hour)
 	emailVerification := entities.EmailVerification{}
 
 	// update to email_verification table in transaction
-	err := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
-		var txnErr *errHandler.ErrorBuilder
+	err := s.txn.Do(ctx, func(txCtx context.Context) *utilsError.ErrorBuilder {
+		var txnErr *utilsError.ErrorBuilder
 		emailVerification, txnErr = s.emailVerificationReadRepo.GetOneByEmail(txCtx, req.Email)
 		if txnErr != nil {
 			return txnErr
@@ -258,7 +260,7 @@ func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.Rese
 		return s.emailVerificationWriteRepo.UpdateToken(txCtx, req.Email, token, expiresAt)
 	})
 	if err != nil {
-		commonErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		commonErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return nil, commonErr
 	}
 
@@ -281,7 +283,7 @@ func (s *AuthUseCaseImpl) ResendVerifyEmail(ctx context.Context, req models.Rese
 // this API will check user exist with email, then check email verified, then check password match,
 // if all valid then generate access token and refresh token, save refresh token to database, return access token and refresh token to client
 func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
-	*models.JwtTokenResponse, *errHandler.ErrorBuilder) {
+	*models.JwtTokenResponse, *utilsError.ErrorBuilder) {
 
 	// tracing for login usecase, we want to trace the whole flow of login process, from checking user exist,
 	// checking email verified, checking password, generating token, saving refresh token to database
@@ -290,7 +292,7 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 
 	// check user exist with email
 	user, errUser := s.userReadRepo.GetUserByIdOrEmail(ctx, models.GetUserByIdOrEmailRequest{
-		Email: utils.StrPtr(req.Email),
+		Email: baseUtils.StringPtr(req.Email),
 	})
 	if errUser != nil {
 		return nil, errUser
@@ -298,9 +300,9 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 
 	// check email verified or not, if not verified then return error, only allow login when email is verified
 	if !user.EmailVerified || user.Status != "verified" {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusForbidden).
-			SetError(models.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
+			SetError(utilsModels.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
 	}
 
 	// get auth credential by user id, then check password match, if not match return error
@@ -312,16 +314,16 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	// if password version is 0, it means password not set,
 	// we can return specific error to client to ask them to set password
 	if cred.PasswordVersion == 0 {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusForbidden).
-			SetError(models.ErrorDTO{Code: "password_not_set", Message: "Password not set; please create password"})
+			SetError(utilsModels.ErrorDTO{Code: "password_not_set", Message: "Password not set; please create password"})
 	}
 
 	// support bcrypt, sha256 fallback
 	if err := cred.ComparePwdHashWithAlgo(ctx, req.Password); err != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusUnauthorized).
-			SetError(models.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
+			SetError(utilsModels.ErrorDTO{Code: "invalid_credentials", Message: "Invalid credentials"})
 	}
 
 	// Return response with issued tokens and whether password setup is needed
@@ -329,15 +331,15 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 	if commonErr != nil {
 		return nil, commonErr
 	}
-	jwtToken.CheckPasswordSetup(cred.PasswordVersion, utils.StrValue(cred.PasswordAlgo))
+	jwtToken.CheckPasswordSetup(cred.PasswordVersion, baseUtils.StringValue(cred.PasswordAlgo))
 
 	// insert audit log for user signup action
 	s.auditLogService.CreateAuditLog(ctx,
 		models.AuditLogRequest{
 			CreatorID: user.ID,
 			Action:    constants.AuditLogActionLogin,
-			IP:        utils.GetClientIP(ctx),
-			UserAgent: utils.GetUserAgent(ctx),
+			IP:        baseUtils.GetClientIP(ctx),
+			UserAgent: baseUtils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
 				"login_response": jwtToken,
 			},
@@ -349,7 +351,7 @@ func (s *AuthUseCaseImpl) Login(ctx context.Context, req models.LoginRequest) (
 
 // RefreshToken implements interfaces.AuthServiceI
 func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTokenRequest) (
-	*models.RenewTokenResponse, *errHandler.ErrorBuilder) {
+	*models.RenewTokenResponse, *utilsError.ErrorBuilder) {
 
 	// tracing for refresh token usecase, we want to trace the whole flow of refresh token process, from checking token valid,
 	ctx, span := tracing.StartSpanFromContext(ctx, "RefreshToken")
@@ -363,9 +365,9 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 
 	// check token valid, if not valid then return error, only allow refresh when token is valid
 	if rt.UserID != req.UserID {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusUnauthorized).
-			SetError(models.ErrorDTO{
+			SetError(utilsModels.ErrorDTO{
 				Code:    "invalid_refresh",
 				Message: "Refresh token not owned by user",
 			})
@@ -373,18 +375,18 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 
 	// check token revoked or expired, if revoked or expired then return error
 	if rt.RevokedAt != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusUnauthorized).
-			SetError(models.ErrorDTO{
+			SetError(utilsModels.ErrorDTO{
 				Code:    "refresh_revoked",
 				Message: "Refresh token revoked",
 			})
 	}
 
 	if time.Now().After(rt.ExpiresAt) {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusUnauthorized).
-			SetError(models.ErrorDTO{
+			SetError(utilsModels.ErrorDTO{
 				Code:    "refresh_expired",
 				Message: "Refresh token expired",
 			})
@@ -392,7 +394,7 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 
 	// check user exist with id from token, if not exist return error
 	userEntity, errUser := s.userReadRepo.GetUserByIdOrEmail(ctx, models.GetUserByIdOrEmailRequest{
-		UserID: utils.Uint64Ptr(req.UserID),
+		UserID: baseUtils.Uint64Ptr(req.UserID),
 	})
 	if errUser != nil {
 		return nil, errUser
@@ -400,9 +402,9 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 
 	// check email verified or not, if not verified then return error, only allow refresh when email is verified
 	if !userEntity.EmailVerified || userEntity.Status != "verified" {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusForbidden).
-			SetError(models.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
+			SetError(utilsModels.ErrorDTO{Code: "email_not_verified", Message: "Email not verified"})
 	}
 
 	jwtToken, commonErr := s.tokenService.RenewJwtToken(ctx, userEntity)
@@ -415,8 +417,8 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 		models.AuditLogRequest{
 			CreatorID: req.UserID,
 			Action:    constants.AuditLogActionRefresh,
-			IP:        utils.GetClientIP(ctx),
-			UserAgent: utils.GetUserAgent(ctx),
+			IP:        baseUtils.GetClientIP(ctx),
+			UserAgent: baseUtils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
 				"renew_token": jwtToken,
 			},
@@ -429,7 +431,7 @@ func (s *AuthUseCaseImpl) RefreshToken(ctx context.Context, req models.RefreshTo
 // Logout implements interfaces.AuthServiceI
 // this API will get token jti from context, then block the token in token denylist with expiry same as token expiry,
 // so even if the token is not expired, it will be rejected in next request
-func (s *AuthUseCaseImpl) Logout(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder {
+func (s *AuthUseCaseImpl) Logout(ctx context.Context, claims jwt.MapClaims) *utilsError.ErrorBuilder {
 
 	// tracing for logout usecase, we want to trace the whole flow of logout process, from checking user context,
 	ctx, span := tracing.StartSpanFromContext(ctx, "Logout")
@@ -445,10 +447,10 @@ func (s *AuthUseCaseImpl) Logout(ctx context.Context, claims jwt.MapClaims) *err
 	// insert audit log for user signup action
 	s.auditLogService.CreateAuditLog(ctx,
 		models.AuditLogRequest{
-			CreatorID: utils.ParseUserID(claims["sub"]),
+			CreatorID: baseUtils.ParseUserID(claims["sub"]),
 			Action:    constants.AuditLogActionLogout,
-			IP:        utils.GetClientIP(ctx),
-			UserAgent: utils.GetUserAgent(ctx),
+			IP:        baseUtils.GetClientIP(ctx),
+			UserAgent: baseUtils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
 				"claims": claims,
 			},

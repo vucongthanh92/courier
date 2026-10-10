@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 	"github.com/vucongthanh92/go-base-utils/logger"
 )
 
@@ -34,7 +34,7 @@ func InitJWTSigner(jwk entities.JWKKey, log logger.Logger) (interfaces.JWTSigner
 }
 
 // SignAccessToken implements interfaces.JWTSignerI
-func (s *jwtSigner) SignAccessToken(user entities.User, now time.Time, ttl time.Duration) (string, *errHandler.ErrorBuilder) {
+func (s *jwtSigner) SignAccessToken(user entities.User, now time.Time, ttl time.Duration) (string, *utilsError.ErrorBuilder) {
 	return s.SignAccessTokenForClient(user, now, ttl, "", "", "user")
 }
 
@@ -45,8 +45,8 @@ func (s *jwtSigner) SignAccessTokenForClient(
 	clientID string,
 	sessionID string,
 	scope string,
-) (string, *errHandler.ErrorBuilder) {
-	jti, _ := utils.NewSnowflakeID()
+) (string, *utilsError.ErrorBuilder) {
+	jti, _ := baseUtils.NewSnowflakeID()
 	if scope == "" {
 		scope = "user"
 	}
@@ -77,7 +77,7 @@ func (s *jwtSigner) SignAccessTokenForClient(
 	// Sign the token and return the signed string
 	signed, err := token.SignedString(s.privateKey)
 	if err != nil {
-		return "", errHandler.InitErrorBuilder(nil).SetLogError(err).SetStatus(500)
+		return "", utilsError.InitErrorBuilder(nil).SetLogError(err).SetStatus(500)
 	}
 
 	return signed, nil
@@ -91,8 +91,8 @@ func (s *jwtSigner) SignIDToken(
 	nonce string,
 	authTime time.Time,
 	sessionID string,
-) (string, *errHandler.ErrorBuilder) {
-	jti, _ := utils.NewSnowflakeID()
+) (string, *utilsError.ErrorBuilder) {
+	jti, _ := baseUtils.NewSnowflakeID()
 	claims := jwt.MapClaims{
 		"iss":                s.issuer,
 		"sub":                fmt.Sprintf("%d", user.ID),
@@ -121,7 +121,7 @@ func (s *jwtSigner) SignIDToken(
 
 	signed, err := token.SignedString(s.privateKey)
 	if err != nil {
-		return "", errHandler.InitErrorBuilder(nil).SetLogError(err).SetStatus(500)
+		return "", utilsError.InitErrorBuilder(nil).SetLogError(err).SetStatus(500)
 	}
 
 	return signed, nil

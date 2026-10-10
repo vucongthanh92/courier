@@ -3,8 +3,8 @@ package models
 import (
 	"time"
 
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 )
 
 type SignupRequest struct {
@@ -15,7 +15,7 @@ type SignupRequest struct {
 }
 
 func (r *SignupRequest) MappingToUserEntity(entity *entities.User) {
-	entity.ID, _ = utils.NewSnowflakeID()
+	entity.ID, _ = baseUtils.NewSnowflakeID()
 	entity.Email = r.Email
 	entity.DisplayName = r.DisplayName
 	entity.PhoneNumber = r.PhoneNumber
@@ -24,6 +24,6 @@ func (r *SignupRequest) MappingToUserEntity(entity *entities.User) {
 
 func (r *SignupRequest) MappingToEmailVerifyEntity(entity *entities.EmailVerification) {
 	entity.Email = r.Email
-	entity.TokenHash = utils.RandString(7)
+	entity.TokenHash = baseUtils.RandString(7)
 	entity.ExpiresAt = time.Now().Add(24 * time.Hour)
 }

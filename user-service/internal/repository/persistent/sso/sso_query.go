@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 )
@@ -25,7 +25,7 @@ func (r *ssoSessionQueryRepo) GetActiveByHash(
 	ctx context.Context,
 	sessionHash string,
 	now time.Time,
-) (*entities.SsoSession, *errHandler.ErrorBuilder) {
+) (*entities.SsoSession, *utilsError.ErrorBuilder) {
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetActiveSsoSessionByHash")
 	defer span.End()
 
@@ -35,7 +35,7 @@ func (r *ssoSessionQueryRepo) GetActiveByHash(
 		Where("session_hash = ? AND revoked_at IS NULL AND expires_at > ?", sessionHash, now).
 		Take(&session).Error
 	if err != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return nil, utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return &session, nil
 }
@@ -52,7 +52,7 @@ func (r *ssoAuthorizationCodeQueryRepo) GetActiveByHash(
 	ctx context.Context,
 	codeHash string,
 	now time.Time,
-) (*entities.SsoAuthorizationCode, *errHandler.ErrorBuilder) {
+) (*entities.SsoAuthorizationCode, *utilsError.ErrorBuilder) {
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetActiveSsoAuthorizationCodeByHash")
 	defer span.End()
 
@@ -62,7 +62,7 @@ func (r *ssoAuthorizationCodeQueryRepo) GetActiveByHash(
 		Where("code_hash = ? AND consumed_at IS NULL AND expires_at > ?", codeHash, now).
 		Take(&code).Error
 	if err != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return nil, utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 	return &code, nil
 }
