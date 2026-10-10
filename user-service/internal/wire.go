@@ -43,6 +43,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	oauthRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	redisRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
+	"github.com/vucongthanh92/go-base-utils/models"
 
 	// shared interfaces
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
@@ -153,7 +154,7 @@ func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
 }
 
 // provideEmailConfig returns the nested email config for DI.
-func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
+func provideEmailConfig(cfg *config.AppConfig) *models.EmailConfig {
 	return cfg.Email
 }
 

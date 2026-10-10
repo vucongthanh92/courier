@@ -34,8 +34,7 @@ const (
 const (
 	GithubProvider       = "github"
 	GithubAccessTokenURL = "https://github.com/login/oauth/access_token"
-
-	GoogleProvider = "google"
+	GoogleProvider       = "google"
 )
 
 // JWK cache key prefix

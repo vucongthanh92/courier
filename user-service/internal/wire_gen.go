@@ -45,6 +45,7 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/worker"
 	"github.com/vucongthanh92/courier/user-service/redis"
 	"github.com/vucongthanh92/go-base-utils/logger"
+	"github.com/vucongthanh92/go-base-utils/models"
 	"go.uber.org/zap"
 )
 
@@ -132,7 +133,7 @@ func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
 }
 
 // provideEmailConfig returns the nested email config for DI.
-func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
+func provideEmailConfig(cfg *config.AppConfig) *models.EmailConfig {
 	return cfg.Email
 }
 

@@ -15,11 +15,12 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	models2 "github.com/vucongthanh92/go-base-utils/models"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 )
 
 type SsoUseCase struct {
-	cfg              *config.SSOConfig
+	cfg              *models2.SSOConfig
 	txn              *transaction.ManagerTxn
 	userReadRepo     interfaces.UserQueryRepoI
 	authService      interfaces.AuthServiceI
@@ -393,30 +394,30 @@ func (s *SsoUseCase) createAuthorizationCode(
 func (s *SsoUseCase) validateAuthorizeRequest(
 	ctx context.Context,
 	req models.SsoAuthorizeRequest,
-) (config.SSOClientConfig, *errHandler.ErrorBuilder) {
+) (models2.SSOClientConfig, *errHandler.ErrorBuilder) {
 	if req.ResponseType != "code" {
-		return config.SSOClientConfig{}, badRequest(ctx, "unsupported_response_type", "Only code response type is supported")
+		return models2.SSOClientConfig{}, badRequest(ctx, "unsupported_response_type", "Only code response type is supported")
 	}
 	if req.CodeChallengeMethod != "S256" {
-		return config.SSOClientConfig{}, badRequest(ctx, "invalid_code_challenge_method", "Only S256 PKCE is supported")
+		return models2.SSOClientConfig{}, badRequest(ctx, "invalid_code_challenge_method", "Only S256 PKCE is supported")
 	}
 	client, ok := s.findClient(req.ClientID)
 	if !ok || !utils.Contains(client.RedirectURIs, req.RedirectURI) {
-		return config.SSOClientConfig{}, badRequest(ctx, "invalid_client", "Invalid client or redirect URI")
+		return models2.SSOClientConfig{}, badRequest(ctx, "invalid_client", "Invalid client or redirect URI")
 	}
 	return client, nil
 }
 
-func (s *SsoUseCase) findClient(clientID string) (config.SSOClientConfig, bool) {
+func (s *SsoUseCase) findClient(clientID string) (models2.SSOClientConfig, bool) {
 	if s.cfg == nil {
-		return config.SSOClientConfig{}, false
+		return models2.SSOClientConfig{}, false
 	}
 	for _, client := range s.cfg.Clients {
 		if client.ClientID == clientID {
 			return client, true
 		}
 	}
-	return config.SSOClientConfig{}, false
+	return models2.SSOClientConfig{}, false
 }
 
 func (s *SsoUseCase) oauthErrorRedirect(redirectURI string, state string, code string) string {

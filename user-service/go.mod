@@ -24,7 +24,7 @@ require (
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.8.12
 	github.com/vucongthanh92/courier/shared v0.0.0
-	github.com/vucongthanh92/go-base-utils v1.2.6
+	github.com/vucongthanh92/go-base-utils v1.2.7
 	go.opentelemetry.io/otel/trace v1.43.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.50.0

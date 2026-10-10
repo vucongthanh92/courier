@@ -3,11 +3,10 @@ package database
 import (
 	"time"
 
-	"github.com/vucongthanh92/courier/user-service/config"
-
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/vucongthanh92/go-base-utils/database"
 	"github.com/vucongthanh92/go-base-utils/logger"
+	"github.com/vucongthanh92/go-base-utils/models"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -15,7 +14,7 @@ import (
 type ReadDb *sqlx.DB
 type WriteDb *sqlx.DB
 
-func Open(cfg *config.DatabaseConfig) (ReadDb, WriteDb) {
+func Open(cfg *models.DatabaseConfig) (ReadDb, WriteDb) {
 	readDb := database.MustConnect(cfg.ReadDbCfg.DbType, cfg.ReadDbCfg.ConnectionString)
 	readDb.SetMaxIdleConns(cfg.ReadDbCfg.MaxIdleConns)
 	readDb.SetMaxOpenConns(cfg.ReadDbCfg.MaxOpenConns)
