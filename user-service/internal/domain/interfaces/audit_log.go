@@ -3,9 +3,9 @@ package interfaces
 import (
 	"context"
 
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
 )
 
 type AuditLogQueryRepoI interface {
@@ -13,7 +13,7 @@ type AuditLogQueryRepoI interface {
 
 type AuditLogCommandRepoI interface {
 	InsertAuditLog(ctx context.Context, entity entities.AuditLog) (
-		entities.AuditLog, *errHandler.ErrorBuilder)
+		entities.AuditLog, *utilsError.ErrorBuilder)
 }
 
 type AuditLogServiceI interface {

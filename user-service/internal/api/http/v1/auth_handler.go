@@ -6,12 +6,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 )
 
 type AuthHandler struct {
@@ -54,7 +54,7 @@ func (h *AuthHandler) Signup(c *gin.Context) {
 	}
 
 	// Call usecase
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.authService.Signup(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -90,7 +90,7 @@ func (h *AuthHandler) VerifyEmail(c *gin.Context) {
 	}
 
 	// Call usecase
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.authService.VerifyEmail(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -127,7 +127,7 @@ func (h *AuthHandler) ResendVerifyEmail(c *gin.Context) {
 	}
 
 	// Call usecase
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.authService.ResendVerifyEmail(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -152,7 +152,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Call usecase
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.authService.Login(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -193,7 +193,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// Call usecase
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.authService.RefreshToken(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -210,7 +210,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 func (h *AuthHandler) Logout(c *gin.Context) {
 
 	// Get claims from context
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	claims := c.Value("authClaims").(jwt.MapClaims)
 
 	// Call usecase

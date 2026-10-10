@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/redis"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
 )
 
 type redisDenylist struct {

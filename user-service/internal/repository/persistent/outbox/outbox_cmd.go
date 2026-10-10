@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 
@@ -25,7 +25,7 @@ func InitOutboxCmdRepository(writeDb *database.GormWriteDb) interfaces.OutboxCom
 
 // InsertOutbox inserts a new outbox record into the database
 func (repo *outboxCmdRepository) InsertOutbox(ctx context.Context, entity entities.Outbox) (
-	entities.Outbox, *errHandler.ErrorBuilder) {
+	entities.Outbox, *utilsError.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "InsertOutbox")
@@ -35,7 +35,7 @@ func (repo *outboxCmdRepository) InsertOutbox(ctx context.Context, entity entiti
 	// Insert outbox record
 	err := run.Model(entities.Outbox{}).Create(&entity).Error
 	if err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		resErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return entity, resErr
 	}
 
@@ -43,7 +43,7 @@ func (repo *outboxCmdRepository) InsertOutbox(ctx context.Context, entity entiti
 }
 
 // UpdateOutboxPublished updates the PublishedAt field of the outbox record to mark it as published
-func (repo *outboxCmdRepository) UpdateOutboxPublished(ctx context.Context, entity *entities.Outbox) *errHandler.ErrorBuilder {
+func (repo *outboxCmdRepository) UpdateOutboxPublished(ctx context.Context, entity *entities.Outbox) *utilsError.ErrorBuilder {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "UpdateOutboxPublished")
@@ -53,7 +53,7 @@ func (repo *outboxCmdRepository) UpdateOutboxPublished(ctx context.Context, enti
 	// Update outbox record
 	err := run.Model(entities.Outbox{}).Where("id = ?", entity.ID).Update("published_at", entity.PublishedAt).Error
 	if err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		resErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return resErr
 	}
 

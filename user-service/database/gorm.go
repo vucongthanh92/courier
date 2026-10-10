@@ -4,19 +4,19 @@ import (
 	"context"
 	"time"
 
-	"github.com/vucongthanh92/courier/user-service/config"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/vucongthanh92/go-base-utils/database"
 	"github.com/vucongthanh92/go-base-utils/logger"
+	"github.com/vucongthanh92/go-base-utils/models"
 )
 
 type GormReadDb *gorm.DB
 type GormWriteDb *gorm.DB
 
-func GetConnectByGorm(cfg *config.DatabaseConfig) (GormReadDb, GormWriteDb) {
+func GetConnectByGorm(cfg *models.DatabaseConfig) (GormReadDb, GormWriteDb) {
 
 	// readDB
 	readConn, err := database.GormConnectDB(cfg.ReadDbCfg.DbType, cfg.ReadDbCfg.ConnectionString)

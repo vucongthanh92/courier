@@ -5,14 +5,15 @@ import (
 	"strings"
 
 	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
 )
 
 type userQueryRepository struct {
@@ -29,7 +30,7 @@ func InitUserQueryRepository(readDb *database.GormReadDb) interfaces.UserQueryRe
 // This method retrieves a user record from the database based on the provided user ID.
 // It returns the user entity and an error builder if any error occurs during the retrieval process.
 func (repo *userQueryRepository) GetUserByIdOrEmail(ctx context.Context, req models.GetUserByIdOrEmailRequest) (
-	res *entities.User, errRes *errHandler.ErrorBuilder) {
+	res *entities.User, errRes *utilsError.ErrorBuilder) {
 
 	// Start tracing
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetUserByIdOrEmail")
@@ -61,7 +62,7 @@ func (repo *userQueryRepository) GetUserByIdOrEmail(ctx context.Context, req mod
 	// Execute query and handle result
 	var user entities.User
 	if err := runner.Take(&user).Error; err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		resErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return nil, resErr
 	}
 
@@ -70,7 +71,7 @@ func (repo *userQueryRepository) GetUserByIdOrEmail(ctx context.Context, req mod
 
 // GetUsersByIDs returns users for the provided IDs, excluding soft-deleted rows.
 func (repo *userQueryRepository) GetUsersByIDs(ctx context.Context, userIDs []uint64) (
-	res []entities.User, errRes *errHandler.ErrorBuilder) {
+	res []entities.User, errRes *utilsError.ErrorBuilder) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "GetUsersByIDs")
 	defer span.End()
@@ -86,7 +87,7 @@ func (repo *userQueryRepository) GetUsersByIDs(ctx context.Context, userIDs []ui
 		Where("id IN ?", userIDs).
 		Find(&res).Error
 	if err != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return nil, utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 
 	return res, nil
@@ -94,7 +95,7 @@ func (repo *userQueryRepository) GetUsersByIDs(ctx context.Context, userIDs []ui
 
 // SearchUsers finds verified users by display name, phone number, or email, excluding the requester.
 func (repo *userQueryRepository) SearchUsers(ctx context.Context, req models.SearchUsersRequest) (
-	res []entities.User, errRes *errHandler.ErrorBuilder) {
+	res []entities.User, errRes *utilsError.ErrorBuilder) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "SearchUsers")
 	defer span.End()
@@ -126,7 +127,7 @@ func (repo *userQueryRepository) SearchUsers(ctx context.Context, req models.Sea
 		Limit(limit).
 		Find(&res).Error
 	if err != nil {
-		return nil, errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return nil, utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 
 	return res, nil
@@ -136,7 +137,7 @@ func (repo *userQueryRepository) SearchUsers(ctx context.Context, req models.Sea
 // This method checks if a user with the given email or phone number already exists in the database.
 // It returns a boolean indicating existence and an error builder if any error occurs during the check.
 func (repo *userQueryRepository) CheckExistingEmailOrPhone(ctx context.Context, email string, phoneNumber string) (
-	res bool, errRes *errHandler.ErrorBuilder) {
+	res bool, errRes *utilsError.ErrorBuilder) {
 
 	// Start tracing
 	ctx, span := tracing.StartSpanFromContext(ctx, "CheckExistingEmailOrPhone")
@@ -150,7 +151,7 @@ func (repo *userQueryRepository) CheckExistingEmailOrPhone(ctx context.Context, 
 
 	// Handle error
 	if err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		resErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return res, resErr
 	}
 

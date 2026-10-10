@@ -9,17 +9,19 @@ import (
 	"time"
 
 	"github.com/vucongthanh92/courier/user-service/config"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
+	utilsModels "github.com/vucongthanh92/go-base-utils/models"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 )
 
 type SsoUseCase struct {
-	cfg              *config.SSOConfig
+	cfg              *utilsModels.SSOConfig
 	txn              *transaction.ManagerTxn
 	userReadRepo     interfaces.UserQueryRepoI
 	authService      interfaces.AuthServiceI
@@ -63,7 +65,7 @@ func (s *SsoUseCase) Authorize(
 	ctx context.Context,
 	req models.SsoAuthorizeRequest,
 	sessionToken string,
-) (*models.SsoAuthorizeResponse, *errHandler.ErrorBuilder) {
+) (*models.SsoAuthorizeResponse, *utilsError.ErrorBuilder) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "SsoAuthorize")
 	defer span.End()
@@ -80,7 +82,7 @@ func (s *SsoUseCase) Authorize(
 			return &models.SsoAuthorizeResponse{RedirectURI: s.oauthErrorRedirect(req.RedirectURI, req.State, "login_required")}, nil
 		}
 
-		return &models.SsoAuthorizeResponse{RedirectURI: utils.LoginRedirect(
+		return &models.SsoAuthorizeResponse{RedirectURI: baseUtils.LoginRedirect(
 			s.cfg.LoginURL,
 			req.ClientID,
 			req.RedirectURI,
@@ -92,13 +94,13 @@ func (s *SsoUseCase) Authorize(
 			req.CodeChallengeMethod,
 		)}, nil
 	}
-	session, commonErr := s.sessionQuery.GetActiveByHash(ctx, utils.HashSecret(sessionToken), time.Now())
+	session, commonErr := s.sessionQuery.GetActiveByHash(ctx, baseUtils.HashSecret(sessionToken), time.Now())
 	if commonErr != nil {
 		if req.Prompt == "none" {
 			return &models.SsoAuthorizeResponse{RedirectURI: s.oauthErrorRedirect(req.RedirectURI, req.State, "login_required")}, nil
 		}
 
-		return &models.SsoAuthorizeResponse{RedirectURI: utils.LoginRedirect(
+		return &models.SsoAuthorizeResponse{RedirectURI: baseUtils.LoginRedirect(
 			s.cfg.LoginURL,
 			req.ClientID,
 			req.RedirectURI,
@@ -134,7 +136,7 @@ func (s *SsoUseCase) Authorize(
 func (s *SsoUseCase) Login(
 	ctx context.Context,
 	req models.SsoLoginRequest,
-) (*models.SsoLoginResponse, string, time.Time, *errHandler.ErrorBuilder) {
+) (*models.SsoLoginResponse, string, time.Time, *utilsError.ErrorBuilder) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "SsoLogin")
 	defer span.End()
@@ -158,15 +160,15 @@ func (s *SsoUseCase) Login(
 	}
 
 	// Create a new session for the authenticated user
-	sessionToken := utils.RandString(64)
-	sessionID, _ := utils.NewSnowflakeID()
+	sessionToken := baseUtils.RandString(64)
+	sessionID, _ := baseUtils.NewSnowflakeID()
 	session := entities.SsoSession{}
 	session.Initialize(
 		sessionID,
-		utils.HashSecret(sessionToken),
-		utils.StrPtr(utils.GetUserAgent(ctx)),
-		utils.StrPtr(utils.GetClientIP(ctx)),
-		utils.CheckSessionTTLMinutes(s.cfg.SessionTTLMinutes),
+		baseUtils.HashSecret(sessionToken),
+		baseUtils.StringPtr(baseUtils.GetUserAgent(ctx)),
+		baseUtils.StringPtr(baseUtils.GetClientIP(ctx)),
+		baseUtils.CheckSessionTTLMinutes(s.cfg.SessionTTLMinutes),
 		userEntity.ID,
 	)
 
@@ -206,7 +208,7 @@ func (s *SsoUseCase) Login(
 func (s *SsoUseCase) Token(
 	ctx context.Context,
 	req models.SsoTokenRequest,
-) (*models.SsoTokenResponse, *errHandler.ErrorBuilder) {
+) (*models.SsoTokenResponse, *utilsError.ErrorBuilder) {
 
 	ctx, span := tracing.StartSpanFromContext(ctx, "SsoToken")
 	defer span.End()
@@ -218,20 +220,20 @@ func (s *SsoUseCase) Token(
 
 	// Validate the client ID and redirect URI, ensuring they match the registered client configuration
 	client, ok := s.findClient(req.ClientID)
-	if !ok || !utils.Contains(client.RedirectURIs, req.RedirectURI) {
+	if !ok || !baseUtils.Contains(client.RedirectURIs, req.RedirectURI) {
 		return nil, badRequest(ctx, "invalid_client", "Invalid client or redirect URI")
 	}
 
 	// Validate the authorization code, ensuring it is active, matches the client and redirect URI, and passes PKCE verification
 	now := time.Now()
-	codeHash := utils.HashSecret(req.Code)
+	codeHash := baseUtils.HashSecret(req.Code)
 	authCode, commonErr := s.codeQuery.GetActiveByHash(ctx, codeHash, now)
 	switch {
 	case commonErr != nil:
 		return nil, badRequest(ctx, "invalid_code", "Authorization code is invalid or expired")
 	case authCode.ClientID != req.ClientID || authCode.RedirectURI != req.RedirectURI:
 		return nil, badRequest(ctx, "invalid_code", "Authorization code does not match request")
-	case !utils.VerifyPKCE(authCode.CodeChallenge, req.CodeVerifier):
+	case !baseUtils.VerifyPKCE(authCode.CodeChallenge, req.CodeVerifier):
 		return nil, badRequest(ctx, "invalid_grant", "PKCE verification failed")
 	}
 
@@ -250,7 +252,7 @@ func (s *SsoUseCase) Token(
 
 	// Generate access token, ID token, and refresh token for the authenticated user
 	accessTTL := 30 * time.Minute
-	idTokenTTL := time.Duration(utils.CheckIdTokenTTLMinutes(s.cfg.IDTokenTTLMinutes)) * time.Minute
+	idTokenTTL := time.Duration(baseUtils.CheckIdTokenTTLMinutes(s.cfg.IDTokenTTLMinutes)) * time.Minute
 	sessionID := ""
 	if authCode.SsoSessionID != nil {
 		sessionID = strconv.FormatUint(*authCode.SsoSessionID, 10)
@@ -273,14 +275,14 @@ func (s *SsoUseCase) Token(
 
 	// Generate refresh token and store its hash in the database for the authenticated user
 	refreshTTL := 90 * 24 * time.Hour
-	refreshPlain := utils.RandString(64)
-	refreshHash := utils.HashPwdBySha256(userEntity.Email, refreshPlain)
+	refreshPlain := baseUtils.RandString(64)
+	refreshHash := baseUtils.HashPwdBySha256(userEntity.Email, refreshPlain)
 	rt := entities.RefreshToken{
 		UserID:    userEntity.ID,
 		TokenHash: refreshHash,
 		ExpiresAt: now.Add(refreshTTL),
-		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
-		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
+		UserAgent: baseUtils.StringPtr(baseUtils.GetUserAgent(ctx)),
+		IP:        baseUtils.StringPtr(baseUtils.GetClientIP(ctx)),
 	}
 	if commonErr := s.refreshTokenRepo.UpsertByUserAgent(ctx, &rt); commonErr != nil {
 		return nil, commonErr
@@ -305,13 +307,13 @@ func (s *SsoUseCase) Token(
 
 // Session retrieves the current SSO session information for the provided session token, returning the authenticated user details and session expiration time.
 // If the session is not active or invalid, it returns an unauthenticated response.
-func (s *SsoUseCase) Session(ctx context.Context, sessionToken string) (*models.SsoSessionResponse, *errHandler.ErrorBuilder) {
+func (s *SsoUseCase) Session(ctx context.Context, sessionToken string) (*models.SsoSessionResponse, *utilsError.ErrorBuilder) {
 
 	// Retrieve the active SSO session associated with the provided session token
 	if sessionToken == "" {
 		return nil, badRequest(ctx, "missing_sso_session", "Missing SSO session")
 	}
-	session, commonErr := s.sessionQuery.GetActiveByHash(ctx, utils.HashSecret(sessionToken), time.Now())
+	session, commonErr := s.sessionQuery.GetActiveByHash(ctx, baseUtils.HashSecret(sessionToken), time.Now())
 	if commonErr != nil {
 		return &models.SsoSessionResponse{Authenticated: false}, nil
 	}
@@ -337,16 +339,16 @@ func (s *SsoUseCase) Session(ctx context.Context, sessionToken string) (*models.
 
 // Logout revokes the active SSO session and associated refresh tokens for the provided session token, effectively logging the user out of the SSO system.
 // If the session is not active or invalid, it still returns a successful logout response to avoid exposing session state.
-func (s *SsoUseCase) Logout(ctx context.Context, sessionToken string) (*models.SsoLogoutResponse, *errHandler.ErrorBuilder) {
+func (s *SsoUseCase) Logout(ctx context.Context, sessionToken string) (*models.SsoLogoutResponse, *utilsError.ErrorBuilder) {
 
 	// Retrieve the active SSO session associated with the provided session token
 	if sessionToken == "" {
 		return nil, badRequest(ctx, "missing_sso_session", "Missing SSO session")
 	}
-	session, commonErr := s.sessionQuery.GetActiveByHash(ctx, utils.HashSecret(sessionToken), time.Now())
+	session, commonErr := s.sessionQuery.GetActiveByHash(ctx, baseUtils.HashSecret(sessionToken), time.Now())
 	if commonErr == nil {
 		now := time.Now()
-		sessionHash := utils.HashSecret(sessionToken)
+		sessionHash := baseUtils.HashSecret(sessionToken)
 		if commonErr := s.sessionCmd.RevokeByHash(ctx, sessionHash, now); commonErr != nil {
 			return nil, commonErr
 		}
@@ -365,20 +367,20 @@ func (s *SsoUseCase) createAuthorizationCode(
 	session *entities.SsoSession,
 	clientID string,
 	req models.SsoAuthorizeRequest,
-) (string, *errHandler.ErrorBuilder) {
+) (string, *utilsError.ErrorBuilder) {
 	now := time.Now()
-	codeTTL := time.Duration(utils.CodeTTLSeconds(s.cfg.CodeTTLSeconds)) * time.Second
-	code := utils.RandString(48)
-	codeID, _ := utils.NewSnowflakeID()
+	codeTTL := time.Duration(baseUtils.CodeTTLSeconds(s.cfg.CodeTTLSeconds)) * time.Second
+	code := baseUtils.RandString(48)
+	codeID, _ := baseUtils.NewSnowflakeID()
 	entity := entities.SsoAuthorizationCode{
 		ID:                  codeID,
-		CodeHash:            utils.HashSecret(code),
+		CodeHash:            baseUtils.HashSecret(code),
 		UserID:              session.UserID,
 		ClientID:            clientID,
 		RedirectURI:         req.RedirectURI,
-		Scope:               utils.RemoveWhiteSpace(req.Scope),
-		State:               utils.OptionalString(req.State),
-		Nonce:               utils.OptionalString(req.Nonce),
+		Scope:               baseUtils.RemoveWhiteSpace(req.Scope),
+		State:               baseUtils.OptionalString(req.State),
+		Nonce:               baseUtils.OptionalString(req.Nonce),
 		CodeChallenge:       req.CodeChallenge,
 		CodeChallengeMethod: req.CodeChallengeMethod,
 		SsoSessionID:        &session.ID,
@@ -393,30 +395,30 @@ func (s *SsoUseCase) createAuthorizationCode(
 func (s *SsoUseCase) validateAuthorizeRequest(
 	ctx context.Context,
 	req models.SsoAuthorizeRequest,
-) (config.SSOClientConfig, *errHandler.ErrorBuilder) {
+) (utilsModels.SSOClientConfig, *utilsError.ErrorBuilder) {
 	if req.ResponseType != "code" {
-		return config.SSOClientConfig{}, badRequest(ctx, "unsupported_response_type", "Only code response type is supported")
+		return utilsModels.SSOClientConfig{}, badRequest(ctx, "unsupported_response_type", "Only code response type is supported")
 	}
 	if req.CodeChallengeMethod != "S256" {
-		return config.SSOClientConfig{}, badRequest(ctx, "invalid_code_challenge_method", "Only S256 PKCE is supported")
+		return utilsModels.SSOClientConfig{}, badRequest(ctx, "invalid_code_challenge_method", "Only S256 PKCE is supported")
 	}
 	client, ok := s.findClient(req.ClientID)
-	if !ok || !utils.Contains(client.RedirectURIs, req.RedirectURI) {
-		return config.SSOClientConfig{}, badRequest(ctx, "invalid_client", "Invalid client or redirect URI")
+	if !ok || !baseUtils.Contains(client.RedirectURIs, req.RedirectURI) {
+		return utilsModels.SSOClientConfig{}, badRequest(ctx, "invalid_client", "Invalid client or redirect URI")
 	}
 	return client, nil
 }
 
-func (s *SsoUseCase) findClient(clientID string) (config.SSOClientConfig, bool) {
+func (s *SsoUseCase) findClient(clientID string) (utilsModels.SSOClientConfig, bool) {
 	if s.cfg == nil {
-		return config.SSOClientConfig{}, false
+		return utilsModels.SSOClientConfig{}, false
 	}
 	for _, client := range s.cfg.Clients {
 		if client.ClientID == clientID {
 			return client, true
 		}
 	}
-	return config.SSOClientConfig{}, false
+	return utilsModels.SSOClientConfig{}, false
 }
 
 func (s *SsoUseCase) oauthErrorRedirect(redirectURI string, state string, code string) string {
@@ -430,9 +432,10 @@ func (s *SsoUseCase) oauthErrorRedirect(redirectURI string, state string, code s
 	return parsedURL.String()
 }
 
-func badRequest(ctx context.Context, code string, message string) *errHandler.ErrorBuilder {
-	return errHandler.InitErrorBuilder(ctx).
+func badRequest(ctx context.Context, code string, message string) *utilsError.ErrorBuilder {
+	return utilsError.InitErrorBuilder(ctx).
 		SetStatus(http.StatusBadRequest).
 		SetLogError(errors.New(message)).
-		SetError(models.ErrorDTO{Code: code, Message: message})
+		SetError(utilsModels.ErrorDTO{
+			Code: code, Message: message})
 }

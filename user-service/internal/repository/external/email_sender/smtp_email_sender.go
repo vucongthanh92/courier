@@ -6,19 +6,19 @@ import (
 	"net/smtp"
 	"net/url"
 
-	"github.com/vucongthanh92/courier/user-service/config"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/go-base-utils/logger"
+	"github.com/vucongthanh92/go-base-utils/models"
 	"go.uber.org/zap"
 )
 
 type smtpSender struct {
-	cfg    *config.EmailConfig
+	cfg    *models.EmailConfig
 	logger logger.Logger
 }
 
-func InitSMTPSender(cfg *config.EmailConfig, logger logger.Logger) interfaces.EmailSenderI {
+func InitSMTPSender(cfg *models.EmailConfig, logger logger.Logger) interfaces.EmailSenderI {
 	return &smtpSender{cfg: cfg, logger: logger}
 }
 

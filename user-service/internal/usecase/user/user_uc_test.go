@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
 )
 
 type userQueryRepoStub struct {
@@ -14,20 +15,20 @@ type userQueryRepoStub struct {
 	users     []entities.User
 }
 
-func (s *userQueryRepoStub) GetUserByIdOrEmail(context.Context, models.GetUserByIdOrEmailRequest) (*entities.User, *errHandler.ErrorBuilder) {
+func (s *userQueryRepoStub) GetUserByIdOrEmail(context.Context, models.GetUserByIdOrEmailRequest) (*entities.User, *utilsError.ErrorBuilder) {
 	return nil, nil
 }
 
-func (s *userQueryRepoStub) GetUsersByIDs(context.Context, []uint64) ([]entities.User, *errHandler.ErrorBuilder) {
+func (s *userQueryRepoStub) GetUsersByIDs(context.Context, []uint64) ([]entities.User, *utilsError.ErrorBuilder) {
 	return nil, nil
 }
 
-func (s *userQueryRepoStub) SearchUsers(_ context.Context, req models.SearchUsersRequest) ([]entities.User, *errHandler.ErrorBuilder) {
+func (s *userQueryRepoStub) SearchUsers(_ context.Context, req models.SearchUsersRequest) ([]entities.User, *utilsError.ErrorBuilder) {
 	s.searchReq = req
 	return s.users, nil
 }
 
-func (s *userQueryRepoStub) CheckExistingEmailOrPhone(context.Context, string, string) (bool, *errHandler.ErrorBuilder) {
+func (s *userQueryRepoStub) CheckExistingEmailOrPhone(context.Context, string, string) (bool, *utilsError.ErrorBuilder) {
 	return false, nil
 }
 

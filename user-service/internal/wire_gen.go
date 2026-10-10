@@ -12,7 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/database"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/api"
 	"github.com/vucongthanh92/courier/user-service/internal/api/cron"
 	"github.com/vucongthanh92/courier/user-service/internal/api/grpc"
@@ -44,14 +43,17 @@ import (
 	user2 "github.com/vucongthanh92/courier/user-service/internal/usecase/user"
 	"github.com/vucongthanh92/courier/user-service/internal/worker"
 	"github.com/vucongthanh92/courier/user-service/redis"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/logger"
+	"github.com/vucongthanh92/go-base-utils/models"
 	"go.uber.org/zap"
 )
 
 // Injectors from wire.go:
 
 func InitializeContainer(appCfg *config.AppConfig, readDb *database.GormReadDb, writeDb *database.GormWriteDb, redisClient redis.Client) *api.ApiContainer {
-	managerTxn := transaction.InitManagerTxn(writeDb)
+	gormWriteDb := provideTransactionWriteDB(writeDb)
+	managerTxn := transaction.InitManagerTxn(gormWriteDb)
 	auditLogCommandRepoI := auditlog.InitAuditLogCmdRepository(writeDb)
 	auditLogServiceI := auditlog_uc.InitAuditLogUsecase(auditLogCommandRepoI)
 	outboxCommandRepoI := outbox.InitOutboxCmdRepository(writeDb)
@@ -114,7 +116,9 @@ var handlerSet = wire.NewSet(v1.InitIdentityHandler, v1.InitAuthHandler, v1.Init
 
 var serviceSet = wire.NewSet(cronjob.NewCronJobService, auditlog_uc.InitAuditLogUsecase, authen.InitAuthUseCase, identity2.InitIdentityUseCase, outbox2.InitOutboxUsecase, token.InitTokenUseCase, credential.InitCredentialUseCase, sso2.InitSsoUseCase, user2.InitUserUsecase)
 
-var repoSet = wire.NewSet(transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, sso.InitSsoSessionCommandRepo, sso.InitSsoSessionQueryRepo, sso.InitSsoAuthorizationCodeCommandRepo, sso.InitSsoAuthorizationCodeQueryRepo, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, redis2.InitJWKCacheRepo, provideEmailConfig,
+var repoSet = wire.NewSet(
+
+	provideTransactionWriteDB, transaction.InitManagerTxn, user.InitUserCmdRepository, user.InitUserQueryRepository, identity.InitIdentityCmdRepository, identity.InitIdentityQueryRepository, auditlog.InitAuditLogCmdRepository, authcredential.InitAuthCredentialCmdRepository, authcredential.InitAuthCredentialQueryRepository, emailverification.InitEmailVerificationCmdRepository, emailverification.InitEmailVerificationQueryRepository, outbox.InitOutboxCmdRepository, outbox.InitOutboxQueryRepository, refreshtoken.InitRefreshTokenCmdRepository, refreshtoken.InitRefreshTokenQueryRepository, sso.InitSsoSessionCommandRepo, sso.InitSsoSessionQueryRepo, sso.InitSsoAuthorizationCodeCommandRepo, sso.InitSsoAuthorizationCodeQueryRepo, jwk.InitJWKQueryRepository, emailsender.InitSMTPSender, redis2.InitRedisDenylist, redis2.InitJWKCacheRepo, provideEmailConfig,
 	provideLogger,
 	provideJWTSigner,
 	provideGoogleClient,
@@ -132,7 +136,7 @@ func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
 }
 
 // provideEmailConfig returns the nested email config for DI.
-func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
+func provideEmailConfig(cfg *config.AppConfig) *models.EmailConfig {
 	return cfg.Email
 }
 
@@ -152,6 +156,11 @@ func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) inter
 		log.Fatal("init jwt signer failed", zap.Error(err2))
 	}
 	return s
+}
+
+func provideTransactionWriteDB(writeDb *database.GormWriteDb) *transaction.GormWriteDb {
+	converted := transaction.GormWriteDb(*writeDb)
+	return &converted
 }
 
 // provideGoogleClient initializes the Google OAuth client with credentials from config.

@@ -43,14 +43,15 @@ import (
 	"github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	oauthRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/oauth"
 	redisRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
+	"github.com/vucongthanh92/go-base-utils/models"
 
 	// shared interfaces
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 
 	// helper
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	grpcserver "github.com/vucongthanh92/courier/user-service/internal/api/grpc"
 	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 
 	// third-party
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -99,6 +100,7 @@ var serviceSet = wire.NewSet(
 var repoSet = wire.NewSet(
 
 	// internal repo
+	provideTransactionWriteDB,
 	transaction.InitManagerTxn,
 	userRepo.InitUserCmdRepository,
 	userRepo.InitUserQueryRepository,
@@ -153,7 +155,7 @@ func newPgxPool(cfg *config.AppConfig) *pgxpool.Pool {
 }
 
 // provideEmailConfig returns the nested email config for DI.
-func provideEmailConfig(cfg *config.AppConfig) *config.EmailConfig {
+func provideEmailConfig(cfg *config.AppConfig) *models.EmailConfig {
 	return cfg.Email
 }
 
@@ -173,6 +175,11 @@ func provideJWTSigner(jwkRepo interfaces.JWKQueryRepoI, log logger.Logger) inter
 		log.Fatal("init jwt signer failed", zap.Error(err2))
 	}
 	return s
+}
+
+func provideTransactionWriteDB(writeDb *database.GormWriteDb) *transaction.GormWriteDb {
+	converted := transaction.GormWriteDb(*writeDb)
+	return &converted
 }
 
 // provideGoogleClient initializes the Google OAuth client with credentials from config.

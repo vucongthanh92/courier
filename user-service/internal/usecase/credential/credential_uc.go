@@ -4,15 +4,17 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
+
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/datatypes"
 
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
+	utilsModels "github.com/vucongthanh92/go-base-utils/models"
 )
 
 type AuthCredentialUseCaseImpl struct {
@@ -58,7 +60,7 @@ func InitCredentialUseCase(
 }
 
 // SetPassword implements AuthCredentialServiceI
-func (s *AuthCredentialUseCaseImpl) SetPassword(ctx context.Context, req models.GeneratePasswordRequest) *errHandler.ErrorBuilder {
+func (s *AuthCredentialUseCaseImpl) SetPassword(ctx context.Context, req models.GeneratePasswordRequest) *utilsError.ErrorBuilder {
 
 	// step 1. start transaction
 	ctx, span := tracing.StartSpanFromContext(ctx, "SetPassword")
@@ -71,9 +73,9 @@ func (s *AuthCredentialUseCaseImpl) SetPassword(ctx context.Context, req models.
 	}
 
 	if credential.PasswordVersion != 0 || credential.PasswordHash != "" {
-		return errHandler.InitErrorBuilder(ctx).
+		return utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusConflict).
-			SetError(models.ErrorDTO{Code: "password_already_set", Message: "Password already exists"})
+			SetError(utilsModels.ErrorDTO{Code: "password_already_set", Message: "Password already exists"})
 	}
 
 	// step 3. update password and password version
@@ -88,8 +90,8 @@ func (s *AuthCredentialUseCaseImpl) SetPassword(ctx context.Context, req models.
 		models.AuditLogRequest{
 			CreatorID: req.UserID,
 			Action:    constants.AuditLogActionSetPassword,
-			IP:        utils.GetClientIP(ctx),
-			UserAgent: utils.GetUserAgent(ctx),
+			IP:        baseUtils.GetClientIP(ctx),
+			UserAgent: baseUtils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
 				"auth_credential": credential,
 			},

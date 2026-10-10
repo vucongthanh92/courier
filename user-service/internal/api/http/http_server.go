@@ -2,20 +2,20 @@ package http
 
 import (
 	"context"
-	"net/http"
 	"os"
 
-	"github.com/gin-gonic/gin"
 	"github.com/swaggo/swag"
 	"github.com/vucongthanh92/courier/user-service/config"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	middleware "github.com/vucongthanh92/courier/user-service/internal/api/http/middleware"
 	v1 "github.com/vucongthanh92/courier/user-service/internal/api/http/v1"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	cacheRepo "github.com/vucongthanh92/courier/user-service/internal/repository/external/redis"
 	httpserver "github.com/vucongthanh92/go-base-utils/http/server"
-	"github.com/vucongthanh92/go-base-utils/logger"
 	"go.uber.org/zap"
+
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	utilsMidd "github.com/vucongthanh92/go-base-utils/http/middlewares"
+	"github.com/vucongthanh92/go-base-utils/logger"
 )
 
 type Server struct {
@@ -62,8 +62,9 @@ func (s *Server) Run() {
 		Resources:       s.cfg.Http.Resources,
 		AllowOrigins:    s.cfg.Http.AllowOrigins,
 	}
+
 	httpServer, router := httpserver.NewServer(*config)
-	router.Use(corsMiddleware(s.cfg.Http.AllowOrigins))
+	router.Use(utilsMidd.CorsV2(s.cfg.Http.AllowOrigins))
 
 	// // Add recover panic middleware
 	// router.Use(middlewares.RecoverPanicMiddleware(middlewares.RecoverPanicMiddlewareConfig{
@@ -80,7 +81,8 @@ func (s *Server) Run() {
 	if _, err := middleware.LoadPubKeys(context.Background(), s.jwkRepo, s.jwkCache); err != nil {
 		logger.Fatal("load public key failed", zap.Error(err.LogError))
 	}
-	authMW := middleware.JWTMiddleware(s.tokenDeny, func(ctx context.Context, kid string) (any, *errHandler.ErrorBuilder) {
+
+	authMW := utilsMidd.JWTMiddleware(s.tokenDeny, func(ctx context.Context, kid string) (any, *utilsError.ErrorBuilder) {
 		return middleware.ResolvePublicKey(ctx, s.jwkRepo, s.jwkCache, kid)
 	})
 
@@ -95,31 +97,6 @@ func (s *Server) Run() {
 		authMW,
 	)
 	httpServer.Run()
-}
-
-func corsMiddleware(allowOrigins []string) gin.HandlerFunc {
-	allowed := make(map[string]struct{}, len(allowOrigins))
-	for _, origin := range allowOrigins {
-		allowed[origin] = struct{}{}
-	}
-
-	return func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-		if _, ok := allowed[origin]; ok {
-			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-			c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-			c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-			c.Writer.Header().Add("Vary", "Origin")
-		}
-
-		if c.Request.Method == http.MethodOptions {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
-	}
 }
 
 // For Swagger docs, we read the generated swagger.json to avoid issues

@@ -714,7 +714,7 @@ github.com/vmihailenco/tagparser/v2/internal/parser
 ## explicit; go 1.25.0
 github.com/vucongthanh92/courier/shared/grpc/user-service/user_profile/gen
 github.com/vucongthanh92/courier/shared/grpc/user-service/user_status/gen
-# github.com/vucongthanh92/go-base-utils v1.2.6
+# github.com/vucongthanh92/go-base-utils v1.2.10
 ## explicit; go 1.22.7
 github.com/vucongthanh92/go-base-utils/cache
 github.com/vucongthanh92/go-base-utils/command
@@ -725,12 +725,18 @@ github.com/vucongthanh92/go-base-utils/config
 github.com/vucongthanh92/go-base-utils/database
 github.com/vucongthanh92/go-base-utils/grpc/interceptors
 github.com/vucongthanh92/go-base-utils/grpc/server
+github.com/vucongthanh92/go-base-utils/helper/constants
+github.com/vucongthanh92/go-base-utils/helper/http_common
+github.com/vucongthanh92/go-base-utils/helper/http_error
+github.com/vucongthanh92/go-base-utils/helper/transaction
+github.com/vucongthanh92/go-base-utils/helper/utils
 github.com/vucongthanh92/go-base-utils/http/middlewares
 github.com/vucongthanh92/go-base-utils/http/request
 github.com/vucongthanh92/go-base-utils/http/server
 github.com/vucongthanh92/go-base-utils/localization
 github.com/vucongthanh92/go-base-utils/logger
 github.com/vucongthanh92/go-base-utils/metrics
+github.com/vucongthanh92/go-base-utils/models
 github.com/vucongthanh92/go-base-utils/redis
 github.com/vucongthanh92/go-base-utils/slack
 github.com/vucongthanh92/go-base-utils/token

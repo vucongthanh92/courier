@@ -5,15 +5,18 @@ import (
 	"net/http"
 
 	"github.com/lib/pq"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/datatypes"
+
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
+	utilsModels "github.com/vucongthanh92/go-base-utils/models"
 )
 
 type IdentityUseCaseImpl struct {
@@ -60,7 +63,7 @@ func InitIdentityUseCase(
 
 // OAuthLogin implements interfaces.Oauth3rdUseCaseI
 func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLoginRequest) (
-	*models.JwtTokenResponse, *errHandler.ErrorBuilder) {
+	*models.JwtTokenResponse, *utilsError.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "OAuthLogin")
@@ -76,17 +79,17 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 	case constants.GithubProvider:
 		client = s.githubClient
 	default:
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusBadRequest).
-			SetError(models.ErrorDTO{Code: "unsupported_provider", Message: "Provider not supported"})
+			SetError(utilsModels.ErrorDTO{Code: "unsupported_provider", Message: "Provider not supported"})
 	}
 
 	// Verify token and get user profile from provider
 	profile, err := client.Verify(ctx, req.Token)
 	if err != nil || profile.Email == "" || !profile.EmailVerified {
-		return nil, errHandler.InitErrorBuilder(ctx).
+		return nil, utilsError.InitErrorBuilder(ctx).
 			SetStatus(http.StatusUnauthorized).
-			SetError(models.ErrorDTO{Code: "oauth_invalid_token", Message: "Invalid or unverified token"})
+			SetError(utilsModels.ErrorDTO{Code: "oauth_invalid_token", Message: "Invalid or unverified token"})
 	}
 
 	// Log the OAuth login attempt (without sensitive token info)
@@ -99,11 +102,11 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 	// If identity exists, we can get the user ID from it.
 	// If not, we will create a new user and identity record in the transaction below.
 	var getUserReq = models.GetUserByIdOrEmailRequest{
-		Email: utils.StrPtr(profile.Email),
+		Email: baseUtils.StringPtr(profile.Email),
 	}
 
 	if identity != nil {
-		getUserReq.UserID = utils.Uint64Ptr(identity.UserID)
+		getUserReq.UserID = baseUtils.Uint64Ptr(identity.UserID)
 	}
 
 	userEntity, logErr = s.userReadRepo.GetUserByIdOrEmail(ctx, getUserReq)
@@ -112,7 +115,7 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 	}
 
 	// Transaction: create/link user + identity + auth_credential when needed
-	errTxn := s.txn.Do(ctx, func(txCtx context.Context) *errHandler.ErrorBuilder {
+	errTxn := s.txn.Do(ctx, func(txCtx context.Context) *utilsError.ErrorBuilder {
 		if userEntity == nil {
 			userEntity = &entities.User{
 				Email:         profile.Email,
@@ -121,7 +124,7 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 				EmailVerified: true,
 				Status:        "verified",
 			}
-			userEntity.ID, _ = utils.NewSnowflakeID()
+			userEntity.ID, _ = baseUtils.NewSnowflakeID()
 			if txnErr := s.userWriteRepo.InsertUser(txCtx, userEntity); txnErr != nil {
 				return txnErr
 			}
@@ -145,7 +148,7 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 				UserID:         userEntity.ID,
 				Provider:       profile.Provider,
 				ProviderUID:    profile.ProviderUID,
-				EmailAtAuth:    utils.StrPtr(profile.Email),
+				EmailAtAuth:    baseUtils.StringPtr(profile.Email),
 				Scopes:         pq.StringArray{"read:user", "user:email"},
 				AccessTokenEnc: []byte(req.Token),
 			}
@@ -159,7 +162,7 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 
 	// If transaction failed, return error
 	if errTxn != nil {
-		commonErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		commonErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return nil, commonErr
 	}
 
@@ -172,15 +175,15 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 	if commonErr != nil {
 		return nil, commonErr
 	}
-	jwtToken.CheckPasswordSetup(cred.PasswordVersion, utils.StrValue(cred.PasswordAlgo))
+	jwtToken.CheckPasswordSetup(cred.PasswordVersion, baseUtils.StringValue(cred.PasswordAlgo))
 
 	// Log the successful OAuth login with audit log (after transaction to ensure we have user ID)
 	s.auditLogService.CreateAuditLog(ctx,
 		models.AuditLogRequest{
 			CreatorID: userEntity.ID,
 			Action:    req.Provider + "_oauth",
-			IP:        utils.GetClientIP(ctx),
-			UserAgent: utils.GetUserAgent(ctx),
+			IP:        baseUtils.GetClientIP(ctx),
+			UserAgent: baseUtils.GetUserAgent(ctx),
 			Metadata: datatypes.JSONMap{
 				"response": jwtToken,
 			},
@@ -191,7 +194,7 @@ func (s *IdentityUseCaseImpl) OAuthLogin(ctx context.Context, req models.OAuthLo
 
 // OAuthCallback implements interfaces.IdentityServiceI
 func (s *IdentityUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAuthCallbackRequest) (
-	*models.JwtTokenResponse, *errHandler.ErrorBuilder) {
+	*models.JwtTokenResponse, *utilsError.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "OAuthCallback")
@@ -211,9 +214,9 @@ func (s *IdentityUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAut
 		{
 			accessToken, err = s.googleClient.ExchangeCode(ctx, req.Code, req.RedirectURI)
 			if err != nil {
-				return nil, errHandler.InitErrorBuilder(ctx).
+				return nil, utilsError.InitErrorBuilder(ctx).
 					SetStatus(http.StatusUnauthorized).
-					SetError(models.ErrorDTO{
+					SetError(utilsModels.ErrorDTO{
 						Code:    "google_oauth_code_exchange_failed",
 						Message: err.Error(),
 					})
@@ -227,9 +230,9 @@ func (s *IdentityUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAut
 			// Exchange the authorization code for an access token
 			accessToken, err = s.githubClient.(interfaces.GithubCodeExchanger).ExchangeCode(ctx, req.Code, req.RedirectURI)
 			if err != nil {
-				return nil, errHandler.InitErrorBuilder(ctx).
+				return nil, utilsError.InitErrorBuilder(ctx).
 					SetStatus(http.StatusUnauthorized).
-					SetError(models.ErrorDTO{
+					SetError(utilsModels.ErrorDTO{
 						Code:    "github_oauth_code_exchange_failed",
 						Message: err.Error(),
 					})
@@ -237,9 +240,9 @@ func (s *IdentityUseCaseImpl) OAuthCallback(ctx context.Context, req models.OAut
 		}
 	default:
 		{
-			return nil, errHandler.InitErrorBuilder(ctx).
+			return nil, utilsError.InitErrorBuilder(ctx).
 				SetStatus(http.StatusBadRequest).
-				SetError(models.ErrorDTO{
+				SetError(utilsModels.ErrorDTO{
 					Code:    "unsupported_provider",
 					Message: "Callback not supported for provider",
 				})

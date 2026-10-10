@@ -3,12 +3,12 @@ package outbox
 import (
 	"context"
 
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
 
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 )
 
 type OutboxUseCaseImpl struct {
@@ -32,9 +32,9 @@ func InitOutboxUsecase(
 // helper to publish outbox event
 // you can move this to a common place if needed by other usecases
 func (s *OutboxUseCaseImpl) CreateOutbox(
-	ctx context.Context, req models.CreateOutboxRequest) *errHandler.ErrorBuilder {
+	ctx context.Context, req models.CreateOutboxRequest) *utilsError.ErrorBuilder {
 
-	outboxID, _ := utils.NewSnowflakeID()
+	outboxID, _ := baseUtils.NewSnowflakeID()
 
 	// create outbox event
 	event := entities.Outbox{

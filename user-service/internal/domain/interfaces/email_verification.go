@@ -4,18 +4,18 @@ import (
 	"context"
 	"time"
 
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
 )
 
 type EmailVerificationQueryRepoI interface {
-	GetOneByEmail(ctx context.Context, email string) (entities.EmailVerification, *errHandler.ErrorBuilder)
+	GetOneByEmail(ctx context.Context, email string) (entities.EmailVerification, *utilsError.ErrorBuilder)
 }
 
 type EmailVerificationCommandRepoI interface {
-	InsertEmailVerification(ctx context.Context, entity *entities.EmailVerification) *errHandler.ErrorBuilder
-	UpdateToken(ctx context.Context, email string, tokenHash string, expiresAt time.Time) *errHandler.ErrorBuilder
-	MarkUsed(ctx context.Context, id uint64, usedAt time.Time) *errHandler.ErrorBuilder
+	InsertEmailVerification(ctx context.Context, entity *entities.EmailVerification) *utilsError.ErrorBuilder
+	UpdateToken(ctx context.Context, email string, tokenHash string, expiresAt time.Time) *utilsError.ErrorBuilder
+	MarkUsed(ctx context.Context, id uint64, usedAt time.Time) *utilsError.ErrorBuilder
 }
 
 type EmailVerificationServiceI interface {

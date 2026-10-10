@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
 	"github.com/vucongthanh92/go-base-utils/tracing"
 	"gorm.io/gorm"
 
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
 )
 
 type authCredentialCmdRepository struct {
@@ -24,7 +24,7 @@ func InitAuthCredentialCmdRepository(writeDb *database.GormWriteDb) interfaces.A
 }
 
 // InsertAuthCredential inserts a new auth credential record into the database.
-func (repo *authCredentialCmdRepository) InsertAuthCredential(ctx context.Context, entity *entities.AuthCredential) *errHandler.ErrorBuilder {
+func (repo *authCredentialCmdRepository) InsertAuthCredential(ctx context.Context, entity *entities.AuthCredential) *utilsError.ErrorBuilder {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "InsertAuthCredential")
@@ -34,7 +34,7 @@ func (repo *authCredentialCmdRepository) InsertAuthCredential(ctx context.Contex
 	// Insert auth credential record
 	err := run.Model(entities.AuthCredential{}).Create(entity).Error
 	if err != nil {
-		resErr := errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		resErr := utilsError.InitErrorBuilder(ctx).ValidateError(err)
 		return resErr
 	}
 
@@ -42,7 +42,7 @@ func (repo *authCredentialCmdRepository) InsertAuthCredential(ctx context.Contex
 }
 
 // UpdatePassword updates the password fields of the auth credential record for the specified user ID.
-func (repo *authCredentialCmdRepository) UpdatePassword(ctx context.Context, req *entities.AuthCredential) *errHandler.ErrorBuilder {
+func (repo *authCredentialCmdRepository) UpdatePassword(ctx context.Context, req *entities.AuthCredential) *utilsError.ErrorBuilder {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "UpdatePassword")
@@ -58,7 +58,7 @@ func (repo *authCredentialCmdRepository) UpdatePassword(ctx context.Context, req
 			"password_version": req.PasswordVersion,
 		}).Error
 	if err != nil {
-		return errHandler.InitErrorBuilder(ctx).ValidateError(err)
+		return utilsError.InitErrorBuilder(ctx).ValidateError(err)
 	}
 
 	return nil

@@ -11,7 +11,6 @@ import (
 
 	"github.com/vucongthanh92/courier/user-service/config"
 	"github.com/vucongthanh92/courier/user-service/database"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 
 	"github.com/vucongthanh92/courier/user-service/helper/healthcheck"
 	"github.com/vucongthanh92/courier/user-service/internal"
@@ -20,6 +19,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/vucongthanh92/go-base-utils/command"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 	"github.com/vucongthanh92/go-base-utils/localization"
 	"github.com/vucongthanh92/go-base-utils/logger"
 	"github.com/vucongthanh92/go-base-utils/tracing"
@@ -31,6 +31,7 @@ func runServer(
 	readDb database.GormReadDb,
 	writeDb database.GormWriteDb,
 ) {
+	// Run server
 	wp := workerpool.New(5)
 
 	// Run healthcheck
@@ -89,12 +90,16 @@ func start() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 
+	// Init logger
 	tracing.UseOpenTelemetry(tracing.Config(*cfg.Tracing))
 
-	utils.InitSnowflake(utils.SnowflakeConfig{
-		MachineID:   1,
-		CustomEpoch: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-	})
+	// Init Snowflake ID generator
+	// Initialize Sonyflake with a custom epoch and machine ID
+	baseUtils.InitSnowflake(
+		baseUtils.SnowflakeConfig{
+			MachineID:   1,
+			CustomEpoch: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		})
 
 	// Register dependencies
 	container, readDb, writeDb := registerDependencies()

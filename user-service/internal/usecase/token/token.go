@@ -5,14 +5,14 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
-	"github.com/vucongthanh92/courier/user-service/helper/transaction"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/entities"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
-	"github.com/vucongthanh92/go-base-utils/tracing"
 
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
+	utilsError "github.com/vucongthanh92/go-base-utils/helper/http_error"
+	"github.com/vucongthanh92/go-base-utils/helper/transaction"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
+	"github.com/vucongthanh92/go-base-utils/tracing"
 )
 
 type TokenUseCaseImpl struct {
@@ -41,7 +41,7 @@ func InitTokenUseCase(
 
 // GenerateJwtToken implements interfaces.TokenUseCaseI
 func (s *TokenUseCaseImpl) GenerateJwtToken(ctx context.Context, userEntity *entities.User) (
-	*models.JwtTokenResponse, *errHandler.ErrorBuilder) {
+	*models.JwtTokenResponse, *utilsError.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "GenerateJwtToken")
@@ -59,14 +59,14 @@ func (s *TokenUseCaseImpl) GenerateJwtToken(ctx context.Context, userEntity *ent
 	// Store refresh token hash in DB for later verification.
 	// We will use the same random string as the raw refresh token to return to client,
 	// and only store the hash in DB for better security.
-	refreshPlain := utils.RandString(64)
-	refreshHash := utils.HashPwdBySha256(userEntity.Email, refreshPlain)
+	refreshPlain := baseUtils.RandString(64)
+	refreshHash := baseUtils.HashPwdBySha256(userEntity.Email, refreshPlain)
 	rt := entities.RefreshToken{
 		UserID:    userEntity.ID,
 		TokenHash: refreshHash,
 		ExpiresAt: now.Add(refreshTTL),
-		UserAgent: utils.StrPtr(utils.GetUserAgent(ctx)),
-		IP:        utils.StrPtr(utils.GetClientIP(ctx)),
+		UserAgent: baseUtils.StringPtr(baseUtils.GetUserAgent(ctx)),
+		IP:        baseUtils.StringPtr(baseUtils.GetClientIP(ctx)),
 	}
 
 	if err := s.rfTokenWriteRepo.UpsertByUserAgent(ctx, &rt); err != nil {
@@ -90,7 +90,7 @@ func (s *TokenUseCaseImpl) GenerateJwtToken(ctx context.Context, userEntity *ent
 
 // RenewJwtToken implements interfaces.TokenUseCaseI
 func (s *TokenUseCaseImpl) RenewJwtToken(ctx context.Context, userEntity *entities.User) (
-	*models.RenewTokenResponse, *errHandler.ErrorBuilder) {
+	*models.RenewTokenResponse, *utilsError.ErrorBuilder) {
 
 	// Start tracing span
 	ctx, span := tracing.StartSpanFromContext(ctx, "RenewJwtToken")
@@ -114,7 +114,7 @@ func (s *TokenUseCaseImpl) RenewJwtToken(ctx context.Context, userEntity *entiti
 }
 
 // RevokeJwtToken implements interfaces.TokenUseCaseI
-func (s *TokenUseCaseImpl) RevokeJwtToken(ctx context.Context, claims jwt.MapClaims) *errHandler.ErrorBuilder {
+func (s *TokenUseCaseImpl) RevokeJwtToken(ctx context.Context, claims jwt.MapClaims) *utilsError.ErrorBuilder {
 
 	// tracing for logout usecase, we want to trace the whole flow of logout process, from checking user context,
 	ctx, span := tracing.StartSpanFromContext(ctx, "Logout")
@@ -122,14 +122,14 @@ func (s *TokenUseCaseImpl) RevokeJwtToken(ctx context.Context, claims jwt.MapCla
 
 	jti := claims["jti"].(string)
 	exp := int64(claims["exp"].(float64))
-	userID := utils.ParseUserID(claims["sub"])
+	userID := baseUtils.ParseUserID(claims["sub"])
 
 	// calculate TTL for the token, and block it in token denylist with the same TTL,
 	// so it will be automatically removed from denylist when expired
 	ttl := time.Until(time.Unix(exp, 0))
 	if ttl > 0 {
 		if err := s.tokenDeny.Block(ctx, jti, ttl); err != nil {
-			return errHandler.InitErrorBuilder(ctx).SetLogError(err).SetStatus(500)
+			return utilsError.InitErrorBuilder(ctx).SetLogError(err).SetStatus(500)
 		}
 	}
 

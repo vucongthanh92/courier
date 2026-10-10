@@ -5,11 +5,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vucongthanh92/courier/user-service/helper/constants"
 	httpcommon "github.com/vucongthanh92/courier/user-service/helper/http_common"
-	"github.com/vucongthanh92/courier/user-service/helper/utils"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/interfaces"
 	"github.com/vucongthanh92/courier/user-service/internal/domain/models"
+	"github.com/vucongthanh92/go-base-utils/helper/constants"
+	baseUtils "github.com/vucongthanh92/go-base-utils/helper/utils"
 )
 
 type SsoHandler struct {
@@ -48,7 +48,7 @@ func (h *SsoHandler) Authorize(c *gin.Context) {
 		return
 	}
 
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.ssoService.Authorize(ctx, req, h.sessionCookie(c))
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -78,7 +78,7 @@ func (h *SsoHandler) Login(c *gin.Context) {
 		return
 	}
 
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, sessionToken, expiresAt, resErr := h.ssoService.Login(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -108,7 +108,7 @@ func (h *SsoHandler) Token(c *gin.Context) {
 		return
 	}
 
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.ssoService.Token(ctx, req)
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -131,7 +131,7 @@ func (h *SsoHandler) Token(c *gin.Context) {
 // @Failure 500 {object} httpcommon.ErrorResponse "Internal server error"
 // @Router /api/v1/sso/session [get]
 func (h *SsoHandler) Session(c *gin.Context) {
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.ssoService.Session(ctx, h.sessionCookie(c))
 	if resErr != nil {
 		resErr.ExposeHttpError(c)
@@ -154,7 +154,7 @@ func (h *SsoHandler) Session(c *gin.Context) {
 // @Failure 500 {object} httpcommon.ErrorResponse "Internal server error"
 // @Router /api/v1/sso/logout [post]
 func (h *SsoHandler) Logout(c *gin.Context) {
-	ctx := utils.SetHeaderByKey(c, "headers")
+	ctx := baseUtils.SetHeaderByKey(c, "headers")
 	res, resErr := h.ssoService.Logout(ctx, h.sessionCookie(c))
 	if resErr != nil {
 		resErr.ExposeHttpError(c)

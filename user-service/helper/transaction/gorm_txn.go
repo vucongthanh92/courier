@@ -1,84 +1,74 @@
 package transaction
 
-import (
-	"context"
-	"fmt"
-	"time"
+// var runnerKey = struct{}{}
 
-	"github.com/vucongthanh92/courier/user-service/database"
-	errHandler "github.com/vucongthanh92/courier/user-service/helper/error_handler"
-	"gorm.io/gorm"
-)
+// func RunnerFromCtx(ctx context.Context, db *gorm.DB) *gorm.DB {
+// 	if v := ctx.Value(runnerKey); v != nil {
+// 		if tx, ok := v.(*gorm.DB); ok {
+// 			return tx
+// 		}
+// 	}
+// 	return db
+// }
 
-var runnerKey = struct{}{}
+// type Options struct {
+// 	Isolation string        // e.g., "READ COMMITTED", "SERIALIZABLE" (Postgres)
+// 	Timeout   time.Duration // optional context timeout
+// }
 
-func RunnerFromCtx(ctx context.Context, db *gorm.DB) *gorm.DB {
-	if v := ctx.Value(runnerKey); v != nil {
-		if tx, ok := v.(*gorm.DB); ok {
-			return tx
-		}
-	}
-	return db
-}
+// type ManagerTxn struct {
+// 	db *gorm.DB
+// }
 
-type Options struct {
-	Isolation string        // e.g., "READ COMMITTED", "SERIALIZABLE" (Postgres)
-	Timeout   time.Duration // optional context timeout
-}
+// func InitManagerTxn(writeDb *database.GormWriteDb) *ManagerTxn {
+// 	return &ManagerTxn{db: *writeDb}
+// }
 
-type ManagerTxn struct {
-	db *gorm.DB
-}
+// func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) *errHandler.ErrorBuilder, opts ...Options) error {
+// 	var opt Options
+// 	if len(opts) > 0 {
+// 		opt = opts[0]
+// 	}
 
-func InitManagerTxn(writeDb *database.GormWriteDb) *ManagerTxn {
-	return &ManagerTxn{db: *writeDb}
-}
+// 	if opt.Timeout > 0 {
+// 		var cancel context.CancelFunc
+// 		ctx, cancel = context.WithTimeout(ctx, opt.Timeout)
+// 		defer cancel()
+// 	}
 
-func (m *ManagerTxn) Do(ctx context.Context, fn func(ctx context.Context) *errHandler.ErrorBuilder, opts ...Options) error {
-	var opt Options
-	if len(opts) > 0 {
-		opt = opts[0]
-	}
+// 	if v := ctx.Value(runnerKey); v != nil {
+// 		tx, ok := v.(*gorm.DB)
+// 		if !ok {
+// 			return fmt.Errorf("transaction context value has unexpected type %T", v)
+// 		}
 
-	if opt.Timeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, opt.Timeout)
-		defer cancel()
-	}
+// 		sp := fmt.Sprintf("sp_%d", time.Now().UnixNano())
+// 		if err := tx.SavePoint(sp).Error; err != nil {
+// 			return err
+// 		}
 
-	if v := ctx.Value(runnerKey); v != nil {
-		tx, ok := v.(*gorm.DB)
-		if !ok {
-			return fmt.Errorf("transaction context value has unexpected type %T", v)
-		}
+// 		if commonErr := fn(ctx); commonErr != nil {
+// 			_ = tx.RollbackTo(sp).Error
+// 			return commonErr.LogError
+// 		}
 
-		sp := fmt.Sprintf("sp_%d", time.Now().UnixNano())
-		if err := tx.SavePoint(sp).Error; err != nil {
-			return err
-		}
+// 		return nil
+// 	}
 
-		if commonErr := fn(ctx); commonErr != nil {
-			_ = tx.RollbackTo(sp).Error
-			return commonErr.LogError
-		}
+// 	db := m.db
+// 	if opt.Isolation != "" {
+// 		db = db.Session(&gorm.Session{
+// 			/* Postgres isolation via Set(tx_opts) */
+// 		})
+// 		// For postgres with gorm: use Exec to set isolation if needed
+// 	}
 
-		return nil
-	}
-
-	db := m.db
-	if opt.Isolation != "" {
-		db = db.Session(&gorm.Session{
-			/* Postgres isolation via Set(tx_opts) */
-		})
-		// For postgres with gorm: use Exec to set isolation if needed
-	}
-
-	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		txCtx := context.WithValue(ctx, runnerKey, tx)
-		commonErr := fn(txCtx)
-		if commonErr != nil {
-			return commonErr.LogError
-		}
-		return nil
-	})
-}
+// 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+// 		txCtx := context.WithValue(ctx, runnerKey, tx)
+// 		commonErr := fn(txCtx)
+// 		if commonErr != nil {
+// 			return commonErr.LogError
+// 		}
+// 		return nil
+// 	})
+// }
