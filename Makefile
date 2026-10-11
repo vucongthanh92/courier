@@ -1,6 +1,7 @@
 KIND_CLUSTER ?= courier-dev
-IMAGE_NAME ?= ghcr.io/vucongthanh92/courier/user-service
+IMAGE_NAME ?= ghcr.io/vucongthanh92/courier-user-svc
 IMAGE_TAG ?= dev
+USER_SERVICE_DIR ?= ../courier-user-svc
 
 # config list services to run in local development mode
 COURIER_GO_SERVICES ?= user-service chat-service agent-gateway
@@ -19,7 +20,7 @@ kind-delete:
 	kind delete cluster --name $(KIND_CLUSTER)
 
 kind-load-user-service:
-	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) user-service
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) $(USER_SERVICE_DIR)
 	kind load docker-image $(IMAGE_NAME):$(IMAGE_TAG) --name $(KIND_CLUSTER)
 
 kind-apply-argocd:
@@ -47,7 +48,7 @@ start-argocd:
 	kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 run-user-service:
-	$(MAKE) -C user-service run-local
+	$(MAKE) -C $(USER_SERVICE_DIR) run-local
 
 run-chat-service:
 	$(MAKE) -C chat-service run-local
@@ -82,7 +83,9 @@ start-courier:
 	trap cleanup INT TERM EXIT; \
 	for service in $(COURIER_GO_SERVICES); do \
 		echo "-> starting $$service"; \
-		($(MAKE) -C $$service run-local) & \
+		service_dir="$$service"; \
+		if [ "$$service" = "user-service" ]; then service_dir="$(USER_SERVICE_DIR)"; fi; \
+		($(MAKE) -C $$service_dir run-local) & \
 		pids="$$pids $$!"; \
 		echo "$$!" >> $(COURIER_PID_FILE); \
 	done; \
