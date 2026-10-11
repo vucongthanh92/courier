@@ -6,6 +6,7 @@ CHAT_SERVICE_DIR ?= ../courier-chat-svc
 AGENT_GATEWAY_DIR ?= ../courier-agent-gateway
 PAYMENT_GATEWAY_DIR ?= ../courier-payment-gateway
 CONVERSA_APP_DIR ?= ../courier-conversa-app
+FLIKK_APP_DIR ?= ../courier-flikk-app
 
 # config list services to run in local development mode
 COURIER_GO_SERVICES ?= user-service chat-service agent-gateway payment-gateway
@@ -67,7 +68,7 @@ run-conversa-app:
 	pnpm --dir $(CONVERSA_APP_DIR) dev
 
 run-flikk-app:
-	pnpm --dir flikk-app dev
+	pnpm --dir $(FLIKK_APP_DIR) dev
 
 start-courier:
 	@echo "Starting Courier local apps..."
@@ -103,6 +104,7 @@ start-courier:
 		echo "-> starting $$app"; \
 		app_dir="$$app"; \
 		if [ "$$app" = "conversa-app" ]; then app_dir="$(CONVERSA_APP_DIR)"; fi; \
+		if [ "$$app" = "flikk-app" ]; then app_dir="$(FLIKK_APP_DIR)"; fi; \
 		(pnpm --dir $$app_dir dev) & \
 		pids="$$pids $$!"; \
 		echo "$$!" >> $(COURIER_PID_FILE); \
