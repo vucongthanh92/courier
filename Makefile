@@ -4,17 +4,18 @@ IMAGE_TAG ?= dev
 USER_SERVICE_DIR ?= ../courier-user-svc
 CHAT_SERVICE_DIR ?= ../courier-chat-svc
 AGENT_GATEWAY_DIR ?= ../courier-agent-gateway
+PAYMENT_GATEWAY_DIR ?= ../courier-payment-gateway
 CONVERSA_APP_DIR ?= ../courier-conversa-app
 
 # config list services to run in local development mode
-COURIER_GO_SERVICES ?= user-service chat-service agent-gateway
+COURIER_GO_SERVICES ?= user-service chat-service agent-gateway payment-gateway
 # COURIER_GO_SERVICES ?= user-service
 
 COURIER_FRONTEND_APPS ?= conversa-app flikk-app
 COURIER_RUNTIME_DIR ?= .courier
 COURIER_PID_FILE ?= $(COURIER_RUNTIME_DIR)/pids
 
-.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up kafka-up kafka-init kafka-topics run-user-service run-chat-service run-agent-gateway run-conversa-app run-flikk-app start-courier stop-courier
+.PHONY: kind-create kind-delete kind-load-user-service kind-apply-argocd kind-apply-user-service dev-user-up kafka-up kafka-init kafka-topics run-user-service run-chat-service run-agent-gateway run-payment-gateway run-conversa-app run-flikk-app start-courier stop-courier
 
 kind-create:
 	kind create cluster --name $(KIND_CLUSTER) --config infra/kind/courier-dev.yaml
@@ -59,6 +60,9 @@ run-chat-service:
 run-agent-gateway:
 	$(MAKE) -C $(AGENT_GATEWAY_DIR) run-local
 
+run-payment-gateway:
+	$(MAKE) -C $(PAYMENT_GATEWAY_DIR) run-local
+
 run-conversa-app:
 	pnpm --dir $(CONVERSA_APP_DIR) dev
 
@@ -90,6 +94,7 @@ start-courier:
 		if [ "$$service" = "user-service" ]; then service_dir="$(USER_SERVICE_DIR)"; fi; \
 		if [ "$$service" = "chat-service" ]; then service_dir="$(CHAT_SERVICE_DIR)"; fi; \
 		if [ "$$service" = "agent-gateway" ]; then service_dir="$(AGENT_GATEWAY_DIR)"; fi; \
+		if [ "$$service" = "payment-gateway" ]; then service_dir="$(PAYMENT_GATEWAY_DIR)"; fi; \
 		($(MAKE) -C $$service_dir run-local) & \
 		pids="$$pids $$!"; \
 		echo "$$!" >> $(COURIER_PID_FILE); \
