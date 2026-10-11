@@ -2,6 +2,7 @@ KIND_CLUSTER ?= courier-dev
 IMAGE_NAME ?= ghcr.io/vucongthanh92/courier-user-svc
 IMAGE_TAG ?= dev
 USER_SERVICE_DIR ?= ../courier-user-svc
+CHAT_SERVICE_DIR ?= ../courier-chat-svc
 
 # config list services to run in local development mode
 COURIER_GO_SERVICES ?= user-service chat-service agent-gateway
@@ -51,7 +52,7 @@ run-user-service:
 	$(MAKE) -C $(USER_SERVICE_DIR) run-local
 
 run-chat-service:
-	$(MAKE) -C chat-service run-local
+	$(MAKE) -C $(CHAT_SERVICE_DIR) run-local
 
 run-agent-gateway:
 	$(MAKE) -C agent-gateway run-local
@@ -85,6 +86,7 @@ start-courier:
 		echo "-> starting $$service"; \
 		service_dir="$$service"; \
 		if [ "$$service" = "user-service" ]; then service_dir="$(USER_SERVICE_DIR)"; fi; \
+		if [ "$$service" = "chat-service" ]; then service_dir="$(CHAT_SERVICE_DIR)"; fi; \
 		($(MAKE) -C $$service_dir run-local) & \
 		pids="$$pids $$!"; \
 		echo "$$!" >> $(COURIER_PID_FILE); \
