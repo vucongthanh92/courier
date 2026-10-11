@@ -3,6 +3,7 @@ IMAGE_NAME ?= ghcr.io/vucongthanh92/courier-user-svc
 IMAGE_TAG ?= dev
 USER_SERVICE_DIR ?= ../courier-user-svc
 CHAT_SERVICE_DIR ?= ../courier-chat-svc
+CONVERSA_APP_DIR ?= ../courier-conversa-app
 
 # config list services to run in local development mode
 COURIER_GO_SERVICES ?= user-service chat-service agent-gateway
@@ -58,7 +59,7 @@ run-agent-gateway:
 	$(MAKE) -C agent-gateway run-local
 
 run-conversa-app:
-	pnpm --dir conversa-app dev
+	pnpm --dir $(CONVERSA_APP_DIR) dev
 
 run-flikk-app:
 	pnpm --dir flikk-app dev
@@ -93,7 +94,9 @@ start-courier:
 	done; \
 	for app in $(COURIER_FRONTEND_APPS); do \
 		echo "-> starting $$app"; \
-		(pnpm --dir $$app dev) & \
+		app_dir="$$app"; \
+		if [ "$$app" = "conversa-app" ]; then app_dir="$(CONVERSA_APP_DIR)"; fi; \
+		(pnpm --dir $$app_dir dev) & \
 		pids="$$pids $$!"; \
 		echo "$$!" >> $(COURIER_PID_FILE); \
 	done; \
