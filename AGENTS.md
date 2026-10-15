@@ -48,3 +48,9 @@
 ## Security & Configuration Tips
 - Never commit secrets; load credentials via env vars referenced by `config/<env>/config.yaml` or compose files.
 - Document new external dependencies and defaults in config; validate inbound data at handler boundaries.
+- Do not commit Go `vendor/` trees; keep dependency integrity in `go.mod`/`go.sum` and use `-mod=readonly` in CI unless an approved air-gapped build requires vendoring.
+
+## AWS Dev Environment
+- Follow `docs/aws-dev-plan.md` for the agreed AWS dev architecture and phased delivery; distinguish verified measurements from assumptions in every sizing or cost decision.
+- Do not create billed AWS resources or purchase a domain until the P0 baseline and region-specific estimate are reviewed and approved.
+- Deploy immutable images from `main` through GitHub Actions, ECR, GitOps, and Argo CD; never use `latest` as the deployed version.
