@@ -1,0 +1,8 @@
+namespace: courier-dev
+
+resources:
+  - ../../../base/chat-service
+
+images:
+  - name: ghcr.io/vucongthanh92/courier/chat-service
+    newTag: dev

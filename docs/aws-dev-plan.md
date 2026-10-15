@@ -214,6 +214,13 @@ not an assumption.
 - **Not yet verified:** no Docker image was built locally because the Docker
   daemon is unavailable; no Kubernetes cluster, AWS resource, domain, or
   secret value has been created.
+- **Verified — chat-service clean-build baseline:** its isolated P1 branch
+  likewise removes the local shared-module `replace` and tracked `vendor/`,
+  adds CI and a multi-stage Dockerfile, routes Kafka fallback to `kafka:9092`,
+  and starts `/live` plus database-backed `/ready` health endpoints. `go mod
+  verify`, `go test -mod=readonly ./...`, and `go build -mod=readonly ./...`
+  pass. Its dev Kustomize overlay follows the same complete-config Secret
+  mount model as user-service.
 
 1. Pin the shared Go module for clean CI builds; retain `go.work` only as an
    optional developer convenience.

@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-service
+  template:
+    metadata:
+      labels:
+        app: chat-service
+    spec:
+      containers:
+        - name: chat-service
+          image: ghcr.io/vucongthanh92/courier/chat-service:dev
+          imagePullPolicy: IfNotPresent
+          command: ["/app/chat-service"]
+          args: ["start", "--config=/app/config/dev/config.yaml"]
+          envFrom:
+            - configMapRef:
+                name: chat-service-config
+          ports:
+            - name: http
+              containerPort: 5002
+            - name: grpc
+              containerPort: 6002
+            - name: health
+              containerPort: 7002
+            - name: metrics
+              containerPort: 8002
+          volumeMounts:
+            - name: config
+              mountPath: /app/config/dev/config.yaml
+              subPath: config.yaml
+              readOnly: true
+          startupProbe:
+            httpGet:
+              path: /live
+              port: health
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: health
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: config
+          secret:
+            secretName: chat-service-config
