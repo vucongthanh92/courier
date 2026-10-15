@@ -7,9 +7,9 @@ spec:
     app: user-service
   ports:
     - name: http
-      port: 5000
-      targetPort: 5000
-    - name: grpc
       port: 5001
-      targetPort: 5001
+      targetPort: http
+    - name: grpc
+      port: 6001
+      targetPort: grpc
   type: ClusterIP

@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-gateway
+  template:
+    metadata:
+      labels:
+        app: payment-gateway
+    spec:
+      containers:
+        - name: payment-gateway
+          image: ghcr.io/vucongthanh92/courier/payment-gateway:dev
+          command: ["/app/payment-gateway"]
+          args: ["start", "--config=/app/config/dev/config.yaml"]
+          envFrom:
+            - configMapRef:
+                name: payment-gateway-config
+          ports:
+            - { name: http, containerPort: 5003 }
+            - { name: grpc, containerPort: 6003 }
+            - { name: health, containerPort: 5103 }
+          volumeMounts:
+            - { name: config, mountPath: /app/config/dev/config.yaml, subPath: config.yaml, readOnly: true }
+          startupProbe:
+            httpGet: { path: /live, port: health }
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: { path: /ready, port: health }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /live, port: health }
+            periodSeconds: 10
+      volumes:
+        - name: config
+          secret: { secretName: payment-gateway-config }

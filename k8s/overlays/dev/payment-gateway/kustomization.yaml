@@ -1,0 +1,6 @@
+namespace: courier-dev
+resources:
+  - ../../../base/payment-gateway
+images:
+  - name: ghcr.io/vucongthanh92/courier/payment-gateway
+    newTag: dev
