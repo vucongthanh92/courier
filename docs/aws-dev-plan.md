@@ -222,6 +222,35 @@ not an assumption.
   pass. Its dev Kustomize overlay follows the same complete-config Secret
   mount model as user-service.
 
+#### P1 source-readiness closure record (2026-10-15)
+
+The source/build portion of P1 is complete for the six deployable application
+repositories. The following is verified from GitHub, rather than inferred from
+local worktrees: each P1 pull request was merged, and the most recent `CI`
+workflow triggered by the resulting push to `main` completed successfully.
+
+| Repository | Merged P1 pull request | Verified CI result on `main` | P1 result |
+| --- | --- | --- | --- |
+| `courier-user-svc` | [#4](https://github.com/vucongthanh92/courier-user-svc/pull/4) | [successful run](https://github.com/vucongthanh92/courier-user-svc/actions/runs/38705667421) | Clean Go dependency resolution, image build definition, CI, and health/config contract |
+| `courier-chat-svc` | [#4](https://github.com/vucongthanh92/courier-chat-svc/pull/4) | [successful run](https://github.com/vucongthanh92/courier-chat-svc/actions/runs/38710826544) | Clean Go dependency resolution, image build definition, CI, and health/config contract |
+| `courier-payment-gateway` | [#1](https://github.com/vucongthanh92/courier-payment-gateway/pull/1) | [successful run](https://github.com/vucongthanh92/courier-payment-gateway/actions/runs/38709108284) | Clean Go dependency resolution, image build definition, CI, and health/config contract |
+| `courier-agent-gateway` | [#1](https://github.com/vucongthanh92/courier-agent-gateway/pull/1) | [successful run](https://github.com/vucongthanh92/courier-agent-gateway/actions/runs/38711265380) | Clean Go dependency resolution, image build definition, and CI |
+| `courier-conversa-app` | [#1](https://github.com/vucongthanh92/courier-conversa-app/pull/1) | [successful run](https://github.com/vucongthanh92/courier-conversa-app/actions/runs/38747384166) | Reproducible pnpm build, container build, and CI; workspace settings permit `esbuild` in both CI and Docker builds |
+| `courier-flikk-app` | [#1](https://github.com/vucongthanh92/courier-flikk-app/pull/1) | [successful run](https://github.com/vucongthanh92/courier-flikk-app/actions/runs/38747829784) | Reproducible pnpm build, container build, and CI; workspace settings permit `esbuild` in both CI and Docker builds |
+
+The initial failed frontend CI attempts are superseded by the successful runs
+above. Their root causes and permanent fixes were: valid block-form YAML for
+the Docker tag, `pnpm/action-setup` before `setup-node` cache initialization,
+a root package declaration in `pnpm-workspace.yaml`, and copying that workspace
+file before Docker's dependency-install layer.
+
+This closure record does **not** claim that the applications run on Kubernetes
+or AWS. No ECR registry, AWS resource, domain, production secret, Kubernetes
+cluster, or live image deployment has been created. The existing Kustomize
+config-file Secret mount has been prepared for user, chat, and payment only;
+agent and frontend deployment manifests, image publishing, GitOps promotion,
+runtime sizing, and AWS cost approval are subsequent work.
+
 1. Pin the shared Go module for clean CI builds; retain `go.work` only as an
    optional developer convenience.
 2. Add production Dockerfiles for chat, payment, Conversa, and Flikk; update
