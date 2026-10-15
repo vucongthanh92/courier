@@ -1,0 +1,33 @@
+name: CI shared module
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "shared/**"
+      - ".github/workflows/ci-shared.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "shared/**"
+      - ".github/workflows/ci-shared.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: shared
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: shared/go.mod
+          cache-dependency-path: shared/go.sum
+      - run: go mod download
+      - run: go mod verify
+      - run: go test -mod=readonly ./...
+      - run: go vet -mod=readonly ./...
