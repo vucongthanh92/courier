@@ -110,7 +110,7 @@ measurements on EC2 remain required before scaling.
 
 | Component | Decision |
 | --- | --- |
-| Region | `ap-southeast-1` (Singapore) |
+| Region | `ap-southeast-2` (Sydney); selected because the Organization SCP already permits it |
 | Operating schedule | Start the two EC2 instances for development work and stop them afterward; planning baseline is 120 instance-hours/month each (4 hours/day × 30 days) |
 | Application EC2 | `t4g.large` (2 vCPU, 8 GiB): K3s, Traefik, Argo CD, four backend services, two static frontends, and a compact Prometheus/Grafana setup |
 | Data EC2 | `t4g.medium` (2 vCPU, 4 GiB): PostgreSQL, Redis, one Kafka broker, and Qdrant |
