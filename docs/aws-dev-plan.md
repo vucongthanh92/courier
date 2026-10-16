@@ -295,6 +295,25 @@ runtime sizing, and AWS cost approval are subsequent work.
 - **P7:** GitOps for every app, rollback, controlled node reboot/restore, and
   scaling exercises.
 
+### P2 execution record (2026-10-16)
+
+- **Verified:** the Terraform remote-state bucket
+  `courier-dev-tfstate-016170038458-ap-southeast-2` and DynamoDB lock table
+  `courier-dev-terraform-lock` were created in Sydney. The bucket is the
+  shared Terraform state store; the table prevents concurrent Terraform
+  changes. Neither stores Courier application data or secrets.
+- **Verified:** the AWS runtime Terraform configuration validates locally and
+  its remote-backend plan reached AWS using the dedicated Terraform profile.
+  It describes 49 creates for the agreed VPC, two ARM64 EC2 instances, 110 GiB
+  of encrypted gp3, ECR, the two application S3 buckets, SSM/IAM roles, and
+  budget/disk alerts.
+- **Not applied:** the runtime plan did not complete because the effective IAM
+  policy for `courier-terraform-bootstrap` denied `ssm:GetParameter` while
+  looking up the current Amazon Linux ARM64 AMI. No P2 runtime resource has
+  been created from that plan. The user must receive the effective required
+  permission (or AdministratorAccess without a restrictive permissions
+  boundary) before a reviewed plan can be applied.
+
 ## Acceptance gates
 
 No phase may claim production-grade HA. The required AWS-dev gates are:
