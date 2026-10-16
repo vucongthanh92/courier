@@ -1,0 +1,48 @@
+#!/bin/bash
+set -euxo pipefail
+
+DATA_DEVICE=""
+for _ in $(seq 1 90); do
+  DATA_DEVICE=$(lsblk -dpno NAME,TYPE | awk '$2 == "disk" { print $1 }' | tail -n +2 | head -n 1)
+  [ -n "$${DATA_DEVICE}" ] && break
+  sleep 2
+done
+
+[ -n "$${DATA_DEVICE}" ]
+
+if ! blkid "$${DATA_DEVICE}" >/dev/null 2>&1; then
+  mkfs -t xfs "$${DATA_DEVICE}"
+fi
+
+mkdir -p /data
+grep -q " $${DATA_DEVICE} /data " /etc/fstab || echo "$${DATA_DEVICE} /data xfs defaults,nofail 0 2" >> /etc/fstab
+mount -a
+
+dnf install -y docker amazon-cloudwatch-agent
+systemctl enable --now docker
+
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
+{
+  "metrics": {
+    "append_dimensions": { "InstanceId": "$${aws:InstanceId}" },
+    "metrics_collected": {
+      "disk": {
+        "measurement": ["used_percent"],
+        "resources": ["/data"]
+      }
+    }
+  }
+}
+EOF
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+
+mkdir -p /etc/courier /data/{postgres,redis,kafka,qdrant,backups}
+cat > /etc/courier/backup-target <<'EOF'
+s3://${backup_bucket}
+EOF
+chmod 0640 /etc/courier/backup-target
+
+# Stateful service credentials are deliberately not written by Terraform. The
+# deployment runbook provisions /etc/courier/data.env through SSM before the
+# Compose stack is started.

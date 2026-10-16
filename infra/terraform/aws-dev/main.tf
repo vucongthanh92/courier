@@ -1,5 +1,7 @@
-data "aws_availability_zones" "available" {
-  state = "available"
+data "aws_caller_identity" "current" {}
+
+data "aws_ssm_parameter" "amazon_linux_arm64" {
+  name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
 }
 
 resource "aws_vpc" "dev" {
