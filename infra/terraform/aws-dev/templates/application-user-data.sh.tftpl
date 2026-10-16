@@ -1,0 +1,42 @@
+#!/bin/bash
+set -euxo pipefail
+
+echo "${data_private_ip} data.courier.internal" >> /etc/hosts
+
+curl --fail --show-error --silent https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server \
+  --write-kubeconfig-mode 0640 \
+  --disable servicelb
+
+until /usr/local/bin/kubectl get node >/dev/null 2>&1; do
+  sleep 5
+done
+
+mkdir -p /etc/courier
+cat > /etc/courier/runtime.env <<'EOF'
+COURIER_DATA_HOST=data.courier.internal
+COURIER_POSTGRES_PORT=5432
+COURIER_REDIS_PORT=6379
+COURIER_KAFKA_PORT=9092
+COURIER_QDRANT_PORT=6333
+EOF
+chmod 0640 /etc/courier/runtime.env
+
+dnf install -y amazon-cloudwatch-agent
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
+{
+  "metrics": {
+    "append_dimensions": { "InstanceId": "$${aws:InstanceId}" },
+    "metrics_collected": {
+      "disk": {
+        "measurement": ["used_percent"],
+        "resources": ["/"]
+      }
+    }
+  }
+}
+EOF
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+
+# Argo CD is intentionally installed after the node is healthy. The deployment
+# runbook pins its release and creates the Git repository credential separately.
