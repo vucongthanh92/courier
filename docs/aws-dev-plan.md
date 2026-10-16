@@ -314,6 +314,18 @@ runtime sizing, and AWS cost approval are subsequent work.
   permission (or AdministratorAccess without a restrictive permissions
   boundary) before a reviewed plan can be applied.
 
+#### K3s network correction
+
+The initial Application EC2 bootstrap exposed a configuration collision:
+Courier's VPC is `10.42.0.0/16`, which overlaps K3s's default pod CIDR
+`10.42.0.0/16`. This prevents pod-to-Service-IP traffic, including the
+Kubernetes API service used by metrics-server. The corrected K3s configuration
+uses `10.244.0.0/16` for pods and `10.245.0.0/16` for services, installs the
+required `iptables-nft`/`nftables` utilities before K3s, and disables EC2
+source/destination checking on the application node. Replacing the Application
+EC2 is safe before application workloads or secrets are installed; the Data
+EC2 and its persistent volume remain intact.
+
 ## Acceptance gates
 
 No phase may claim production-grade HA. The required AWS-dev gates are:

@@ -17,6 +17,11 @@ accepts PostgreSQL, Redis, Kafka, and Qdrant only from the application security
 group. Its public IP exists solely for outbound package/SSM access and may
 change after a stop/start cycle.
 
+K3s uses pod CIDR `10.244.0.0/16` and service CIDR `10.245.0.0/16`; neither
+may overlap the VPC `10.42.0.0/16`. The application instance disables EC2
+source/destination checking for K3s pod networking. This does not grant public
+access; the security group remains the inbound boundary.
+
 Before the first plan, migrate the prior local state to the remote backend:
 
 ```bash
