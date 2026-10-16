@@ -3,9 +3,14 @@ set -euxo pipefail
 
 echo "${data_private_ip} data.courier.internal" >> /etc/hosts
 
+dnf install -y iptables-nft nftables amazon-cloudwatch-agent
+
 curl --fail --show-error --silent https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server \
   --write-kubeconfig-mode 0640 \
-  --disable servicelb
+  --disable servicelb \
+  --cluster-cidr 10.244.0.0/16 \
+  --service-cidr 10.245.0.0/16 \
+  --cluster-dns 10.245.0.10
 
 until /usr/local/bin/kubectl get node >/dev/null 2>&1; do
   sleep 5
@@ -21,7 +26,6 @@ COURIER_QDRANT_PORT=6333
 EOF
 chmod 0640 /etc/courier/runtime.env
 
-dnf install -y amazon-cloudwatch-agent
 cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
 {
   "metrics": {

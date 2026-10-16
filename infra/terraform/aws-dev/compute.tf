@@ -243,6 +243,7 @@ resource "aws_instance" "application" {
   vpc_security_group_ids      = [aws_security_group.application.id]
   iam_instance_profile        = aws_iam_instance_profile.application.name
   associate_public_ip_address = true
+  source_dest_check           = false
   user_data = templatefile("${path.module}/templates/application-user-data.sh.tftpl", {
     data_private_ip = aws_instance.data.private_ip
     k3s_version     = var.k3s_version
