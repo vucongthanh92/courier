@@ -94,19 +94,38 @@ must not be used as Linux container image sizes.
 | Layer | Initial plan | Boundary / rationale |
 | --- | --- | --- |
 | Application cluster | One EC2 K3s server running Argo CD, ingress, API deployments, and frontend static-web deployments | Deliberately non-HA for dev; must recover after reboot |
-| Stateful data | Separate EC2 data node for Redis, Kafka, and Qdrant with persistent volumes; RDS PostgreSQL Single-AZ if the final regional estimate fits | Keeps state off application pods; each single-node service remains a known SPOF |
-| Database fallback | PostgreSQL on the data node with external backup and restore verification | Only if RDS cannot fit the USD 100/month target |
+| Stateful data | Separate EC2 data node for PostgreSQL, Redis, one Kafka broker, and Qdrant with persistent gp3 volumes | Keeps state off application pods; each single-node service remains a known SPOF |
+| Database decision | PostgreSQL on the data node with external S3 backup and restore verification | Replaces the prior RDS option to fit the USD 50/month target |
 | Ingress | Traefik with cert-manager/one coordinated ACME writer | HTTPS after domain/DNS are approved; internal admin UIs remain private |
 | Delivery | GitHub Actions builds ECR images using OIDC, then opens a GitOps image-update PR; Argo CD syncs merged Git | Immutable SHA/digest tags; no `latest` deployments |
 | Configuration / secrets | Non-secret config in Kustomize ConfigMaps; secrets from an approved secret mechanism | Never commit credentials; frontend values are build-time values |
 | Observability | Prometheus + Grafana first, then logs/traces with bounded retention | Requests/limits and measurements determine the storage budget |
 | Backup | EBS/S3 and database backup, with restore drills | A volume is not a backup |
 
-The cluster and data node sizing, EC2 family/architecture, AWS region, RDS
-choice, and domain are **assumptions / decisions pending**. They must not be
-selected from a generic price estimate. The final estimate must include EC2,
-EBS, public IPv4, S3/ECR, data transfer, logs, and database cost before
-provisioning.
+### P2 sizing and cost decisions (2026-10-16)
+
+The following decisions are agreed for the initial development environment.
+They are a cost-constrained baseline, not a capacity guarantee; runtime
+measurements on EC2 remain required before scaling.
+
+| Component | Decision |
+| --- | --- |
+| Region | `ap-southeast-1` (Singapore) |
+| Operating schedule | Start the two EC2 instances for development work and stop them afterward; planning baseline is 120 instance-hours/month each (4 hours/day × 30 days) |
+| Application EC2 | `t4g.large` (2 vCPU, 8 GiB): K3s, Traefik, Argo CD, four backend services, two static frontends, and a compact Prometheus/Grafana setup |
+| Data EC2 | `t4g.medium` (2 vCPU, 4 GiB): PostgreSQL, Redis, one Kafka broker, and Qdrant |
+| EBS | gp3: 25 GiB application root, 25 GiB data root, and 60 GiB data volume (110 GiB total) |
+| Object storage | Two S3 buckets: one for files and one for backups |
+| Public boundary | HTTPS only; databases, data services, Argo CD, and Grafana remain private |
+| Cost guardrails | AWS Budget alerts at USD 25, 40, and 47; disk-usage alerts at 70% and 85%; short log retention and backup lifecycle transitions |
+
+The current compute estimate is USD 10.18/month for the application node and
+USD 5.09/month for the data node. At the selected 110 GiB gp3 baseline, EBS is
+estimated at USD 10.56/month. These estimates assume no NAT Gateway and do not
+make stopped EBS volumes, public IPv4 addresses, S3 objects, or logs free.
+The working all-in target is approximately USD 47/month with a hard operating
+budget of USD 50/month. Network egress, logs, and backup growth must be watched
+because the remaining buffer is small.
 
 ## Network, DNS, and security plan
 
