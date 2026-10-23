@@ -3,24 +3,8 @@ kind: Service
 metadata:
   name: redis
 spec:
+  type: ExternalName
+  externalName: data.courier.internal
   ports:
     - name: redis
       port: 6379
-      targetPort: 6379
----
-apiVersion: discovery.k8s.io/v1
-kind: EndpointSlice
-metadata:
-  name: redis-data-node
-  labels:
-    kubernetes.io/service-name: redis
-addressType: IPv4
-ports:
-  - name: redis
-    protocol: TCP
-    port: 6379
-endpoints:
-  - addresses:
-      - 10.42.0.114
-    conditions:
-      ready: true
