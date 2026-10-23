@@ -4,8 +4,10 @@ metadata:
   name: coredns-custom
   namespace: kube-system
 data:
-  courier-data.override: |
-    hosts {
-      10.42.0.114 data.courier.internal
-      fallthrough
+  courier-data.server: |
+    data.courier.internal:53 {
+      hosts {
+        10.42.0.114 data.courier.internal
+        fallthrough
+      }
     }
