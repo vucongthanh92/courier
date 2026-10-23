@@ -1,0 +1,8 @@
+[Unit]
+Description=Back up Courier PostgreSQL to S3
+After=courier-data.service
+Requires=courier-data.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/courier/backup-postgres.sh

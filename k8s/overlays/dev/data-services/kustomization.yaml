@@ -1,0 +1,4 @@
+namespace: courier-dev
+
+resources:
+  - ../../../base/data-services
