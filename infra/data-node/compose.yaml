@@ -1,0 +1,132 @@
+name: courier-data
+
+services:
+  postgres:
+    image: postgres:16.15-alpine3.24
+    container_name: courier-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: courier_admin
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?POSTGRES_ADMIN_PASSWORD is required}
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+      COURIER_APP_USER: courier_app
+      COURIER_APP_PASSWORD: ${COURIER_APP_PASSWORD:?COURIER_APP_PASSWORD is required}
+      COURIER_DATABASES: user_service,chat_service,payment_gateway
+    command:
+      - postgres
+      - -c
+      - max_connections=80
+      - -c
+      - shared_buffers=192MB
+    ports:
+      - "5432:5432"
+    volumes:
+      - /data/postgres:/var/lib/postgresql/data
+      - ./scripts/initialize-postgres.sh:/docker-entrypoint-initdb.d/10-courier-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --username=courier_admin --dbname=postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: 768m
+    cpus: 0.70
+
+  redis:
+    image: redis:8.6.7-alpine3.23
+    container_name: courier-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 192mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
+    ports:
+      - "6379:6379"
+    volumes:
+      - /data/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    mem_limit: 256m
+    cpus: 0.30
+
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: courier-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://${DATA_PRIVATE_IP:?DATA_PRIVATE_IP is required}:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_HEAP_OPTS: -Xms512m -Xmx768m
+    ports:
+      - "9092:9092"
+    volumes:
+      - /data/kafka:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 45s
+    mem_limit: 1280m
+    cpus: 0.80
+
+  kafka-init:
+    image: apache/kafka:3.9.0
+    container_name: courier-kafka-init
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      BOOTSTRAP_SERVER: kafka:9092
+      TOPICS_FILE: /etc/courier/topics.json
+    volumes:
+      - ./topics.json:/etc/courier/topics.json:ro
+      - ./scripts/create-kafka-topics.sh:/usr/local/bin/create-kafka-topics.sh:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command: bash /usr/local/bin/create-kafka-topics.sh
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.6
+    container_name: courier-qdrant
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?QDRANT_API_KEY is required}
+      QDRANT__SERVICE__ENABLE_TLS: "false"
+    ports:
+      - "6333:6333"
+    volumes:
+      - /data/qdrant:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:6333/healthz >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    mem_limit: 768m
+    cpus: 0.50

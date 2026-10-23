@@ -192,6 +192,28 @@ resource "aws_iam_role_policy" "data_backups" {
   })
 }
 
+resource "aws_iam_role_policy" "data_runtime_secrets" {
+  name = "read-data-runtime-secrets"
+  role = aws_iam_role.data.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "ReadCourierDataRuntimeSecrets"
+      Effect = "Allow"
+      Action = ["ssm:GetParameter"]
+      Resource = [
+        for parameter_name in [
+          "postgres-admin-password",
+          "courier-app-password",
+          "redis-password",
+          "qdrant-api-key",
+        ] : "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/courier/dev/data/${parameter_name}"
+      ]
+    }]
+  })
+}
+
 resource "aws_iam_instance_profile" "application" {
   name = "${local.name_prefix}-application"
   role = aws_iam_role.application.name
