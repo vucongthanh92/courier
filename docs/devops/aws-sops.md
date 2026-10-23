@@ -69,6 +69,10 @@ manifest without exposing application credentials. After merging it, apply
 be `Healthy` and `Synced`. The resulting `courier-dev/sops-validation` Secret
 is deliberately safe to inspect only for metadata; do not print Secret data.
 
+Each KSOPS generator must declare the KRM exec annotation with `path: ksops`.
+That is the supported KSOPS v4 form and resolves the binary from the sidecar
+PATH; do not use the legacy plugin-root layout.
+
 ## Rotation and recovery
 
 Rotation requires a new age key pair, SSM parameter update, a re-encryption of
