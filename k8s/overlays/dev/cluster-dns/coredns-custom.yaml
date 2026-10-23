@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  courier-data.override: |
+    hosts {
+      10.42.0.114 data.courier.internal
+      fallthrough
+    }

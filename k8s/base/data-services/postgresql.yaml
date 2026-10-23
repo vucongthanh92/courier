@@ -3,24 +3,8 @@ kind: Service
 metadata:
   name: postgresql
 spec:
+  type: ExternalName
+  externalName: data.courier.internal
   ports:
     - name: postgresql
       port: 5432
-      targetPort: 5432
----
-apiVersion: discovery.k8s.io/v1
-kind: EndpointSlice
-metadata:
-  name: postgresql-data-node
-  labels:
-    kubernetes.io/service-name: postgresql
-addressType: IPv4
-ports:
-  - name: postgresql
-    protocol: TCP
-    port: 5432
-endpoints:
-  - addresses:
-      - 10.42.0.114
-    conditions:
-      ready: true
