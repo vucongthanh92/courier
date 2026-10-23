@@ -37,3 +37,11 @@ budget_alert_email = "you@example.com"
 Then run `terraform plan -var-file=dev.tfvars -out=aws-dev.tfplan` and review
 the resource count and all public boundaries before applying. Do not commit
 `*.tfvars`, state files, plans, or credentials.
+
+## AMI updates
+
+The AMI lookup supplies the latest AL2023 ARM64 image only when an instance is
+first created. Existing instances ignore AMI drift so an AWS-published image
+does not silently replace K3s or the stateful data node. Schedule and review
+an explicit instance replacement for every OS upgrade; confirm backups and
+application recovery before applying it.

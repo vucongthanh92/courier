@@ -154,6 +154,21 @@ resource "aws_iam_role_policy" "application_ecr_and_files" {
   })
 }
 
+resource "aws_iam_role_policy" "application_sops_age_key" {
+  name = "read-argocd-sops-age-key"
+  role = aws_iam_role.application.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "ReadArgoCdSopsAgeKey"
+      Effect   = "Allow"
+      Action   = ["ssm:GetParameter"]
+      Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${var.sops_age_parameter_name}"
+    }]
+  })
+}
+
 resource "aws_iam_role_policy" "data_backups" {
   name = "backup-bucket"
   role = aws_iam_role.data.id
@@ -198,6 +213,14 @@ resource "aws_instance" "data" {
     backup_bucket = aws_s3_bucket.backups.bucket
   })
   user_data_replace_on_change = true
+
+  # The AMI lookup intentionally tracks the latest AL2023 release for new
+  # environments. Existing stateful dev nodes must not be replaced merely
+  # because AWS publishes a newer image; perform a reviewed replacement when
+  # scheduling an OS upgrade.
+  lifecycle {
+    ignore_changes = [ami]
+  }
 
   root_block_device {
     encrypted   = true
@@ -249,6 +272,12 @@ resource "aws_instance" "application" {
     k3s_version     = var.k3s_version
   })
   user_data_replace_on_change = true
+
+  # See the matching Data EC2 lifecycle rule above. K3s/Argo CD state on this
+  # node also makes an implicit AMI-driven replacement unsafe.
+  lifecycle {
+    ignore_changes = [ami]
+  }
 
   root_block_device {
     encrypted   = true

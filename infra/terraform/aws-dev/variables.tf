@@ -63,6 +63,12 @@ variable "k3s_version" {
   default     = "v1.37.1+k3s1"
 }
 
+variable "sops_age_parameter_name" {
+  description = "SSM SecureString holding the AWS dev Argo CD SOPS age private key. Its value is deliberately not managed by Terraform."
+  type        = string
+  default     = "/courier/dev/argocd/sops-age-key"
+}
+
 variable "github_owner" {
   description = "GitHub owner whose main-branch workflows may assume the ECR publishing role."
   type        = string
