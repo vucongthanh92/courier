@@ -70,9 +70,15 @@ variable "sops_age_parameter_name" {
 }
 
 variable "github_owner" {
-  description = "GitHub owner whose main-branch workflows may assume the ECR publishing role."
+  description = "GitHub owner whose approved main-branch workflows may assume the ECR publishing role."
   type        = string
   default     = "vucongthanh92"
+}
+
+variable "github_owner_id" {
+  description = "Immutable GitHub numeric ID for github_owner, required by the customized OIDC subject template."
+  type        = string
+  default     = "25337938"
 }
 
 variable "ecr_repositories" {
@@ -89,14 +95,14 @@ variable "ecr_repositories" {
 }
 
 variable "github_repositories" {
-  description = "Exact GitHub repositories allowed to publish Courier images from main."
-  type        = set(string)
-  default = [
-    "courier-user-svc",
-    "courier-chat-svc",
-    "courier-payment-gateway",
-    "courier-agent-gateway",
-    "courier-conversa-app",
-    "courier-flikk-app",
-  ]
+  description = "Exact GitHub repositories and immutable numeric IDs allowed to publish Courier images from main."
+  type        = map(string)
+  default = {
+    courier-user-svc        = "1413925694"
+    courier-chat-svc        = "1413958684"
+    courier-payment-gateway = "1414239516"
+    courier-agent-gateway   = "1414225958"
+    courier-conversa-app    = "1414218150"
+    courier-flikk-app       = "1414261620"
+  }
 }
