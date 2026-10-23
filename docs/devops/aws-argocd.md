@@ -35,7 +35,7 @@ aws ssm send-command \
   --instance-ids "$APPLICATION_INSTANCE_ID" \
   --document-name AWS-RunShellScript \
   --comment 'Install pinned Argo CD for Courier AWS dev' \
-  --parameters 'commands=["curl --fail --location --show-error --silent https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.6/manifests/install.yaml | sudo /usr/local/bin/kubectl apply --server-side --force-conflicts -n argocd -f -","sudo /usr/local/bin/kubectl rollout status deployment/argocd-server -n argocd --timeout=5m","sudo /usr/local/bin/kubectl rollout status deployment/argocd-repo-server -n argocd --timeout=5m","sudo /usr/local/bin/kubectl rollout status statefulset/argocd-application-controller -n argocd --timeout=5m","sudo /usr/local/bin/kubectl get pods -n argocd"]'
+  --parameters 'commands=["sudo /usr/local/bin/kubectl create namespace argocd --dry-run=client -o yaml | sudo /usr/local/bin/kubectl apply -f -","curl --fail --location --show-error --silent https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.6/manifests/install.yaml | sudo /usr/local/bin/kubectl apply --server-side --force-conflicts -n argocd -f -","sudo /usr/local/bin/kubectl rollout status deployment/argocd-server -n argocd --timeout=5m","sudo /usr/local/bin/kubectl rollout status deployment/argocd-repo-server -n argocd --timeout=5m","sudo /usr/local/bin/kubectl rollout status statefulset/argocd-application-controller -n argocd --timeout=5m","sudo /usr/local/bin/kubectl get pods -n argocd"]'
 ```
 
 Record the returned command ID, then read its result:
