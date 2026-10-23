@@ -37,6 +37,8 @@ services:
     image: redis:8.6.7-alpine3.23
     container_name: courier-redis
     restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     command:
       - redis-server
       - --appendonly
@@ -123,7 +125,7 @@ services:
     volumes:
       - /data/qdrant:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O - http://localhost:6333/healthz >/dev/null"]
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/127.0.0.1/6333'"]
       interval: 15s
       timeout: 5s
       retries: 12
