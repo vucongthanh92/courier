@@ -48,7 +48,10 @@ data "aws_iam_policy_document" "github_oidc_assume" {
     condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [for repository in var.github_repositories : "repo:${var.github_owner}/${repository}:ref:refs/heads/main"]
+      values = [
+        for repository, repository_id in var.github_repositories :
+        "repo:${var.github_owner}@${var.github_owner_id}/${repository}@${repository_id}:ref:refs/heads/main"
+      ]
     }
   }
 }
