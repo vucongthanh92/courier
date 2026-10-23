@@ -13,11 +13,15 @@ data:
       discover:
         find:
           command:
-            - sh
-            - -c
-            - test -f kustomization.yaml && find . -name '*.enc.yaml' -print -quit | grep -q .
+            - /usr/local/bin/kustomize
+            - build
+            - --enable-alpha-plugins
+            - --enable-exec
+            - .
       generate:
         command:
-          - sh
-          - -c
-          - set -o pipefail; kustomize build --enable-alpha-plugins --enable-exec .
+          - /usr/local/bin/kustomize
+          - build
+          - --enable-alpha-plugins
+          - --enable-exec
+          - .
