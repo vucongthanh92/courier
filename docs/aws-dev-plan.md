@@ -295,24 +295,26 @@ runtime sizing, and AWS cost approval are subsequent work.
 - **P7:** GitOps for every app, rollback, controlled node reboot/restore, and
   scaling exercises.
 
-### P2 execution record (2026-10-16)
+### P2 execution record (2026-10-16 to 2026-10-23)
 
 - **Verified:** the Terraform remote-state bucket
   `courier-dev-tfstate-016170038458-ap-southeast-2` and DynamoDB lock table
   `courier-dev-terraform-lock` were created in Sydney. The bucket is the
   shared Terraform state store; the table prevents concurrent Terraform
   changes. Neither stores Courier application data or secrets.
-- **Verified:** the AWS runtime Terraform configuration validates locally and
-  its remote-backend plan reached AWS using the dedicated Terraform profile.
-  It describes 49 creates for the agreed VPC, two ARM64 EC2 instances, 110 GiB
-  of encrypted gp3, ECR, the two application S3 buckets, SSM/IAM roles, and
-  budget/disk alerts.
-- **Not applied:** the runtime plan did not complete because the effective IAM
-  policy for `courier-terraform-bootstrap` denied `ssm:GetParameter` while
-  looking up the current Amazon Linux ARM64 AMI. No P2 runtime resource has
-  been created from that plan. The user must receive the effective required
-  permission (or AdministratorAccess without a restrictive permissions
-  boundary) before a reviewed plan can be applied.
+- **Verified:** after the required IAM permission was granted, the reviewed
+  runtime Terraform apply completed. It created the agreed VPC, two ARM64 EC2
+  instances, 110 GiB of encrypted gp3, ECR repositories, the files and backup
+  S3 buckets, SSM/IAM roles, and budget/disk alerts in `ap-southeast-2`.
+- **Verified:** Application EC2 is `t4g.large` and Data EC2 is `t4g.medium`.
+  Both use stable private addresses in the Courier VPC and can be stopped and
+  started through EC2 to control compute cost. Their public IPv4 addresses are
+  expected to change after a stop/start cycle and are never deployment
+  configuration.
+- **Verified:** the Terraform state backend and DynamoDB lock table remain in
+  use. Terraform currently emits a deprecation warning for its
+  `dynamodb_table` backend setting; this is a future backend-maintenance task,
+  not a deployment failure.
 
 #### K3s network correction
 
@@ -325,6 +327,22 @@ required `iptables-nft`/`nftables` utilities before K3s, and disables EC2
 source/destination checking on the application node. Replacing the Application
 EC2 is safe before application workloads or secrets are installed; the Data
 EC2 and its persistent volume remain intact.
+
+**Verified after replacement:** the Application K3s node is `Ready`; CoreDNS,
+metrics-server, and Traefik are `Running`; `kubectl top nodes` works. The
+default Kubernetes Service endpoint is in `10.245.0.0/16`, confirming that
+the service network no longer collides with the Courier VPC.
+
+### P3 GitOps bootstrap (in progress)
+
+- **Prepared, not yet applied:** the repository pins Argo CD `v3.5.6` for the
+  non-HA AWS development control plane. It is installed as a `ClusterIP`
+  service and accessed only through an SSM tunnel; no Argo CD Security Group
+  ingress rule or Traefik route is planned.
+- **Not yet deployed:** Argo CD repository credentials, SOPS keys and
+  encrypted application secrets, ECR pull authentication for K3s, data-node
+  workloads, and Courier application manifests/images. No application secret
+  values have been placed in Git or provisioned to AWS.
 
 ## Acceptance gates
 
@@ -341,5 +359,6 @@ No phase may claim production-grade HA. The required AWS-dev gates are:
 
 ## Explicit non-actions
 
-This work did not create AWS resources, purchase a domain, select a billed AWS
-service, or write credentials into the repository.
+The completed P2 work created the reviewed AWS dev resources described above.
+It did not purchase a domain or write application credentials into the
+repository.
