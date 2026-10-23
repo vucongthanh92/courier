@@ -38,6 +38,10 @@ main repository-server container cannot read the age key. Its image is pinned
 to `viaductoss/ksops:v4.5.1` and the existing Argo CD `copyutil` init container
 supplies the matching `argocd-cmp-server` binary.
 
+The KSOPS image is deliberately minimal and does not provide `sh`. The plugin
+therefore invokes its verified `/usr/local/bin/kustomize` binary directly for
+both discovery and rendering; do not change these commands to `sh -c`.
+
 After the bootstrap Secret exists, run the reviewed script on the Application
 EC2 as the same operator that administers K3s:
 
