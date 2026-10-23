@@ -1,5 +1,8 @@
 # AWS Dev Environment Plan
 
+For a visual, operations-oriented overview of this plan and its current
+implementation state, read [AWS Dev Platform Guide](devops/aws-dev-platform-guide.md).
+
 ## Status and scope
 
 This is the technical source of truth for Courier's agreed AWS development
