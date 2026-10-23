@@ -30,6 +30,41 @@ aws ssm send-command \
 The command output must identify only the Secret metadata. Do not add a command
 that prints the parameter value or Secret data.
 
+## Configure Argo CD KSOPS
+
+Argo CD's repository server uses a dedicated KSOPS Config Management Plugin
+sidecar. The sidecar is the only component that mounts `argocd-sops-age`; the
+main repository-server container cannot read the age key. Its image is pinned
+to `viaductoss/ksops:v4.5.1` and the existing Argo CD `copyutil` init container
+supplies the matching `argocd-cmp-server` binary.
+
+After the bootstrap Secret exists, run the reviewed script on the Application
+EC2 as the same operator that administers K3s:
+
+```bash
+sudo /usr/local/bin/kubectl apply -f infra/argocd/aws-dev/ksops/plugin-configmap.yaml
+sudo /usr/local/bin/kubectl patch deployment argocd-repo-server \
+  --namespace argocd \
+  --type strategic \
+  --patch-file infra/argocd/aws-dev/ksops/repo-server-ksops-patch.yaml
+sudo /usr/local/bin/kubectl rollout status deployment/argocd-repo-server \
+  --namespace argocd --timeout=5m
+```
+
+The equivalent helper is `infra/argocd/aws-dev/ksops/apply.sh` when this
+repository is available on the host. Reapply this patch after an Argo CD
+reinstallation or a major Argo CD manifest upgrade, then verify the validation
+Application below before deploying any service Secret.
+
+## Validate decryption without an application secret
+
+`k8s/overlays/dev/sops-validation/sops-validation.enc.yaml` contains only a
+non-sensitive sentinel value. It verifies that Argo CD can render an encrypted
+manifest without exposing application credentials. After merging it, apply
+`argocd/applications/sops-validation-dev.yaml` and require the Application to
+be `Healthy` and `Synced`. The resulting `courier-dev/sops-validation` Secret
+is deliberately safe to inspect only for metadata; do not print Secret data.
+
 ## Rotation and recovery
 
 Rotation requires a new age key pair, SSM parameter update, a re-encryption of
