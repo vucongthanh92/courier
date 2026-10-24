@@ -290,8 +290,9 @@ resource "aws_instance" "application" {
   associate_public_ip_address = true
   source_dest_check           = false
   user_data = templatefile("${path.module}/templates/application-user-data.sh.tftpl", {
-    data_private_ip = aws_instance.data.private_ip
-    k3s_version     = var.k3s_version
+    data_private_ip                 = aws_instance.data.private_ip
+    k3s_version                     = var.k3s_version
+    ecr_credential_provider_version = var.ecr_credential_provider_version
   })
   user_data_replace_on_change = true
 

@@ -63,6 +63,12 @@ variable "k3s_version" {
   default     = "v1.37.1+k3s1"
 }
 
+variable "ecr_credential_provider_version" {
+  description = "Pinned Kubernetes AWS ECR credential-provider version; keep its minor version aligned with K3s."
+  type        = string
+  default     = "v1.37.0"
+}
+
 variable "sops_age_parameter_name" {
   description = "SSM SecureString holding the AWS dev Argo CD SOPS age private key. Its value is deliberately not managed by Terraform."
   type        = string

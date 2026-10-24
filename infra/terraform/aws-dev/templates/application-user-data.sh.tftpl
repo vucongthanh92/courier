@@ -3,7 +3,25 @@ set -euxo pipefail
 
 echo "${data_private_ip} data.courier.internal" >> /etc/hosts
 
-dnf install -y iptables-nft nftables amazon-cloudwatch-agent
+dnf install -y iptables-nft nftables amazon-cloudwatch-agent golang
+
+install -d -m 0755 /var/lib/rancher/credentialprovider/bin
+GOBIN=/var/lib/rancher/credentialprovider/bin \
+  go install k8s.io/cloud-provider-aws/cmd/ecr-credential-provider@${ecr_credential_provider_version}
+
+cat > /var/lib/rancher/credentialprovider/config.yaml <<'EOF'
+apiVersion: kubelet.config.k8s.io/v1
+kind: CredentialProviderConfig
+providers:
+  - name: ecr-credential-provider
+    matchImages:
+      - "*.dkr.ecr.*.amazonaws.com"
+      - "*.dkr.ecr.*.amazonaws.com.cn"
+      - "*.dkr.ecr-fips.*.amazonaws.com"
+    defaultCacheDuration: "12h"
+    apiVersion: credentialprovider.kubelet.k8s.io/v1
+EOF
+chmod 0644 /var/lib/rancher/credentialprovider/config.yaml
 
 curl --fail --show-error --silent https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server \
   --write-kubeconfig-mode 0640 \
