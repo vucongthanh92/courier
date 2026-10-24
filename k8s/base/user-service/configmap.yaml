@@ -2,5 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: user-service-runtime
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 data:
   APP_ENV: dev
