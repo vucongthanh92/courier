@@ -41,13 +41,14 @@ WantedBy=multi-user.target
 '
 
 unit_base64="$(printf '%s' "$systemd_unit" | base64 | tr -d '\n')"
-remote_command="sudo systemctl stop $SERVICE_NAME 2>/dev/null || true; echo '$unit_base64' | base64 -d | sudo tee /etc/systemd/system/$SERVICE_NAME >/dev/null; sudo systemctl daemon-reload; sudo systemctl enable --now $SERVICE_NAME; sudo systemctl is-active $SERVICE_NAME; sudo ss -ltn | grep -F 127.0.0.1:$REMOTE_PORT"
+remote_command="sudo systemctl stop $SERVICE_NAME 2>/dev/null || true; echo $unit_base64 | base64 -d | sudo tee /etc/systemd/system/$SERVICE_NAME >/dev/null; sudo systemctl daemon-reload; sudo systemctl enable --now $SERVICE_NAME; sudo systemctl is-active $SERVICE_NAME; sudo ss -ltn | grep -F 127.0.0.1:$REMOTE_PORT"
+remote_command_base64="$(printf '%s' "$remote_command" | base64 | tr -d '\n')"
 
 echo "Configuring the private Argo CD port forward on $INSTANCE_ID..."
 command_id="$(aws ssm send-command \
   --instance-ids "$INSTANCE_ID" \
   --document-name AWS-RunShellScript \
-  --parameters "commands=$remote_command" \
+  --parameters "commands=echo $remote_command_base64 | base64 -d | bash" \
   --region "$AWS_REGION" \
   --profile "$AWS_PROFILE" \
   --query 'Command.CommandId' \
