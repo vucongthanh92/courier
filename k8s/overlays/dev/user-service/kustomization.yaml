@@ -5,6 +5,8 @@ kind: Kustomization
 
 resources:
   - ../../../base/user-service
+  - ../../../../shared/migrations
+  - migration-job.yaml
 
 generators:
   - ksops-generator.yaml

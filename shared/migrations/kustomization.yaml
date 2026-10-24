@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+generatorOptions:
+  disableNameSuffixHash: true
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+
+configMapGenerator:
+  - name: user-service-migrations
+    files:
+      - 001_init_schemas_and_extensions.up.sql
+      - 002_init_enums.up.sql
+      - 003_create_users.up.sql
+      - 004_create_auth_credential.up.sql
+      - 005_create_email_verifications.up.sql
+      - 006_create_identities.up.sql
+      - 007_create_refresh_tokens.up.sql
+      - 008_create_audit_logs.up.sql
+      - 009_create_jwk_key.up.sql
+      - 010_create_mfa_otp.up.sql
+      - 011_create_password_resets.up.sql
+      - 012_create_idempotency.up.sql
+      - 013_create_outbox.up.sql
+      - 014_add_outbox_notify_trigger.up.sql
+      - 015_seed_dev_jwk_key.up.sql

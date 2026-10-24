@@ -1,0 +1,49 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: user-service-migrate
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: postgres:16.15-alpine3.24
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PGHOST
+              value: postgresql
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: user_service
+            - name: PGUSER
+              value: courier_app
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: user-service-migration
+                  key: postgres-password
+            - name: PGSSLMODE
+              value: disable
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              for migration in /migrations/*.up.sql; do
+                echo "Applying ${migration}"
+                psql --set ON_ERROR_STOP=1 --file "${migration}"
+              done
+          volumeMounts:
+            - name: migrations
+              mountPath: /migrations
+              readOnly: true
+      volumes:
+        - name: migrations
+          configMap:
+            name: user-service-migrations
