@@ -50,7 +50,7 @@ kafka-topics:
 ## user: admin
 ## pwd: J3q-dYVlXGBsR7KV
 start-argocd:
-	kubectl port-forward svc/argocd-server -n argocd 8080:443
+	./scripts/open-argocd-dashboard.sh
 
 run-user-service:
 	$(MAKE) -C $(USER_SERVICE_DIR) run-local
