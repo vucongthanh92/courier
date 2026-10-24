@@ -20,7 +20,7 @@ spec:
           args: ["start", "--config=/app/config/dev/config.yaml"]
           envFrom:
             - configMapRef:
-                name: user-service-config
+                name: user-service-runtime
           ports:
             - name: http
               containerPort: 5001
