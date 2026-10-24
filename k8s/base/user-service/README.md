@@ -14,3 +14,7 @@ remains in the ConfigMap.
 
 The health server exposes `/live` and `/ready` on port `7001`. `/live` checks
 only process health; `/ready` also checks database connectivity.
+
+`user-service-runtime` is a separate ConfigMap that sets the non-secret
+`APP_ENV=dev`. It deliberately has a different name from the Secret: Kubernetes
+resource names are shared across kinds within a namespace.
