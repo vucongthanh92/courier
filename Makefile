@@ -47,11 +47,6 @@ kafka-init:
 kafka-topics:
 	docker exec courier-kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
 
-## user: admin
-## pwd: J3q-dYVlXGBsR7KV
-start-argocd:
-	./scripts/open-argocd-dashboard.sh
-
 run-user-service:
 	$(MAKE) -C $(USER_SERVICE_DIR) run-local
 
@@ -128,3 +123,6 @@ stop-courier:
 	done < $(COURIER_PID_FILE); \
 	rm -f $(COURIER_PID_FILE); \
 	echo "Courier local apps stopped."
+
+start-argocd:
+	./scripts/open-argocd-dashboard.sh
